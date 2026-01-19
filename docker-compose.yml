@@ -1,0 +1,45 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hotel-mysql
+    restart: unless-stopped
+    ports:
+      - "3311:3306"
+    environment:
+      MYSQL_DATABASE: hotel
+      MYSQL_USER: hotel
+      MYSQL_PASSWORD: hotel123
+      MYSQL_ROOT_PASSWORD: hotel123
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-photel123"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - hotel-net
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: hotel-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8082:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: hotel
+      PMA_PASSWORD: hotel123
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - hotel-net
+
+volumes:
+  mysql_data:
+
+networks:
+  hotel-net:
