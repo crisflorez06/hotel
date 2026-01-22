@@ -1,13 +1,11 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.EstanciaRequestDTO;
+import com.hotel.dtos.EstanciaEditarRequestDTO;
+import com.hotel.dtos.EstanciaNuevoRequestDTO;
 import com.hotel.services.EstanciaService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/estancias")
@@ -20,8 +18,22 @@ public class EstanciaController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> crearEstancia(@Valid @RequestBody EstanciaRequestDTO request) {
+    public ResponseEntity<Void> crearEstancia(@Valid @RequestBody EstanciaNuevoRequestDTO request) {
         estanciaService.crearEstancia(request);
         return ResponseEntity.status(201).build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Void> editarEstancia(
+            @PathVariable("id") Long id,
+            @RequestBody EstanciaEditarRequestDTO request) {
+        estanciaService.editarEstancia(request, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/eliminar/{id}")
+    public ResponseEntity<Void> eliminarEstancia(@PathVariable("id") Long id) {
+        estanciaService.eliminarEstancia(id);
+        return ResponseEntity.noContent().build();
     }
 }

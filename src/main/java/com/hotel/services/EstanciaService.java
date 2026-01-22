@@ -1,6 +1,7 @@
 package com.hotel.services;
 
-import com.hotel.dtos.EstanciaRequestDTO;
+import com.hotel.dtos.EstanciaEditarRequestDTO;
+import com.hotel.dtos.EstanciaNuevoRequestDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.EstadoOperativo;
@@ -22,31 +23,28 @@ public class EstanciaService {
     private static final Logger logger = LoggerFactory.getLogger(EstanciaService.class);
 
     private final EstanciaRepository estanciaRepository;
-    private final ReservaService reservaService;
     private final ClienteService clienteService;
     private final HabitacionService habitacionService;
-    private final UnidadService unidadService;
     private final AcompananteService acompananteService;
+    private final EstanciaHabitacionService estanciaHabitacionService;
 
 
     public EstanciaService(EstanciaRepository estanciaRepository,
-                           ReservaService reservaService,
                            ClienteService clienteService,
                            AcompananteService acompananteService,
-                           HabitacionService habitacionService, UnidadService unidadService) {
+                           HabitacionService habitacionService, EstanciaHabitacionService estanciaHabitacionService) {
         this.estanciaRepository = estanciaRepository;
-        this.reservaService = reservaService;
         this.clienteService = clienteService;
         this.acompananteService = acompananteService;
         this.habitacionService = habitacionService;
-        this.unidadService = unidadService;
+        this.estanciaHabitacionService = estanciaHabitacionService;
     }
 
     @Transactional
-    public Estancia crearEstancia(EstanciaRequestDTO request) {
+    public Estancia crearEstancia(EstanciaNuevoRequestDTO request) {
 
         logger.info("Verificando disponibilidad para la estancia solicitada");
-        if (!verificarDisponiblidad(request.getCodigo(), request.getTipoUnidad())) {
+        if (!habitacionService.verificarDisponiblidad(request.getCodigo(), request.getTipoUnidad())) {
             throw new IllegalStateException("La unidad o habitacion no está disponible para la estancia.");
         }
 
@@ -56,32 +54,21 @@ public class EstanciaService {
         }
 
         logger.info("Creando estancia para el cliente con ID: {}", request.getIdCliente());
-        Estancia estancia = EstanciaMapper.requestToEntity(request);
-
-        if(request.getIdReserva() != null) {
-            logger.info("Asociando reserva con ID: {} a la estancia", request.getIdReserva());
-            estancia.setReserva(reservaService.buscarPorId(request.getIdReserva()));
-        }
+        Estancia estancia = EstanciaMapper.requestNuevoToEntity(request);
 
         logger.info("Buscando cliente con ID: {}", request.getIdCliente());
         estancia.setCliente(clienteService.buscarPorId(request.getIdCliente()));
 
-        logger.info("Determinando tipo de unidad para la estancia: {}", request.getTipoUnidad());
-        if(request.getTipoUnidad().equals(TipoUnidad.HABITACION)) {
-            logger.info("Llenando una habitacion para la estancia en modo individual");
-            estancia.setModoOcupacion(ModoOcupacion.INDIVIDUAL);
-            estancia.setEstanciaHabitaciones(llenarUnaHabitacion(estancia, request.getCodigo()));
+        logger.info("llenando habitaciones para la estancia");
+        estancia.setEstanciaHabitaciones(estanciaHabitacionService.llenarHabitaciones(estancia, request.getCodigo(), request.getTipoUnidad()));
 
-        } else {
-            logger.info("Llenando todas las habitaciones para la estancia en modo completo");
+        logger.info("Determinando modo de ocupacion para la estancia");
+        estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
 
-            estancia.setModoOcupacion(ModoOcupacion.COMPLETO);
-            estancia.setEstanciaHabitaciones(llenarTodasHabitaciones(estancia, request.getCodigo()));
-        }
+        logger.info("Cambiando estado de las habitaciones asociadas a la estancia a OCUPADO");
+        habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), EstadoOperativo.OCUPADO, request.getTipoUnidad());
 
-        cambiarEstadoHabitacion(estancia.getEstanciaHabitaciones(), EstadoOperativo.OCUPADO);
         logger.info("Llenando acompañantes para la estancia");
-
         estancia.setEstanciaAcompanantes(llenarAcompanantes(estancia, request.getIdAcompanantes()));
 
         logger.info("informacion completa de la estancia creada, idEstancia: {}, clienteId: {}, tipo de ocupacion: {},numeroHabitaciones: {}, numeroAcompanantes: {}",
@@ -95,84 +82,58 @@ public class EstanciaService {
         return estanciaRepository.save(estancia);
     }
 
-    private Boolean verificarDisponiblidad(String codigo, TipoUnidad tipoUnidad) {
-        logger.info("Verificando disponibilidad para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-        if (tipoUnidad.equals(TipoUnidad.HABITACION)) {
-            Habitacion habitacion = habitacionService.buscarPorCodigo(codigo);
-            return habitacion.getEstadoOperativo() == EstadoOperativo.DISPONIBLE;
-        } else {
-            Unidad unidad = unidadService.buscarPorCodigo(codigo);
-            return unidad.getEstadoOperativo() == EstadoOperativo.DISPONIBLE;
+    public Estancia editarEstancia(EstanciaEditarRequestDTO request, Long idEstancia) {
+        logger.info("Editando estancia con id: {}", idEstancia);
+        Estancia estancia = estanciaRepository.findById(idEstancia)
+                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+
+        if (request.getIdCliente() != null) {
+            logger.info("Actualizando cliente de la estancia");
+            estancia.setCliente(clienteService.buscarPorId(request.getIdCliente()));
         }
 
-    }
-
-    private List<EstanciaHabitacion> llenarTodasHabitaciones(Estancia estancia, String codigoUnidad) {
-
-        logger.info("Utilizando metodo llenarTodasHabitaciones con codigoUnidad: {}", codigoUnidad);
-        List<Habitacion> habitaciones = unidadService.buscarHabitacionesPorCodigoUnidad(codigoUnidad);
-
-        return habitaciones.stream()
-                .map(habitacion -> {
-                    EstanciaHabitacion eh = new EstanciaHabitacion();
-                    eh.setEstancia(estancia);
-                    eh.setHabitacion(habitacion);
-                    eh.setEstadoOcupacion(true);
-
-                    logger.info("Estancia de habitacion creada en llenarTodasHabitaciones: {}", eh);
-                    return eh;
-                })
-                .toList();
-    }
-
-
-    private List<EstanciaHabitacion> llenarUnaHabitacion(Estancia estancia, String codigoHabitacion) {
-        logger.info("Utilizando metodo llenarUnaHabitacion con codigoHabitacion: {}", codigoHabitacion);
-        Habitacion habitacion = habitacionService.buscarPorCodigo(codigoHabitacion);
-
-        EstanciaHabitacion eh = new EstanciaHabitacion();
-        eh.setEstancia(estancia);
-        eh.setHabitacion(habitacion);
-        eh.setEstadoOcupacion(true);
-
-        logger.info("Estancia de habitacion creada en llenarUnaHabitacion: {}", eh);
-        return List.of(eh);
-    }
-
-    private void cambiarEstadoHabitacion(List<EstanciaHabitacion> estanciaHabitaciones, EstadoOperativo estado) {
-        logger.info("Cambiando estado de habitaciones asociadas a la estancia a: {}", estado);
-        for (EstanciaHabitacion eh : estanciaHabitaciones) {
-            Habitacion habitacion = eh.getHabitacion();
-            habitacion.setEstadoOperativo(estado);
+        if (request.getEntradaReal() != null) {
+            logger.info("Actualizando entrada real de la estancia");
+            estancia.setEntradaReal(request.getEntradaReal());
         }
 
-        logger.info("cambiando estado de la unidad asociada a la habitacion");
+        if (request.getSalidaEstimada() != null) {
+            logger.info("Actualizando salida estimada de la estancia");
+            estancia.setSalidaEstimada(request.getSalidaEstimada());
+        }
 
-        cambiarEstadoUnidad(estanciaHabitaciones);
+        if (request.getNotas() != null) {
+            logger.info("Actualizando notas de la estancia");
+            estancia.setNotas(estancia.getNotas() + " | Notas editadas: " + request.getNotas());
+        }
 
+        return estanciaRepository.save(estancia);
     }
 
-    private void cambiarEstadoUnidad(List<EstanciaHabitacion> estanciaHabitaciones) {
+    public Void eliminarEstancia(Long idEstancia) {
+        logger.info("Eliminando estancia con id: {}", idEstancia);
+        Estancia estancia = estanciaRepository.findById(idEstancia)
+                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
 
-        List<Habitacion> habitaciones = estanciaHabitaciones.stream()
-                .map(EstanciaHabitacion::getHabitacion)
-                .toList();
+        String codigoUnidad = estancia.getEstanciaHabitaciones().getFirst().getHabitacion().getUnidad().getCodigo();
+        TipoUnidad tipoUnidad = estancia.getEstanciaHabitaciones().getFirst().getHabitacion().getUnidad().getTipo();
 
-        EstadoOperativo primerEstado = habitaciones.getFirst().getEstadoOperativo();
+        habitacionService.cambiarEstadoHabitaciones(codigoUnidad, EstadoOperativo.DISPONIBLE , tipoUnidad);
+        estanciaHabitacionService.vaciarHabitaciones(estancia);
 
-        boolean todosIguales = habitaciones.stream()
-                .allMatch(h -> h.getEstadoOperativo() == primerEstado);
-
-        EstadoOperativo estadoCalculado = todosIguales
-                ? primerEstado
-                : EstadoOperativo.PARCIALMENTE;
-
-        String codigoUnidad = habitaciones.getFirst().getUnidad().getCodigo();
-        logger.info("Unidad {} -> Estado calculado: {}", codigoUnidad, estadoCalculado);
-
-        Unidad unidad = habitaciones.getFirst().getUnidad();
-        unidad.setEstadoOperativo(estadoCalculado);
+        estancia.setActivo(false);
+        estanciaRepository.save(estancia);
+        return null;
     }
+
+
+
+
+    private ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {
+
+        return tipoUnidad == TipoUnidad.HABITACION ? ModoOcupacion.INDIVIDUAL : ModoOcupacion.COMPLETO;
+    }
+
 
     private List<EstanciaAcompanante> llenarAcompanantes(Estancia estancia, List<Long> idsAcompanantes) {
         List<EstanciaAcompanante> acompanantes = new ArrayList<>();

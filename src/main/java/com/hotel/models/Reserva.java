@@ -1,15 +1,9 @@
 package com.hotel.models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.Table;
+import com.hotel.models.enums.CanalReserva;
+import com.hotel.models.enums.EstadoReserva;
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -20,7 +14,11 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "reservas")
+@Table(name = "reservas",
+        indexes = {
+                @Index(name = "idx_reservas_cliente", columnList = "id_cliente")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -49,27 +47,34 @@ public class Reserva {
     @Column(name = "salida_estimada", nullable = false)
     private LocalDateTime salidaEstimada;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private String estado;
+    private EstadoReserva estado;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "canal_reserva", nullable = false, length = 30)
-    private String canalReserva;
+    private CanalReserva canalReserva;
 
     @Column(columnDefinition = "text")
-    private String observaciones;
+    private String notas;
 
-    @OneToMany(mappedBy = "reserva")
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(
+            name = "reserva_habitaciones",
+            joinColumns = @JoinColumn(name = "id_reserva"),
+            inverseJoinColumns = @JoinColumn(name = "id_habitacion")
+    )
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<ReservaHabitacion> reservaHabitaciones;
+    private List<Habitacion> habitaciones;
 
-    @OneToMany(mappedBy = "reserva")
+    @OneToOne(mappedBy = "reserva")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<Estancia> estancias;
+    private Estancia estancia;
 
-    @OneToMany(mappedBy = "reserva")
+    @OneToOne(mappedBy = "reserva")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<Pago> pagos;
+    private Pago pago;
 }

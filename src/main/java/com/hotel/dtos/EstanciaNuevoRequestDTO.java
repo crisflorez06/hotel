@@ -3,14 +3,13 @@ package com.hotel.dtos;
 import com.hotel.models.enums.TipoUnidad;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-public class EstanciaRequestDTO {
+public class EstanciaNuevoRequestDTO {
 
 
     @NotNull(message = "tipoUnidad es obligatorio")
@@ -18,8 +17,6 @@ public class EstanciaRequestDTO {
 
     @NotBlank(message = "codigo es obligatorio")
     private String codigo;
-
-    private Long idReserva;
 
     @NotNull(message = "idCliente es obligatorio")
     private Long idCliente;
@@ -33,5 +30,7 @@ public class EstanciaRequestDTO {
     private List<Long> idAcompanantes;
 
     private String notas;
+
+    private PagoNuevoRequestDTO pago;
 
 }

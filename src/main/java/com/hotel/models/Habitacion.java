@@ -6,8 +6,10 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
@@ -22,7 +24,11 @@ import lombok.ToString;
 import com.hotel.models.enums.EstadoOperativo;
 
 @Entity
-@Table(name = "habitaciones")
+@Table(name = "habitaciones",
+        indexes = {
+                @Index(name = "idx_habitaciones_unidad", columnList = "id_unidad")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -46,10 +52,10 @@ public class Habitacion {
     @Column(name = "estado_operativo", nullable = false, length = 20)
     private EstadoOperativo estadoOperativo;
 
-    @OneToMany(mappedBy = "habitacion")
+    @ManyToMany(mappedBy = "habitaciones")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<ReservaHabitacion> reservaHabitaciones;
+    private List<Reserva> reservas;
 
     @OneToMany(mappedBy = "habitacion")
     @ToString.Exclude

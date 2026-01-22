@@ -14,7 +14,12 @@ import lombok.Setter;
 import lombok.ToString;
 
 @Entity
-@Table(name = "estancias")
+@Table(name = "estancias",
+        indexes = {
+                @Index(name = "idx_estancias_reserva", columnList = "id_reserva"),
+                @Index(name = "idx_estancias_cliente", columnList = "id_cliente")
+        }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -28,8 +33,8 @@ public class Estancia {
     @Column(name = "codigo_folio", nullable = false, unique = true, length = 30)
     private String codigoFolio;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_reserva")
+    @OneToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "id_reserva", unique = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Reserva reserva;

@@ -82,10 +82,10 @@ public class DataInitializer implements CommandLineRunner {
 
         Cliente cliente = buildCliente();
         clienteRepository.save(cliente);
-
+/*
         Reserva reserva = buildReserva(cliente);
         reservaRepository.save(reserva);
-
+*/
         List<Acompanante> acompanantes = new ArrayList<>();
         acompanantes.add(buildAcompanante("Laura", "Perez"));
         acompanantes.add(buildAcompanante("Carlos", "Gomez"));
@@ -131,7 +131,7 @@ public class DataInitializer implements CommandLineRunner {
         cliente.setCreadoEn(LocalDateTime.now());
         return cliente;
     }
-
+/*
     private Reserva buildReserva(Cliente cliente) {
         Reserva reserva = new Reserva();
         reserva.setCodigo("RES-1001");
@@ -143,7 +143,7 @@ public class DataInitializer implements CommandLineRunner {
         reserva.setCanalReserva("WEB");
         reserva.setObservaciones("Reserva inicial de prueba");
         return reserva;
-    }
+    }*/
 
     private Acompanante buildAcompanante(String nombres, String apellidos) {
         Acompanante acompanante = new Acompanante();
