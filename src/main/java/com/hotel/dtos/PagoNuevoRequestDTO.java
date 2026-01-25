@@ -2,6 +2,7 @@ package com.hotel.dtos;
 
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.MedioPago;
+import com.hotel.models.enums.TipoPago;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -10,6 +11,9 @@ import java.time.LocalDateTime;
 
 @Data
 public class PagoNuevoRequestDTO {
+
+    @NotNull(message = "tipoPago es obligatorio")
+    private TipoPago tipoPago;
 
     @NotNull(message = "monto es obligatorio")
     private BigDecimal monto;

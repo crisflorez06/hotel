@@ -1,7 +1,9 @@
 package com.hotel.controllers;
 
+import com.hotel.dtos.EstanciaDTO;
 import com.hotel.dtos.EstanciaEditarRequestDTO;
 import com.hotel.dtos.EstanciaNuevoRequestDTO;
+import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.EstanciaService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -35,5 +37,12 @@ public class EstanciaController {
     public ResponseEntity<Void> eliminarEstancia(@PathVariable("id") Long id) {
         estanciaService.eliminarEstancia(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/activa")
+    public ResponseEntity<EstanciaDTO> obtenerEstancia(
+            @RequestParam("codigo") String codigo,
+            @RequestParam("tipoUnidad") TipoUnidad tipoUnidad) {
+        return ResponseEntity.ok(estanciaService.obtenerEstancia(codigo, tipoUnidad));
     }
 }

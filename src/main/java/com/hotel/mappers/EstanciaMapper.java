@@ -1,5 +1,6 @@
 package com.hotel.mappers;
 
+import com.hotel.dtos.EstanciaDTO;
 import com.hotel.dtos.EstanciaNuevoRequestDTO;
 import com.hotel.models.Estancia;
 
@@ -16,9 +17,22 @@ public class EstanciaMapper {
         entity.setSalidaEstimada(request.getSalidaEstimada());
         entity.setNotas("Notas al registrar: " + request.getNotas());
         entity.setActivo(true);
-        entity.setPago(request.getPago() != null ? PagoMapper.requestNuevoToEntity(request.getPago()) : null);
 
         return entity;
+    }
+
+    public static EstanciaDTO entityToDTO(Estancia entity) {
+        EstanciaDTO dto = new EstanciaDTO();
+
+        dto.setId(entity.getId());
+        dto.setCodigoFolio(entity.getCodigoFolio());
+        dto.setFechaCreacion(entity.getFechaCreacion());
+        dto.setEntradaReal(entity.getEntradaReal());
+        dto.setSalidaEstimada(entity.getSalidaEstimada());
+        dto.setModoOcupacion(entity.getModoOcupacion());
+        dto.setNotas(entity.getNotas());
+
+        return dto;
     }
 
     private static String generateCodigoEstancia() {

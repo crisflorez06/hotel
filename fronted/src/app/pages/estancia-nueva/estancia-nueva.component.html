@@ -1,0 +1,115 @@
+<section class="estancia">
+  <div class="toast" *ngIf="mostrarToast">{{ toastMensaje }}</div>
+  <header class="estancia__header">
+    <div>
+      <h1>Nueva estancia</h1>
+      <p>Registro para recepcion.</p>
+    </div>
+    <button type="button" class="btn-secundario" (click)="volver()">Volver</button>
+  </header>
+
+  <form class="estancia__form" (ngSubmit)="guardar()">
+    <div class="campo">
+      <label>Codigo</label>
+      <input type="text" [value]="codigo" disabled />
+    </div>
+
+    <div class="campo">
+      <label>Tipo de unidad</label>
+      <input type="text" [value]="tipoUnidad" disabled />
+    </div>
+
+    <div class="campo">
+      <label>Id cliente *</label>
+      <input type="number" [(ngModel)]="idCliente" name="idCliente" required />
+    </div>
+
+    <div class="campo">
+      <label>Entrada real *</label>
+      <input
+        type="text"
+        mwlFlatpickr
+        [(ngModel)]="entradaReal"
+        name="entradaReal"
+        [enableTime]="true"
+        [time24hr]="true"
+        [dateFormat]="'Y-m-d H:i'"
+        placeholder="YYYY-MM-DD HH:mm"
+        required
+      />
+    </div>
+
+    <div class="campo">
+      <label>Salida estimada *</label>
+      <input
+        type="text"
+        mwlFlatpickr
+        [(ngModel)]="salidaEstimada"
+        name="salidaEstimada"
+        [enableTime]="true"
+        [time24hr]="true"
+        [dateFormat]="'Y-m-d H:i'"
+        placeholder="YYYY-MM-DD HH:mm"
+        required
+      />
+    </div>
+
+    <div class="campo">
+      <label>Ids de acompanantes (separados por coma)</label>
+      <input type="text" [(ngModel)]="idAcompanantes" name="idAcompanantes" />
+    </div>
+
+    <div class="campo campo--full">
+      <label>Notas</label>
+      <textarea rows="3" [(ngModel)]="notas" name="notas"></textarea>
+    </div>
+
+    <div class="campo campo--full">
+      <label>
+        <input type="checkbox" [(ngModel)]="conPago" name="conPago" />
+        Registrar pago
+      </label>
+    </div>
+
+    <div class="pago" *ngIf="conPago">
+      <div class="campo">
+        <label>Tipo pago</label>
+        <input type="text" [value]="tipoPago" disabled />
+      </div>
+      <div class="campo">
+        <label>Monto *</label>
+        <input type="number" [(ngModel)]="monto" name="monto" />
+      </div>
+      <div class="campo">
+        <label>Medio de pago</label>
+        <select [(ngModel)]="medioPago" name="medioPago">
+          <option *ngFor="let medio of mediosPago" [value]="medio">{{ medio }}</option>
+        </select>
+      </div>
+    <div class="campo">
+      <label>Fecha pago *</label>
+      <input
+        type="text"
+        mwlFlatpickr
+        [(ngModel)]="fechaPago"
+        name="fechaPago"
+        [enableTime]="true"
+        [time24hr]="true"
+        [dateFormat]="'Y-m-d H:i'"
+        placeholder="YYYY-MM-DD HH:mm"
+      />
+    </div>
+      <div class="campo">
+        <label>Estado</label>
+        <select [(ngModel)]="estadoPago" name="estadoPago">
+          <option *ngFor="let estado of estadosPago" [value]="estado">{{ estado }}</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+    <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
+
+    <button type="submit" [disabled]="guardando">Guardar estancia</button>
+  </form>
+</section>

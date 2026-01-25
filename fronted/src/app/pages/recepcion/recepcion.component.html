@@ -1,0 +1,174 @@
+<section class="recepcion">
+  <header class="recepcion__header">
+    <div>
+      <h1>Recepcion</h1>
+      <p>Estado de unidades y habitaciones.</p>
+    </div>
+  </header>
+
+  <form class="recepcion__filtros" (ngSubmit)="buscarUnidades()">
+    <div class="filtro">
+      <label for="filtro-tipo">Tipo de unidad</label>
+      <select id="filtro-tipo" [(ngModel)]="filtroTipo" name="filtroTipo">
+        <option value="">Todas</option>
+        <option *ngFor="let tipo of tiposUnidad" [value]="tipo.value">{{ tipo.label }}</option>
+      </select>
+    </div>
+
+    <div class="filtro">
+      <label for="filtro-estado">Estado</label>
+      <select
+        id="filtro-estado"
+        multiple
+        [(ngModel)]="filtroEstados"
+        name="filtroEstados"
+      >
+        <option *ngFor="let estado of estadosOperativos" [value]="estado">{{ estado }}</option>
+      </select>
+    </div>
+
+    <div class="filtro">
+      <label for="filtro-piso">Piso</label>
+      <select id="filtro-piso" multiple [(ngModel)]="filtroPisos" name="filtroPisos">
+        <option *ngFor="let piso of pisos" [value]="piso">{{ piso }}</option>
+      </select>
+    </div>
+
+    <div class="filtro filtro--codigo">
+      <label for="filtro-codigo">Codigo</label>
+      <input
+        id="filtro-codigo"
+        type="text"
+        [(ngModel)]="filtroCodigo"
+        name="filtroCodigo"
+        placeholder="Ej: A-101"
+      />
+    </div>
+
+    <div class="filtro__acciones">
+      <button type="submit">Buscar</button>
+      <button type="button" class="btn-secundario" (click)="limpiarFiltros()">Limpiar</button>
+    </div>
+  </form>
+
+  <p class="recepcion__estado" *ngIf="cargando">Cargando habitaciones...</p>
+  <p class="recepcion__estado recepcion__estado--error" *ngIf="!cargando && error">
+    {{ error }}
+  </p>
+
+  <div class="recepcion__grid" *ngIf="!cargando && !error">
+    <article
+      class="unidad"
+      [ngClass]="estadoClass(unidad.estado)"
+      *ngFor="let unidad of unidades; trackBy: trackByUnidad"
+      (click)="abrirDetalle(unidad)"
+    >
+      <header class="unidad__header">
+        <div>
+          <h2>{{ unidad.codigo }}</h2>
+        </div>
+        <span class="unidad__estado" [ngClass]="estadoClass(unidad.estado)">{{ unidad.estado }}</span>
+      </header>
+
+      <div class="unidad__meta">Habitaciones</div>
+
+      <ul class="unidad__habitaciones unidad__habitaciones--circulos">
+        <li
+          class="habitacion"
+          *ngFor="let habitacion of unidad.habitaciones; trackBy: trackByHabitacion"
+        >
+          <span class="habitacion__circulo" [ngClass]="estadoClass(habitacion.estado)">
+            {{ habitacion.codigo }}
+          </span>
+        </li>
+      </ul>
+
+    </article>
+  </div>
+</section>
+
+<div class="modal-backdrop" *ngIf="unidadSeleccionada as unidad" (click)="cerrarDetalle()">
+  <div class="recepcion-modal" (click)="mantenerModal($event)">
+    <header class="recepcion-modal__header">
+      <div>
+        <h3>{{ unidad.codigo }}</h3>
+        <span>{{ unidad.tipo }}</span>
+      </div>
+      <button type="button" class="recepcion-modal__cerrar" (click)="cerrarDetalle()">Cerrar</button>
+    </header>
+
+    <div class="recepcion-modal__meta">
+      <span>Estado: {{ unidad.estado }}</span>
+      <span>Piso: {{ unidad.piso.replace('PISO_', '') }}</span>
+      <span>Habitaciones: {{ unidad.habitaciones.length }}</span>
+    </div>
+
+    <div class="recepcion-modal__lista">
+      <h4>Habitaciones</h4>
+      <ul>
+        <li *ngFor="let habitacion of unidad.habitaciones">
+          <span>{{ habitacion.codigo }}</span>
+          <span [ngClass]="estadoClass(habitacion.estado)">{{ habitacion.estado }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="recepcion-modal__acciones">
+      <button type="button" class="btn-secundario" (click)="verEstancia(unidad)">
+        Ver estancia
+      </button>
+      <button
+        type="button"
+        *ngIf="!esNoDisponible(unidad.estado)"
+        [routerLink]="['/estancias/nueva']"
+        [queryParams]="{ codigo: unidad.codigo, tipo: unidad.tipo }"
+      >
+        Crear estancia
+      </button>
+    </div>
+
+    <div class="recepcion-modal__estancia">
+      <p class="recepcion-modal__estado" *ngIf="estanciaCargando">Cargando estancia...</p>
+      <p
+        class="recepcion-modal__estado recepcion-modal__estado--error"
+        *ngIf="!estanciaCargando && estanciaError"
+      >
+        {{ estanciaError }}
+      </p>
+
+      <div class="recepcion-modal__detalle" *ngIf="estanciaDetalle">
+        <h4>Estancia activa</h4>
+        <div class="recepcion-modal__grid">
+          <span>Folio: {{ estanciaDetalle.codigoFolio }}</span>
+          <span>Modo: {{ estanciaDetalle.modoOcupacion }}</span>
+          <span>Entrada: {{ estanciaDetalle.entradaReal }}</span>
+          <span>Salida: {{ estanciaDetalle.salidaEstimada }}</span>
+        </div>
+
+        <div class="recepcion-modal__lista">
+          <h4>Ocupantes</h4>
+          <ul>
+            <li *ngFor="let ocupante of estanciaDetalle.ocupantes">
+              <span>{{ ocupante.nombres }} {{ ocupante.apellidos }}</span>
+              <span>{{ ocupante.tipoDocumento }} {{ ocupante.numeroDocumento }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="recepcion-modal__acciones recepcion-modal__acciones--estancia">
+          <button
+            type="button"
+            class="btn-peligro"
+            (click)="eliminarEstancia()"
+            [disabled]="eliminandoEstancia"
+          >
+            Eliminar estancia
+          </button>
+        </div>
+        <p class="recepcion-modal__estado recepcion-modal__estado--error" *ngIf="eliminarError">
+          {{ eliminarError }}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

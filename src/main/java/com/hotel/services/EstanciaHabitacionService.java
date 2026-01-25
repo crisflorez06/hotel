@@ -5,6 +5,7 @@ import com.hotel.models.EstanciaHabitacion;
 import com.hotel.models.Habitacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.EstanciaHabitacionRepository;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -48,6 +49,11 @@ public class EstanciaHabitacionService {
         return estanciaHabitacionRepository.saveAll(estanciaHabitaciones);
     }
 
+    public Estancia obtenerEstanciaActivaPorHabitacionId(Long habitacionId) {
+        return estanciaHabitacionRepository.findActiveEstanciaByHabitacionId(habitacionId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "No hay estancia activa para la habitacion con id: " + habitacionId));
+    }
 
     private List<EstanciaHabitacion> buscarEstanciaHabitacionesPorEstancia(Estancia estancia) {
         return estanciaHabitacionRepository.findByEstancia_Id(estancia.getId());

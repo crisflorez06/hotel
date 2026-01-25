@@ -1,8 +1,11 @@
 package com.hotel.services;
 
+import com.hotel.dtos.EstanciaDTO;
 import com.hotel.dtos.EstanciaEditarRequestDTO;
 import com.hotel.dtos.EstanciaNuevoRequestDTO;
+import com.hotel.dtos.OcupanteDTO;
 import com.hotel.mappers.EstanciaMapper;
+import com.hotel.mappers.OcupanteMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.ModoOcupacion;
@@ -27,17 +30,24 @@ public class EstanciaService {
     private final HabitacionService habitacionService;
     private final AcompananteService acompananteService;
     private final EstanciaHabitacionService estanciaHabitacionService;
+    private final PagoService pagoService;
+    private final UnidadService unidadService;
 
 
     public EstanciaService(EstanciaRepository estanciaRepository,
                            ClienteService clienteService,
                            AcompananteService acompananteService,
-                           HabitacionService habitacionService, EstanciaHabitacionService estanciaHabitacionService) {
+                           HabitacionService habitacionService,
+                           EstanciaHabitacionService estanciaHabitacionService,
+                           PagoService pagoService,
+                           UnidadService unidadService) {
         this.estanciaRepository = estanciaRepository;
         this.clienteService = clienteService;
         this.acompananteService = acompananteService;
         this.habitacionService = habitacionService;
         this.estanciaHabitacionService = estanciaHabitacionService;
+        this.pagoService = pagoService;
+        this.unidadService = unidadService;
     }
 
     @Transactional
@@ -79,7 +89,15 @@ public class EstanciaService {
                 estancia.getEstanciaAcompanantes().size()
         );
 
-        return estanciaRepository.save(estancia);
+        Estancia estanciaGuardada = estanciaRepository.save(estancia);
+
+        if(request.getPago() != null) {
+            logger.info("Registrando pago asociado a la estancia");
+            Pago pago = pagoService.crearPago(request.getPago(), estanciaGuardada.getId());
+            estancia.setPago(pago);
+        }
+
+        return estanciaGuardada;
     }
 
     public Estancia editarEstancia(EstanciaEditarRequestDTO request, Long idEstancia) {
@@ -124,6 +142,52 @@ public class EstanciaService {
         estancia.setActivo(false);
         estanciaRepository.save(estancia);
         return null;
+    }
+
+    public EstanciaDTO obtenerEstancia(String codigo, TipoUnidad tipoUnidad) {
+        logger.info("[obtenerEstanciaPorUnidad] Obteniendo estancia para la unidad con codigo: {}", codigo);
+
+        Estancia estancia;
+        if (tipoUnidad == TipoUnidad.HABITACION) {
+            logger.info("[obtenerEstanciaPorUnidad] Buscando estancia por habitacion");
+            Habitacion habitacion = habitacionService.buscarPorCodigo(codigo);
+            estancia = obtenerEstanciaPorHabitacion(habitacion.getId());
+
+        } else {
+            Unidad unidad = unidadService.buscarPorCodigo(codigo);
+            String codigoHabitacion = unidad.getHabitaciones().getFirst().getCodigo();
+            logger.info("[obtenerEstanciaPorUnidad] Buscando estancia por habitacion asociada a la unidad, codigoHabitacion: {}", codigoHabitacion);
+            Habitacion habitacion = habitacionService.buscarPorCodigo(codigoHabitacion);
+            estancia = obtenerEstanciaPorHabitacion(habitacion.getId());
+        }
+
+        EstanciaDTO estanciaDTO = EstanciaMapper.entityToDTO(estancia);
+        estanciaDTO.setOcupantes(obtenerOcupantesDeEstancia(estancia.getId()));
+
+
+        return estanciaDTO;
+    }
+
+    private Estancia obtenerEstanciaPorHabitacion(Long idHabitacion) {
+        logger.info("[obtenerEstanciaPorHabitacion] Obteniendo estancia para la habitacion con id: {}", idHabitacion);
+        Estancia estancia = estanciaHabitacionService.obtenerEstanciaActivaPorHabitacionId(idHabitacion);
+
+        logger.info("Estancia obtenida: idEstancia: {}, clienteId: {}", estancia.getId(), estancia.getCliente().getId());
+        return estancia;
+    }
+
+    private List<OcupanteDTO> obtenerOcupantesDeEstancia(Long idEstancia) {
+        logger.info("[obtenerOcupantesDeEstancia] Obteniendo ocupantes para la estancia con id: {}", idEstancia);
+        Estancia estancia = estanciaRepository.findById(idEstancia)
+                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+
+        List<Acompanante> acompanantes = acompananteService.buscarPorEstanciaId(idEstancia);
+        Cliente cliente = clienteService.buscarClientePorEstancia(idEstancia);
+
+        List<OcupanteDTO> ocupantes = OcupanteMapper.listaAcompananteToOcupanteDto(acompanantes);
+        ocupantes.add(OcupanteMapper.clienteToOcupanteDto(cliente));
+
+        return ocupantes;
     }
 
 
