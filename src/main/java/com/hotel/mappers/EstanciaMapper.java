@@ -31,6 +31,7 @@ public class EstanciaMapper {
         dto.setSalidaEstimada(entity.getSalidaEstimada());
         dto.setModoOcupacion(entity.getModoOcupacion());
         dto.setNotas(entity.getNotas());
+        dto.setOcupantes(OcupanteMapper.listaOcupanteToDto(entity.getOcupantes()));
 
         return dto;
     }

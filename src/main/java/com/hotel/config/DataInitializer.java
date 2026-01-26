@@ -1,17 +1,13 @@
 package com.hotel.config;
 
 import com.hotel.models.Habitacion;
-import com.hotel.models.Acompanante;
-import com.hotel.models.Cliente;
+import com.hotel.models.Ocupante;
 import com.hotel.models.Reserva;
 import com.hotel.models.Unidad;
-import com.hotel.models.enums.EstadoOperativo;
-import com.hotel.models.enums.Piso;
-import com.hotel.models.enums.TipoUnidad;
-import com.hotel.repositories.AcompananteRepository;
-import com.hotel.repositories.ClienteRepository;
+import com.hotel.models.enums.*;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.HabitacionRepository;
+import com.hotel.repositories.OcupanteRepository;
 import com.hotel.repositories.ReservaRepository;
 import com.hotel.repositories.UnidadRepository;
 import java.util.ArrayList;
@@ -19,6 +15,7 @@ import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -29,34 +26,31 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UnidadRepository unidadRepository;
     private final HabitacionRepository habitacionRepository;
-    private final ClienteRepository clienteRepository;
+    private final OcupanteRepository ocupanteRepository;
     private final ReservaRepository reservaRepository;
     private final EstanciaRepository estanciaRepository;
-    private final AcompananteRepository acompananteRepository;
 
     public DataInitializer(
             UnidadRepository unidadRepository,
             HabitacionRepository habitacionRepository,
-            ClienteRepository clienteRepository,
+            OcupanteRepository ocupanteRepository,
             ReservaRepository reservaRepository,
-            EstanciaRepository estanciaRepository,
-            AcompananteRepository acompananteRepository) {
+            EstanciaRepository estanciaRepository) {
         this.unidadRepository = unidadRepository;
         this.habitacionRepository = habitacionRepository;
-        this.clienteRepository = clienteRepository;
+        this.ocupanteRepository = ocupanteRepository;
         this.reservaRepository = reservaRepository;
         this.estanciaRepository = estanciaRepository;
-        this.acompananteRepository = acompananteRepository;
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
         if (unidadRepository.count() > 0
                 || habitacionRepository.count() > 0
-                || clienteRepository.count() > 0
+                || ocupanteRepository.count() > 0
                 || reservaRepository.count() > 0
-                || estanciaRepository.count() > 0
-                || acompananteRepository.count() > 0) {
+                || estanciaRepository.count() > 0) {
             return;
         }
 
@@ -80,16 +74,17 @@ public class DataInitializer implements CommandLineRunner {
         }
         habitacionRepository.saveAll(habitaciones);
 
-        Cliente cliente = buildCliente();
-        clienteRepository.save(cliente);
-/*
-        Reserva reserva = buildReserva(cliente);
+        List<Ocupante> ocupantes = new ArrayList<>();
+        ocupantes.add(buildOcupante("Juan", "Rodriguez", "123456789", TipoOcupante.CLIENTE));
+        ocupantes.add(buildOcupante("Laura", "Perez", "80000000", TipoOcupante.ACOMPANANTE));
+        ocupantes.add(buildOcupante("Carlos", "Gomez", "80000001", TipoOcupante.ACOMPANANTE));
+        ocupanteRepository.saveAll(ocupantes);
+
+        Ocupante titular = ocupantes.getFirst();
+        List<Habitacion> habitacionesReserva = new ArrayList<>();
+        habitacionesReserva.add(habitaciones.getFirst());
+        Reserva reserva = buildReserva(titular, habitacionesReserva);
         reservaRepository.save(reserva);
-*/
-        List<Acompanante> acompanantes = new ArrayList<>();
-        acompanantes.add(buildAcompanante("Laura", "Perez"));
-        acompanantes.add(buildAcompanante("Carlos", "Gomez"));
-        acompananteRepository.saveAll(acompanantes);
 
     }
 
@@ -120,40 +115,32 @@ public class DataInitializer implements CommandLineRunner {
         habitaciones.add(habitacion);
     }
 
-    private Cliente buildCliente() {
-        Cliente cliente = new Cliente();
-        cliente.setNombres("Juan");
-        cliente.setApellidos("Rodriguez");
-        cliente.setTipoDocumento("CC");
-        cliente.setNumeroDocumento("123456789");
-        cliente.setTelefono("3000000000");
-        cliente.setEmail("juan.rodriguez@example.com");
-        cliente.setCreadoEn(LocalDateTime.now());
-        return cliente;
+    private Ocupante buildOcupante(String nombres, String apellidos, String documento, TipoOcupante tipoOcupante) {
+        Ocupante ocupante = new Ocupante();
+        ocupante.setNombres(nombres);
+        ocupante.setApellidos(apellidos);
+        ocupante.setTipoDocumento(TipoDocumento.CC);
+        ocupante.setNumeroDocumento(documento);
+        ocupante.setTelefono("3000000000");
+        ocupante.setEmail(nombres.toLowerCase() + "." + apellidos.toLowerCase() + "@example.com");
+        ocupante.setTipoOcupante(tipoOcupante);
+        ocupante.setCreadoEn(LocalDateTime.now());
+        return ocupante;
     }
-/*
-    private Reserva buildReserva(Cliente cliente) {
+
+    private Reserva buildReserva(Ocupante ocupante, List<Habitacion> habitaciones) {
         Reserva reserva = new Reserva();
-        reserva.setCodigo("RES-1001");
-        reserva.setCliente(cliente);
+        reserva.setCodigo("RES-" + System.currentTimeMillis());
+        reserva.setOcupante(ocupante);
+        reserva.setNumeroPersonas(2);
         reserva.setFechaCreacion(LocalDateTime.now());
         reserva.setEntradaEstimada(LocalDateTime.now().plusDays(1));
         reserva.setSalidaEstimada(LocalDateTime.now().plusDays(3));
-        reserva.setEstado("CONFIRMADA");
-        reserva.setCanalReserva("WEB");
-        reserva.setObservaciones("Reserva inicial de prueba");
+        reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reserva.setCanalReserva(CanalReserva.MOSTRADOR);
+        reserva.setNotas("Reserva inicial de prueba");
+        reserva.setModoOcupacion(ModoOcupacion.INDIVIDUAL);
+        reserva.setHabitaciones(habitaciones);
         return reserva;
-    }*/
-
-    private Acompanante buildAcompanante(String nombres, String apellidos) {
-        Acompanante acompanante = new Acompanante();
-        acompanante.setNombres(nombres);
-        acompanante.setApellidos(apellidos);
-        acompanante.setTipoDocumento("CC");
-        acompanante.setNumeroDocumento("80000000");
-        acompanante.setTelefono("3000000000");
-        acompanante.setEmail(nombres.toLowerCase() + "." + apellidos.toLowerCase() + "@example.com");
-        acompanante.setCreadoEn(LocalDateTime.now());
-        return acompanante;
     }
 }

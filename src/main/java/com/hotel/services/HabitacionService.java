@@ -11,6 +11,7 @@ import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.HabitacionRepository;
 import com.hotel.specifications.HabitacionSpecification;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class HabitacionService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EstanciaService.class);
+    private static final Logger logger = LoggerFactory.getLogger(HabitacionService.class);
 
     private final HabitacionRepository habitacionRepository;
     private final UnidadService unidadService;
@@ -87,6 +88,5 @@ public class HabitacionService {
 
         return habitaciones;
     }
-
 
 }

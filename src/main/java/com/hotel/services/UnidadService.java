@@ -12,6 +12,7 @@ import com.hotel.repositories.UnidadRepository;
 import com.hotel.specifications.UnidadSpecification;
 import jakarta.persistence.EntityNotFoundException;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -22,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class UnidadService {
 
-    private static final Logger logger = LoggerFactory.getLogger(EstanciaService.class);
+    private static final Logger logger = LoggerFactory.getLogger(UnidadService.class);
 
     private final UnidadRepository unidadRepository;
 
@@ -95,5 +96,7 @@ public class UnidadService {
         logger.info("Habitaciones de la unidad despues de la actualizacion: {}", habitacionesUnidad);
         return habitacionesUnidad;
     }
+
+
 
 }

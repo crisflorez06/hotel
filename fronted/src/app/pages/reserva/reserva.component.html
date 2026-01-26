@@ -1,0 +1,49 @@
+<section class="reserva">
+  <header class="reserva__header">
+    <div>
+      <h1>Reserva</h1>
+      <p>Calendario de reservas por unidad.</p>
+    </div>
+    <span class="reserva__mes">{{ mesActivo }}</span>
+  </header>
+
+  <div class="reserva__panel">
+    <aside class="reserva__filtros">
+      <div class="campo">
+        <label>Tipo de unidad</label>
+        <select [(ngModel)]="filtroTipoUnidad" name="filtroTipoUnidad">
+          <option *ngFor="let tipo of tiposUnidad" [ngValue]="tipo.value">
+            {{ tipo.label }}
+          </option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label>Codigo de unidad</label>
+        <input type="text" [(ngModel)]="filtroCodigo" name="filtroCodigo" placeholder="Ej: 101" />
+      </div>
+
+      <div class="reserva__acciones">
+        <button type="button" (click)="aplicarFiltros()" [disabled]="cargando">
+          Aplicar
+        </button>
+        <button type="button" class="btn-secundario" (click)="limpiarFiltros()" [disabled]="cargando">
+          Limpiar
+        </button>
+      </div>
+
+      <div class="reserva__leyenda">
+        <span class="reserva__tag reserva__tag--confirmada">Confirmada</span>
+        <span class="reserva__tag reserva__tag--pendiente">Pendiente</span>
+        <span class="reserva__tag reserva__tag--completada">Completada</span>
+        <span class="reserva__tag reserva__tag--cancelada">Cancelada</span>
+      </div>
+
+      <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+    </aside>
+
+    <div class="reserva__calendario">
+      <full-calendar [options]="calendarioOpciones" [events]="eventos"></full-calendar>
+    </div>
+  </div>
+</section>

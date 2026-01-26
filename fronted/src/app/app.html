@@ -1,3 +1,11 @@
-<main>
+<header class="app-header">
+  <div class="app-header__brand">Hotel</div>
+  <nav class="app-header__nav">
+    <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
+    <a routerLink="/reserva" routerLinkActive="is-active">Reserva</a>
+  </nav>
+</header>
+
+<main class="app-main">
   <router-outlet></router-outlet>
 </main>

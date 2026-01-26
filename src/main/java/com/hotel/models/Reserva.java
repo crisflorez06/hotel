@@ -2,6 +2,7 @@ package com.hotel.models;
 
 import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.EstadoReserva;
+import com.hotel.models.enums.ModoOcupacion;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
@@ -16,7 +17,7 @@ import lombok.ToString;
 @Entity
 @Table(name = "reservas",
         indexes = {
-                @Index(name = "idx_reservas_cliente", columnList = "id_cliente")
+                @Index(name = "idx_reservas_ocupante", columnList = "id_ocupante")
         }
 )
 @Getter
@@ -33,10 +34,13 @@ public class Reserva {
     private String codigo;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cliente", nullable = false)
+    @JoinColumn(name = "id_ocupante", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Cliente cliente;
+    private Ocupante ocupante;
+
+    @Column(name = "numero_personas", nullable = false)
+    private Integer numeroPersonas;
 
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
@@ -46,6 +50,10 @@ public class Reserva {
 
     @Column(name = "salida_estimada", nullable = false)
     private LocalDateTime salidaEstimada;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "modo_ocupacion", nullable = false, length = 20)
+    private ModoOcupacion modoOcupacion;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -58,7 +66,7 @@ public class Reserva {
     @Column(columnDefinition = "text")
     private String notas;
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany
     @JoinTable(
             name = "reserva_habitaciones",
             joinColumns = @JoinColumn(name = "id_reserva"),

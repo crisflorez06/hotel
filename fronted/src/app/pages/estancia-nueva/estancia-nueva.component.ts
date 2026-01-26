@@ -5,8 +5,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { FlatpickrModule } from 'angularx-flatpickr';
 
 import { EstanciaService } from '../../services/estancia.service';
-import { EstadoPago, MedioPago, TipoPago, TipoUnidad } from '../../models/enums';
+import { OcupanteService } from '../../services/ocupante.service';
+import { EstadoPago, MedioPago, TipoDocumento, TipoOcupante, TipoPago, TipoUnidad } from '../../models/enums';
 import { EstanciaNuevoRequest } from '../../models/estancia.model';
+import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 
 @Component({
   selector: 'app-estancia-nueva',
@@ -32,6 +34,44 @@ export class EstanciaNuevaComponent implements OnInit {
   fechaPago = '';
   estadoPago: EstadoPago = 'PENDIENTE';
 
+  mostrarModalCliente = false;
+  creandoCliente = false;
+  clienteError = '';
+  clienteCreado: OcupanteDTO | null = null;
+  clienteNuevo: OcupanteNuevoRequest = {
+    nombres: '',
+    apellidos: '',
+    tipoDocumento: undefined,
+    numeroDocumento: '',
+    telefono: '',
+    email: '',
+    tipoOcupante: 'CLIENTE',
+  };
+  mostrarModalBusquedaCliente = false;
+  buscandoCliente = false;
+  clienteBusquedaCedula = '';
+  clienteBusquedaError = '';
+  clientesEncontrados: OcupanteDTO[] = [];
+
+  mostrarModalAcompanante = false;
+  creandoAcompanante = false;
+  acompananteError = '';
+  acompanantesCreados: OcupanteDTO[] = [];
+  acompananteNuevo: OcupanteNuevoRequest = {
+    nombres: '',
+    apellidos: '',
+    tipoDocumento: undefined,
+    numeroDocumento: '',
+    telefono: '',
+    email: '',
+    tipoOcupante: 'ACOMPANANTE',
+  };
+  mostrarModalBusquedaAcompanante = false;
+  buscandoAcompanante = false;
+  acompananteBusquedaDocumento = '';
+  acompananteBusquedaError = '';
+  acompanantesEncontrados: OcupanteDTO[] = [];
+
   guardando = false;
   error = '';
   exito = '';
@@ -47,10 +87,12 @@ export class EstanciaNuevaComponent implements OnInit {
   ];
 
   estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO', 'REEMBOLSADO'];
+  tiposDocumento: TipoDocumento[] = ['CC', 'TI', 'CE', 'PA', 'NIT', 'RC'];
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
-    private readonly estanciaService: EstanciaService
+    private readonly estanciaService: EstanciaService,
+    private readonly ocupanteService: OcupanteService
   ) {}
 
   ngOnInit(): void {
@@ -90,7 +132,7 @@ export class EstanciaNuevaComponent implements OnInit {
       next: () => {
         this.guardando = false;
         this.exito = 'Estancia registrada con exito.';
-        this.mostrarToastExito('Estancia registrada con exito.');
+        this.mostrarToastExito('Estancia registrada con exito.', true);
       },
       error: () => {
         this.guardando = false;
@@ -99,16 +141,222 @@ export class EstanciaNuevaComponent implements OnInit {
     });
   }
 
+  abrirModalCliente(): void {
+    this.mostrarModalCliente = true;
+    this.clienteError = '';
+  }
+
+  cerrarModalCliente(): void {
+    if (this.creandoCliente) {
+      return;
+    }
+    this.mostrarModalCliente = false;
+  }
+
+  abrirModalBusquedaCliente(): void {
+    this.mostrarModalBusquedaCliente = true;
+    this.clienteBusquedaError = '';
+    this.clientesEncontrados = [];
+  }
+
+  cerrarModalBusquedaCliente(): void {
+    if (this.buscandoCliente) {
+      return;
+    }
+    this.mostrarModalBusquedaCliente = false;
+  }
+
+  crearCliente(): void {
+    const nombres = this.clienteNuevo.nombres.trim();
+    const apellidos = this.clienteNuevo.apellidos.trim();
+
+    if (!nombres || !apellidos) {
+      this.clienteError = 'Completa los campos obligatorios.';
+      return;
+    }
+
+    const request: OcupanteNuevoRequest = {
+      nombres,
+      apellidos,
+      tipoDocumento: this.clienteNuevo.tipoDocumento,
+      numeroDocumento: this.normalizarOpcional(this.clienteNuevo.numeroDocumento),
+      telefono: this.normalizarOpcional(this.clienteNuevo.telefono),
+      email: this.normalizarOpcional(this.clienteNuevo.email),
+      tipoOcupante: 'CLIENTE',
+    };
+
+    this.creandoCliente = true;
+    this.clienteError = '';
+
+    this.ocupanteService.crearOcupante(request).subscribe({
+      next: (cliente) => {
+        this.creandoCliente = false;
+        this.idCliente = cliente.id;
+        this.clienteCreado = cliente;
+        this.mostrarModalCliente = false;
+        this.limpiarClienteNuevo();
+        this.mostrarToastExito(`Cliente creado: ${cliente.nombres} ${cliente.apellidos}.`);
+      },
+      error: () => {
+        this.creandoCliente = false;
+        this.clienteError = 'No fue posible crear el cliente.';
+      },
+    });
+  }
+
+  buscarCliente(): void {
+    const cedula = this.clienteBusquedaCedula.trim();
+    if (!cedula) {
+      this.clienteBusquedaError = 'Ingresa la cedula para buscar.';
+      return;
+    }
+
+    this.buscandoCliente = true;
+    this.clienteBusquedaError = '';
+    this.clientesEncontrados = [];
+
+    this.ocupanteService.buscarPorDocumento(cedula).subscribe({
+      next: (ocupantes) => {
+        this.buscandoCliente = false;
+        this.clientesEncontrados = this.priorizarClienteEnDuplicados(ocupantes);
+        if (!this.clientesEncontrados.length) {
+          this.clienteBusquedaError = 'No se encontraron clientes.';
+        }
+      },
+      error: () => {
+        this.buscandoCliente = false;
+        this.clienteBusquedaError = 'No fue posible buscar los clientes.';
+      },
+    });
+  }
+
+  seleccionarCliente(cliente: OcupanteDTO): void {
+    this.idCliente = cliente.id;
+    this.clienteCreado = cliente;
+    this.mostrarModalBusquedaCliente = false;
+  }
+
+  abrirModalAcompanante(): void {
+    this.mostrarModalAcompanante = true;
+    this.acompananteError = '';
+  }
+
+  cerrarModalAcompanante(): void {
+    if (this.creandoAcompanante) {
+      return;
+    }
+    this.mostrarModalAcompanante = false;
+  }
+
+  abrirModalBusquedaAcompanante(): void {
+    this.mostrarModalBusquedaAcompanante = true;
+    this.acompananteBusquedaError = '';
+    this.acompanantesEncontrados = [];
+  }
+
+  cerrarModalBusquedaAcompanante(): void {
+    if (this.buscandoAcompanante) {
+      return;
+    }
+    this.mostrarModalBusquedaAcompanante = false;
+  }
+
+  crearAcompanante(): void {
+    const nombres = this.acompananteNuevo.nombres.trim();
+    const apellidos = this.acompananteNuevo.apellidos.trim();
+
+    if (!nombres || !apellidos) {
+      this.acompananteError = 'Completa los campos obligatorios.';
+      return;
+    }
+
+    const request: OcupanteNuevoRequest = {
+      nombres,
+      apellidos,
+      tipoDocumento: this.acompananteNuevo.tipoDocumento,
+      numeroDocumento: this.normalizarOpcional(this.acompananteNuevo.numeroDocumento),
+      telefono: this.normalizarOpcional(this.acompananteNuevo.telefono),
+      email: this.normalizarOpcional(this.acompananteNuevo.email),
+      tipoOcupante: 'ACOMPANANTE',
+    };
+
+    this.creandoAcompanante = true;
+    this.acompananteError = '';
+
+    this.ocupanteService.crearOcupante(request).subscribe({
+      next: (acompanante) => {
+        this.creandoAcompanante = false;
+        if (!this.acompanantesCreados.some((item) => item.id === acompanante.id)) {
+          this.acompanantesCreados = [...this.acompanantesCreados, acompanante];
+        }
+        this.mostrarModalAcompanante = false;
+        this.limpiarAcompananteNuevo();
+        this.mostrarToastExito(
+          `Acompanante creado: ${acompanante.nombres} ${acompanante.apellidos}.`
+        );
+      },
+      error: () => {
+        this.creandoAcompanante = false;
+        this.acompananteError = 'No fue posible crear el acompanante.';
+      },
+    });
+  }
+
+  quitarAcompanante(id: number): void {
+    this.acompanantesCreados = this.acompanantesCreados.filter((item) => item.id !== id);
+  }
+
+  buscarAcompanante(): void {
+    const documento = this.acompananteBusquedaDocumento.trim();
+    if (!documento) {
+      this.acompananteBusquedaError = 'Ingresa el documento para buscar.';
+      return;
+    }
+
+    this.buscandoAcompanante = true;
+    this.acompananteBusquedaError = '';
+    this.acompanantesEncontrados = [];
+
+    this.ocupanteService.buscarPorDocumento(documento).subscribe({
+      next: (ocupantes) => {
+        this.buscandoAcompanante = false;
+        this.acompanantesEncontrados = this.priorizarTipoEnDuplicados(
+          ocupantes,
+          'ACOMPANANTE'
+        );
+        if (!this.acompanantesEncontrados.length) {
+          this.acompananteBusquedaError = 'No se encontraron acompanantes.';
+        }
+      },
+      error: () => {
+        this.buscandoAcompanante = false;
+        this.acompananteBusquedaError = 'No fue posible buscar los acompanantes.';
+      },
+    });
+  }
+
+  seleccionarAcompanante(acompanante: OcupanteDTO): void {
+    if (!this.acompanantesCreados.some((item) => item.id === acompanante.id)) {
+      this.acompanantesCreados = [...this.acompanantesCreados, acompanante];
+    }
+  }
+
+  acompananteSeleccionado(id: number): boolean {
+    return this.acompanantesCreados.some((item) => item.id === id);
+  }
+
   volver(): void {
     this.router.navigate(['/recepcion']);
   }
 
   private parseAcompanantes(): number[] | undefined {
-    const ids = this.idAcompanantes
+    const idsManual = this.idAcompanantes
       .split(',')
       .map((value) => Number(value.trim()))
       .filter((value) => !Number.isNaN(value) && value > 0);
 
+    const idsCreados = this.acompanantesCreados.map((item) => item.id);
+    const ids = Array.from(new Set([...idsCreados, ...idsManual]));
     return ids.length ? ids : undefined;
   }
 
@@ -130,12 +378,70 @@ export class EstanciaNuevaComponent implements OnInit {
     return valor.replace(' ', 'T');
   }
 
-  private mostrarToastExito(mensaje: string): void {
+  private mostrarToastExito(mensaje: string, navegar = false): void {
     this.toastMensaje = mensaje;
     this.mostrarToast = true;
     setTimeout(() => {
       this.mostrarToast = false;
-      this.router.navigate(['/recepcion']);
+      if (navegar) {
+        this.router.navigate(['/recepcion']);
+      }
     }, 1500);
+  }
+
+  private normalizarOpcional(valor?: string): string | undefined {
+    const limpio = (valor ?? '').trim();
+    return limpio ? limpio : undefined;
+  }
+
+  private limpiarClienteNuevo(): void {
+    this.clienteNuevo = {
+      nombres: '',
+      apellidos: '',
+      tipoDocumento: undefined,
+      numeroDocumento: '',
+      telefono: '',
+      email: '',
+      tipoOcupante: 'CLIENTE',
+    };
+  }
+
+  private limpiarAcompananteNuevo(): void {
+    this.acompananteNuevo = {
+      nombres: '',
+      apellidos: '',
+      tipoDocumento: undefined,
+      numeroDocumento: '',
+      telefono: '',
+      email: '',
+      tipoOcupante: 'ACOMPANANTE',
+    };
+  }
+
+  private priorizarClienteEnDuplicados(ocupantes: OcupanteDTO[]): OcupanteDTO[] {
+    return this.priorizarTipoEnDuplicados(ocupantes, 'CLIENTE');
+  }
+
+  private priorizarTipoEnDuplicados(
+    ocupantes: OcupanteDTO[],
+    tipo: TipoOcupante
+  ): OcupanteDTO[] {
+    const mapa = new Map<string, OcupanteDTO>();
+
+    ocupantes.forEach((ocupante) => {
+      const key = [
+        ocupante.nombres?.toLowerCase().trim() ?? '',
+        ocupante.apellidos?.toLowerCase().trim() ?? '',
+        ocupante.tipoDocumento ?? '',
+        ocupante.numeroDocumento?.toLowerCase().trim() ?? '',
+      ].join('|');
+
+      const actual = mapa.get(key);
+      if (!actual || (actual.tipoOcupante !== tipo && ocupante.tipoOcupante === tipo)) {
+        mapa.set(key, ocupante);
+      }
+    });
+
+    return Array.from(mapa.values());
   }
 }

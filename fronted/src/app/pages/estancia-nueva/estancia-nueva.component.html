@@ -20,8 +20,32 @@
     </div>
 
     <div class="campo">
-      <label>Id cliente *</label>
-      <input type="number" [(ngModel)]="idCliente" name="idCliente" required />
+      <label>Cliente *</label>
+      <input type="hidden" [(ngModel)]="idCliente" name="idCliente" />
+      <div class="campo__inline">
+        <span class="campo__valor" *ngIf="clienteCreado; else clientePendiente">
+          {{ clienteCreado.nombres }} {{ clienteCreado.apellidos }}
+        </span>
+        <ng-template #clientePendiente>
+          <span class="campo__valor">Sin cliente seleccionado</span>
+        </ng-template>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Buscar cliente"
+          (click)="abrirModalBusquedaCliente()"
+        >
+          <i class="bi bi-search" aria-hidden="true"></i>
+        </button>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Agregar cliente"
+          (click)="abrirModalCliente()"
+        >
+          <i class="bi bi-person-plus" aria-hidden="true"></i>
+        </button>
+      </div>
     </div>
 
     <div class="campo">
@@ -56,7 +80,26 @@
 
     <div class="campo">
       <label>Ids de acompanantes (separados por coma)</label>
-      <input type="text" [(ngModel)]="idAcompanantes" name="idAcompanantes" />
+      <input type="hidden" [(ngModel)]="idAcompanantes" name="idAcompanantes" />
+      <div class="campo__inline">
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Buscar acompanante"
+          (click)="abrirModalBusquedaAcompanante()"
+        >
+          <i class="bi bi-search" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="btn-secundario" (click)="abrirModalAcompanante()">
+          Agregar acompanante
+        </button>
+      </div>
+      <div class="etiquetas" *ngIf="acompanantesCreados.length">
+        <span class="etiqueta" *ngFor="let acompanante of acompanantesCreados">
+          {{ acompanante.nombres }} {{ acompanante.apellidos }}
+          <button type="button" (click)="quitarAcompanante(acompanante.id)">x</button>
+        </span>
+      </div>
     </div>
 
     <div class="campo campo--full">
@@ -112,4 +155,195 @@
 
     <button type="submit" [disabled]="guardando">Guardar estancia</button>
   </form>
+
+  <div class="modal" *ngIf="mostrarModalCliente">
+    <div class="modal__backdrop" (click)="cerrarModalCliente()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__header">
+        <div>
+          <h2>Nuevo cliente</h2>
+          <p>Completa los datos para registrar al cliente.</p>
+        </div>
+        <button type="button" class="btn-secundario" (click)="cerrarModalCliente()">Cerrar</button>
+      </header>
+
+      <form class="modal__form" (ngSubmit)="crearCliente()">
+        <div class="campo">
+          <label>Nombres *</label>
+          <input type="text" [(ngModel)]="clienteNuevo.nombres" name="clienteNombres" required />
+        </div>
+
+        <div class="campo">
+          <label>Apellidos *</label>
+          <input type="text" [(ngModel)]="clienteNuevo.apellidos" name="clienteApellidos" required />
+        </div>
+
+        <div class="campo">
+          <label>Tipo documento</label>
+          <select [(ngModel)]="clienteNuevo.tipoDocumento" name="clienteTipoDocumento">
+            <option [ngValue]="undefined">Selecciona una opcion</option>
+            <option *ngFor="let tipo of tiposDocumento" [ngValue]="tipo">{{ tipo }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Numero documento</label>
+          <input
+            type="text"
+            [(ngModel)]="clienteNuevo.numeroDocumento"
+            name="clienteNumeroDocumento"
+          />
+        </div>
+
+        <div class="campo">
+          <label>Telefono</label>
+          <input type="text" [(ngModel)]="clienteNuevo.telefono" name="clienteTelefono" />
+        </div>
+
+        <div class="campo">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="clienteNuevo.email" name="clienteEmail" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="clienteError">{{ clienteError }}</p>
+
+        <button type="submit" [disabled]="creandoCliente">Crear cliente</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="mostrarModalBusquedaCliente">
+    <div class="modal__backdrop" (click)="cerrarModalBusquedaCliente()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__header">
+        <div>
+          <h2>Buscar cliente</h2>
+          <p>Ingresa la cedula para buscar clientes.</p>
+        </div>
+        <button type="button" class="btn-secundario" (click)="cerrarModalBusquedaCliente()">
+          Cerrar
+        </button>
+      </header>
+
+      <form class="modal__form" (ngSubmit)="buscarCliente()">
+        <div class="campo campo--full">
+          <label>Cedula *</label>
+          <input type="text" [(ngModel)]="clienteBusquedaCedula" name="clienteBusquedaCedula" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="clienteBusquedaError">{{ clienteBusquedaError }}</p>
+
+        <button type="submit" [disabled]="buscandoCliente">Buscar</button>
+      </form>
+
+      <div class="lista" *ngIf="clientesEncontrados.length">
+        <button
+          type="button"
+          class="lista__item"
+          *ngFor="let cliente of clientesEncontrados"
+          (click)="seleccionarCliente(cliente)"
+        >
+          <span>{{ cliente.nombres }} {{ cliente.apellidos }}</span>
+          <small>{{ cliente.tipoDocumento }} {{ cliente.numeroDocumento }}</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="mostrarModalAcompanante">
+    <div class="modal__backdrop" (click)="cerrarModalAcompanante()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__header">
+        <div>
+          <h2>Nuevo acompanante</h2>
+          <p>Completa los datos para registrar al acompanante.</p>
+        </div>
+        <button type="button" class="btn-secundario" (click)="cerrarModalAcompanante()">
+          Cerrar
+        </button>
+      </header>
+
+      <form class="modal__form" (ngSubmit)="crearAcompanante()">
+        <div class="campo">
+          <label>Nombres *</label>
+          <input type="text" [(ngModel)]="acompananteNuevo.nombres" name="acompananteNombres" required />
+        </div>
+
+        <div class="campo">
+          <label>Apellidos *</label>
+          <input type="text" [(ngModel)]="acompananteNuevo.apellidos" name="acompananteApellidos" required />
+        </div>
+
+        <div class="campo">
+          <label>Tipo documento</label>
+          <select [(ngModel)]="acompananteNuevo.tipoDocumento" name="acompananteTipoDocumento">
+            <option [ngValue]="undefined">Selecciona una opcion</option>
+            <option *ngFor="let tipo of tiposDocumento" [ngValue]="tipo">{{ tipo }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Numero documento</label>
+          <input
+            type="text"
+            [(ngModel)]="acompananteNuevo.numeroDocumento"
+            name="acompananteNumeroDocumento"
+          />
+        </div>
+
+        <div class="campo">
+          <label>Telefono</label>
+          <input type="text" [(ngModel)]="acompananteNuevo.telefono" name="acompananteTelefono" />
+        </div>
+
+        <div class="campo">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="acompananteNuevo.email" name="acompananteEmail" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="acompananteError">{{ acompananteError }}</p>
+
+        <button type="submit" [disabled]="creandoAcompanante">Crear acompanante</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="mostrarModalBusquedaAcompanante">
+    <div class="modal__backdrop" (click)="cerrarModalBusquedaAcompanante()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true">
+      <header class="modal__header">
+        <div>
+          <h2>Buscar acompanante</h2>
+          <p>Ingresa el documento para buscar acompanantes.</p>
+        </div>
+        <button type="button" class="btn-secundario" (click)="cerrarModalBusquedaAcompanante()">
+          Cerrar
+        </button>
+      </header>
+
+      <form class="modal__form" (ngSubmit)="buscarAcompanante()">
+        <div class="campo campo--full">
+          <label>Documento *</label>
+          <input type="text" [(ngModel)]="acompananteBusquedaDocumento" name="acompananteBusquedaDocumento" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="acompananteBusquedaError">{{ acompananteBusquedaError }}</p>
+
+        <button type="submit" [disabled]="buscandoAcompanante">Buscar</button>
+      </form>
+
+      <div class="lista" *ngIf="acompanantesEncontrados.length">
+        <button
+          type="button"
+          class="lista__item"
+          *ngFor="let acompanante of acompanantesEncontrados"
+          (click)="seleccionarAcompanante(acompanante)"
+          [disabled]="acompananteSeleccionado(acompanante.id)"
+        >
+          <span>{{ acompanante.nombres }} {{ acompanante.apellidos }}</span>
+          <small>{{ acompanante.tipoDocumento }} {{ acompanante.numeroDocumento }}</small>
+        </button>
+      </div>
+    </div>
+  </div>
 </section>

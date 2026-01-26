@@ -19,8 +19,11 @@ public class ReservaNuevaRequestDTO {
     @NotBlank(message = "codigo es obligatorio")
     private String codigo;
 
-    @NotNull(message = "idCliente es obligatorio")
-    private Long idCliente;
+    @NotNull(message = "idOcupante es obligatorio")
+    private Long idOcupante;
+
+    @NotNull(message = "numeroPersonas es obligatorio")
+    private Integer numeroPersonas;
 
     @NotNull(message = "entradaEstimada es obligatoria")
     private LocalDateTime entradaEstimada;

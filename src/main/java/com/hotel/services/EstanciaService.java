@@ -3,12 +3,11 @@ package com.hotel.services;
 import com.hotel.dtos.EstanciaDTO;
 import com.hotel.dtos.EstanciaEditarRequestDTO;
 import com.hotel.dtos.EstanciaNuevoRequestDTO;
-import com.hotel.dtos.OcupanteDTO;
 import com.hotel.mappers.EstanciaMapper;
-import com.hotel.mappers.OcupanteMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.ModoOcupacion;
+import com.hotel.models.enums.TipoOcupante;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.EstanciaRepository;
 import org.slf4j.Logger;
@@ -26,24 +25,21 @@ public class EstanciaService {
     private static final Logger logger = LoggerFactory.getLogger(EstanciaService.class);
 
     private final EstanciaRepository estanciaRepository;
-    private final ClienteService clienteService;
+    private final OcupanteService ocupanteService;
     private final HabitacionService habitacionService;
-    private final AcompananteService acompananteService;
     private final EstanciaHabitacionService estanciaHabitacionService;
     private final PagoService pagoService;
     private final UnidadService unidadService;
 
 
     public EstanciaService(EstanciaRepository estanciaRepository,
-                           ClienteService clienteService,
-                           AcompananteService acompananteService,
+                           OcupanteService ocupanteService,
                            HabitacionService habitacionService,
                            EstanciaHabitacionService estanciaHabitacionService,
                            PagoService pagoService,
                            UnidadService unidadService) {
         this.estanciaRepository = estanciaRepository;
-        this.clienteService = clienteService;
-        this.acompananteService = acompananteService;
+        this.ocupanteService = ocupanteService;
         this.habitacionService = habitacionService;
         this.estanciaHabitacionService = estanciaHabitacionService;
         this.pagoService = pagoService;
@@ -63,11 +59,25 @@ public class EstanciaService {
             throw new IllegalArgumentException("salida estimada debe ser posterior a entrada real");
         }
 
-        logger.info("Creando estancia para el cliente con ID: {}", request.getIdCliente());
+        logger.info("Creando estancia para el ocupante titular con ID: {}", request.getIdCliente());
         Estancia estancia = EstanciaMapper.requestNuevoToEntity(request);
 
-        logger.info("Buscando cliente con ID: {}", request.getIdCliente());
-        estancia.setCliente(clienteService.buscarPorId(request.getIdCliente()));
+        logger.info("Buscando y asignando ocupantes para la estancia");
+        List<Ocupante> ocupantes = new ArrayList<>();
+
+        Ocupante cliente = ocupanteService.buscarPorId(request.getIdCliente());
+        TipoOcupante tipoOcupanteCliente = cliente.getTipoOcupante();
+
+        if (tipoOcupanteCliente != TipoOcupante.CLIENTE) {
+            ocupantes.add(ocupanteService.crearOcupanteConDiferenteTipo(cliente, TipoOcupante.CLIENTE));
+        }  else {
+            ocupantes.add(cliente);
+        }
+
+        ocupantes.addAll(cargarOcupantesAdicionales(request.getIdAcompanantes()));
+
+        estancia.setOcupantes(ocupantes);
+
 
         logger.info("llenando habitaciones para la estancia");
         estancia.setEstanciaHabitaciones(estanciaHabitacionService.llenarHabitaciones(estancia, request.getCodigo(), request.getTipoUnidad()));
@@ -78,16 +88,6 @@ public class EstanciaService {
         logger.info("Cambiando estado de las habitaciones asociadas a la estancia a OCUPADO");
         habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), EstadoOperativo.OCUPADO, request.getTipoUnidad());
 
-        logger.info("Llenando acompañantes para la estancia");
-        estancia.setEstanciaAcompanantes(llenarAcompanantes(estancia, request.getIdAcompanantes()));
-
-        logger.info("informacion completa de la estancia creada, idEstancia: {}, clienteId: {}, tipo de ocupacion: {},numeroHabitaciones: {}, numeroAcompanantes: {}",
-                estancia.getId(),
-                estancia.getCliente().getId(),
-                estancia.getModoOcupacion(),
-                estancia.getEstanciaHabitaciones().size(),
-                estancia.getEstanciaAcompanantes().size()
-        );
 
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
@@ -105,9 +105,15 @@ public class EstanciaService {
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
 
-        if (request.getIdCliente() != null) {
-            logger.info("Actualizando cliente de la estancia");
-            estancia.setCliente(clienteService.buscarPorId(request.getIdCliente()));
+        if (request.getIdCliente() != null && request.getIdAcompanantes() != null) {
+            logger.info("Actualizando ocupantes de la estancia");
+            estancia.setOcupantes(reemplazarTitularYAdicionalesEnOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
+        } else if (request.getIdCliente() != null) {
+            logger.info("Actualizando ocupante titular de la estancia");
+            estancia.setOcupantes(reemplazarTitularEnOcupantes(estancia, request.getIdCliente()));
+        } else if (request.getIdAcompanantes() != null) {
+            logger.info("Actualizando ocupantes adicionales de la estancia");
+            estancia.setOcupantes(reemplazarAdicionalesEnOcupantes(estancia, request.getIdAcompanantes()));
         }
 
         if (request.getEntradaReal() != null) {
@@ -161,37 +167,15 @@ public class EstanciaService {
             estancia = obtenerEstanciaPorHabitacion(habitacion.getId());
         }
 
-        EstanciaDTO estanciaDTO = EstanciaMapper.entityToDTO(estancia);
-        estanciaDTO.setOcupantes(obtenerOcupantesDeEstancia(estancia.getId()));
-
-
-        return estanciaDTO;
+        return EstanciaMapper.entityToDTO(estancia);
     }
 
     private Estancia obtenerEstanciaPorHabitacion(Long idHabitacion) {
         logger.info("[obtenerEstanciaPorHabitacion] Obteniendo estancia para la habitacion con id: {}", idHabitacion);
         Estancia estancia = estanciaHabitacionService.obtenerEstanciaActivaPorHabitacionId(idHabitacion);
 
-        logger.info("Estancia obtenida: idEstancia: {}, clienteId: {}", estancia.getId(), estancia.getCliente().getId());
         return estancia;
     }
-
-    private List<OcupanteDTO> obtenerOcupantesDeEstancia(Long idEstancia) {
-        logger.info("[obtenerOcupantesDeEstancia] Obteniendo ocupantes para la estancia con id: {}", idEstancia);
-        Estancia estancia = estanciaRepository.findById(idEstancia)
-                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
-
-        List<Acompanante> acompanantes = acompananteService.buscarPorEstanciaId(idEstancia);
-        Cliente cliente = clienteService.buscarClientePorEstancia(idEstancia);
-
-        List<OcupanteDTO> ocupantes = OcupanteMapper.listaAcompananteToOcupanteDto(acompanantes);
-        ocupantes.add(OcupanteMapper.clienteToOcupanteDto(cliente));
-
-        return ocupantes;
-    }
-
-
-
 
     private ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {
 
@@ -199,19 +183,71 @@ public class EstanciaService {
     }
 
 
-    private List<EstanciaAcompanante> llenarAcompanantes(Estancia estancia, List<Long> idsAcompanantes) {
-        List<EstanciaAcompanante> acompanantes = new ArrayList<>();
+    private List<Ocupante> cargarOcupantesAdicionales(List<Long> idsAcompanantes) {
+        List<Ocupante> adicionales = new ArrayList<>();
 
-        for (Long id : idsAcompanantes) {
-            Acompanante acompanante = acompananteService.buscarPorId(id);
-            EstanciaAcompanante relacion = new EstanciaAcompanante();
-            relacion.setEstancia(estancia);
-            relacion.setAcompanante(acompanante);
-            relacion.setEstadoOcupacion(true);
-            acompanantes.add(relacion);
+        if (idsAcompanantes == null) {
+            return adicionales;
         }
 
-        return acompanantes;
+        for (Long id : idsAcompanantes) {
+            Ocupante ocupante = ocupanteService.buscarPorId(id);
+            TipoOcupante tipoOcupante = ocupante.getTipoOcupante();
+
+            if (tipoOcupante != TipoOcupante.ACOMPANANTE) {
+                adicionales.add(ocupanteService.crearOcupanteConDiferenteTipo(ocupante, TipoOcupante.ACOMPANANTE));
+            } else {
+                adicionales.add(ocupante);
+            }
+        }
+
+        return adicionales;
+    }
+
+    private List<Ocupante> reemplazarTitularEnOcupantes(Estancia estancia, Long idCliente) {
+        List<Ocupante> ocupantes = new ArrayList<>();
+
+        for (Ocupante ocupante : estancia.getOcupantes()) {
+            if (ocupante.getTipoOcupante() == TipoOcupante.CLIENTE) {
+                Ocupante titular = ocupanteService.buscarPorId(idCliente);
+                ocupantes.add(titular);
+            } else {
+                ocupantes.add(ocupante);
+            }
+        }
+
+        return ocupantes;
+    }
+
+    private List<Ocupante> reemplazarAdicionalesEnOcupantes(Estancia estancia, List<Long> idsAcompanantes) {
+        List<Ocupante> ocupantes = new ArrayList<>();
+
+        for (Ocupante ocupante : estancia.getOcupantes()) {
+            if (ocupante.getTipoOcupante() == TipoOcupante.ACOMPANANTE) {
+                for (Long id : idsAcompanantes) {
+                    Ocupante adicional = ocupanteService.buscarPorId(id);
+                    ocupantes.add(adicional);
+                }
+            } else {
+                ocupantes.add(ocupante);
+            }
+        }
+
+        return ocupantes;
+    }
+
+    private List<Ocupante> reemplazarTitularYAdicionalesEnOcupantes(Long idCliente, List<Long> idsAcompanantes) {
+        List<Ocupante> ocupantes = new ArrayList<>();
+
+        Ocupante titular = ocupanteService.buscarPorId(idCliente);
+        ocupantes.add(titular);
+
+        for (Long id : idsAcompanantes) {
+            Ocupante adicional = ocupanteService.buscarPorId(id);
+            ocupantes.add(adicional);
+        }
+
+        return ocupantes;
     }
 
 }

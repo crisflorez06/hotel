@@ -1,11 +1,13 @@
 package com.hotel.mappers;
 
 
+import com.hotel.dtos.ReservaCalendarioDTO;
 import com.hotel.dtos.ReservaNuevaRequestDTO;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoReserva;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public class ReservaMapper {
 
@@ -16,12 +18,30 @@ public class ReservaMapper {
         entity.setFechaCreacion(LocalDateTime.now());
         entity.setEntradaEstimada(request.getEntradaEstimada());
         entity.setSalidaEstimada(request.getSalidaEstimada());
+        entity.setNumeroPersonas(request.getNumeroPersonas());
         entity.setEstado(EstadoReserva.CONFIRMADA);
         entity.setCanalReserva(request.getCanalReserva());
         entity.setNotas("Notas al registrar: " + request.getNotas());
 
 
         return entity;
+    }
+
+    public static ReservaCalendarioDTO entityToCalendarioDTO(Reserva reserva) {
+        ReservaCalendarioDTO dto = new ReservaCalendarioDTO();
+
+        dto.setId(reserva.getId());
+        dto.setInicio(reserva.getEntradaEstimada());
+        dto.setFin(reserva.getSalidaEstimada());
+        dto.setEstado(reserva.getEstado());
+        dto.setNumeroPersonas(reserva.getNumeroPersonas());
+        return dto;
+    }
+
+    public static List<ReservaCalendarioDTO> entityListaToCalendarioDTOList(List<Reserva> reservas) {
+        return reservas.stream()
+                .map(ReservaMapper::entityToCalendarioDTO)
+                .toList();
     }
 
     private static String generateCodigoReserva() {

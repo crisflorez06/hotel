@@ -33,7 +33,7 @@ public class ApiExceptionHandler {
 
     /**
      * NOT FOUND (404)
-     * Para recursos que no existen: Unidad, Habitacion, Cliente, Reserva, etc.
+     * Para recursos que no existen: Unidad, Habitacion, Ocupante, Reserva, etc.
      */
     @ExceptionHandler(EntityNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleNotFound(EntityNotFoundException ex) {

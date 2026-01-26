@@ -16,8 +16,7 @@ import lombok.ToString;
 @Entity
 @Table(name = "estancias",
         indexes = {
-                @Index(name = "idx_estancias_reserva", columnList = "id_reserva"),
-                @Index(name = "idx_estancias_cliente", columnList = "id_cliente")
+                @Index(name = "idx_estancias_reserva", columnList = "id_reserva")
         }
 )
 @Getter
@@ -39,11 +38,15 @@ public class Estancia {
     @EqualsAndHashCode.Exclude
     private Reserva reserva;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_cliente", nullable = false)
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(
+            name = "estancia_ocupantes",
+            joinColumns = @JoinColumn(name = "id_estancia"),
+            inverseJoinColumns = @JoinColumn(name = "id_ocupante")
+    )
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Cliente cliente;
+    private List<Ocupante> ocupantes;
 
     @Column(name = "fecha_creacion", nullable = false)
     private LocalDateTime fechaCreacion;
@@ -77,11 +80,6 @@ public class Estancia {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Pago pago;
-
-    @OneToMany(mappedBy = "estancia", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private List<EstanciaAcompanante> estanciaAcompanantes;
 
     private boolean activo;
 }

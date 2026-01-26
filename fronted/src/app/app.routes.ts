@@ -18,5 +18,10 @@ export const routes: Routes = [
         (m) => m.EstanciaNuevaComponent
       ),
   },
+  {
+    path: 'reserva',
+    loadComponent: () =>
+      import('./pages/reserva/reserva.component').then((m) => m.ReservaComponent),
+  },
   { path: '**', redirectTo: '' },
 ];
