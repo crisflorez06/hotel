@@ -8,4 +8,5 @@ export interface ReservaCalendarioDTO {
   codigoUnidad: string | null;
   tipoUnidad: TipoUnidad | null;
   numeroPersonas: number | null;
+  nombreCliente: string | null;
 }

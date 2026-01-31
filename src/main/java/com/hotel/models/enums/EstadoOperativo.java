@@ -4,5 +4,6 @@ public enum EstadoOperativo {
     DISPONIBLE,
     OCUPADO,
     RESERVADO,
+    EXCEDIDA,
     PARCIALMENTE,
 }

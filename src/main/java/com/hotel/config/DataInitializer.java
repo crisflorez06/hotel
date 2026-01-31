@@ -2,13 +2,11 @@ package com.hotel.config;
 
 import com.hotel.models.Habitacion;
 import com.hotel.models.Ocupante;
-import com.hotel.models.Reserva;
 import com.hotel.models.Unidad;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.HabitacionRepository;
 import com.hotel.repositories.OcupanteRepository;
-import com.hotel.repositories.ReservaRepository;
 import com.hotel.repositories.UnidadRepository;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,19 +25,16 @@ public class DataInitializer implements CommandLineRunner {
     private final UnidadRepository unidadRepository;
     private final HabitacionRepository habitacionRepository;
     private final OcupanteRepository ocupanteRepository;
-    private final ReservaRepository reservaRepository;
     private final EstanciaRepository estanciaRepository;
 
     public DataInitializer(
             UnidadRepository unidadRepository,
             HabitacionRepository habitacionRepository,
             OcupanteRepository ocupanteRepository,
-            ReservaRepository reservaRepository,
             EstanciaRepository estanciaRepository) {
         this.unidadRepository = unidadRepository;
         this.habitacionRepository = habitacionRepository;
         this.ocupanteRepository = ocupanteRepository;
-        this.reservaRepository = reservaRepository;
         this.estanciaRepository = estanciaRepository;
     }
 
@@ -49,7 +44,6 @@ public class DataInitializer implements CommandLineRunner {
         if (unidadRepository.count() > 0
                 || habitacionRepository.count() > 0
                 || ocupanteRepository.count() > 0
-                || reservaRepository.count() > 0
                 || estanciaRepository.count() > 0) {
             return;
         }
@@ -79,12 +73,6 @@ public class DataInitializer implements CommandLineRunner {
         ocupantes.add(buildOcupante("Laura", "Perez", "80000000", TipoOcupante.ACOMPANANTE));
         ocupantes.add(buildOcupante("Carlos", "Gomez", "80000001", TipoOcupante.ACOMPANANTE));
         ocupanteRepository.saveAll(ocupantes);
-
-        Ocupante titular = ocupantes.getFirst();
-        List<Habitacion> habitacionesReserva = new ArrayList<>();
-        habitacionesReserva.add(habitaciones.getFirst());
-        Reserva reserva = buildReserva(titular, habitacionesReserva);
-        reservaRepository.save(reserva);
 
     }
 
@@ -128,19 +116,4 @@ public class DataInitializer implements CommandLineRunner {
         return ocupante;
     }
 
-    private Reserva buildReserva(Ocupante ocupante, List<Habitacion> habitaciones) {
-        Reserva reserva = new Reserva();
-        reserva.setCodigo("RES-" + System.currentTimeMillis());
-        reserva.setOcupante(ocupante);
-        reserva.setNumeroPersonas(2);
-        reserva.setFechaCreacion(LocalDateTime.now());
-        reserva.setEntradaEstimada(LocalDateTime.now().plusDays(1));
-        reserva.setSalidaEstimada(LocalDateTime.now().plusDays(3));
-        reserva.setEstado(EstadoReserva.CONFIRMADA);
-        reserva.setCanalReserva(CanalReserva.MOSTRADOR);
-        reserva.setNotas("Reserva inicial de prueba");
-        reserva.setModoOcupacion(ModoOcupacion.INDIVIDUAL);
-        reserva.setHabitaciones(habitaciones);
-        return reserva;
-    }
 }

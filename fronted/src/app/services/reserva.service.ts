@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 
 import { environment } from '../../environments/environment';
 import { ReservaCalendarioDTO } from '../models/reserva-calendario.model';
+import { ReservaNuevoRequest } from '../models/reserva.model';
 import { TipoUnidad } from '../models/enums';
 
 @Injectable({
@@ -20,5 +21,9 @@ export class ReservaService {
         ...(codigoUnidad ? { codigoUnidad } : {}),
       },
     });
+  }
+
+  crearReserva(request: ReservaNuevoRequest) {
+    return this.http.post<void>(this.baseUrl, request);
   }
 }

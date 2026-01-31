@@ -4,7 +4,12 @@
       <h1>Reserva</h1>
       <p>Calendario de reservas por unidad.</p>
     </div>
-    <span class="reserva__mes">{{ mesActivo }}</span>
+    <div class="reserva__header-acciones">
+      <button type="button" class="reserva__crear" [routerLink]="['/reservas/nueva']">
+        Crear reserva
+      </button>
+      <span class="reserva__mes">{{ mesActivo }}</span>
+    </div>
   </header>
 
   <div class="reserva__panel">
@@ -44,6 +49,52 @@
 
     <div class="reserva__calendario">
       <full-calendar [options]="calendarioOpciones" [events]="eventos"></full-calendar>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="reservaSeleccionada as reserva">
+    <div class="modal__backdrop" (click)="cerrarDetalle()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header">
+        <div>
+          <h2>Detalle de reserva</h2>
+          <p>Informacion general de la reserva seleccionada.</p>
+        </div>
+        <button type="button" class="modal__cerrar" (click)="cerrarDetalle()">Cerrar</button>
+      </header>
+
+      <div class="reserva-modal__grid">
+        <div>
+          <span class="reserva-modal__label">Codigo</span>
+          <strong>{{ reserva.codigoUnidad || 'Unidad ' + reserva.id }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Tipo de unidad</span>
+          <strong>{{ formatearEtiqueta(reserva.tipoUnidad) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Cliente</span>
+          <strong>{{ reserva.nombreCliente || '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Estado</span>
+          <span class="reserva-modal__estado reserva-modal__estado--{{ reserva.estado.toLowerCase() }}">
+            {{ formatearEtiqueta(reserva.estado) }}
+          </span>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Personas</span>
+          <strong>{{ reserva.numeroPersonas ?? '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Inicio</span>
+          <strong>{{ formatearFecha(reserva.inicio) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Fin</span>
+          <strong>{{ formatearFecha(reserva.fin) }}</strong>
+        </div>
+      </div>
     </div>
   </div>
 </section>

@@ -2,8 +2,8 @@
   <div class="toast" *ngIf="mostrarToast">{{ toastMensaje }}</div>
   <header class="estancia__header">
     <div>
-      <h1>Nueva estancia</h1>
-      <p>Registro para recepcion.</p>
+      <h1>{{ esEdicion ? 'Editar estancia' : 'Nueva estancia' }}</h1>
+      <p>{{ esEdicion ? 'Actualiza la informacion de la estancia.' : 'Registro para recepcion.' }}</p>
     </div>
     <button type="button" class="btn-secundario" (click)="volver()">Volver</button>
   </header>
@@ -107,14 +107,14 @@
       <textarea rows="3" [(ngModel)]="notas" name="notas"></textarea>
     </div>
 
-    <div class="campo campo--full">
+    <div class="campo campo--full" *ngIf="!esEdicion">
       <label>
         <input type="checkbox" [(ngModel)]="conPago" name="conPago" />
         Registrar pago
       </label>
     </div>
 
-    <div class="pago" *ngIf="conPago">
+    <div class="pago" *ngIf="conPago && !esEdicion">
       <div class="campo">
         <label>Tipo pago</label>
         <input type="text" [value]="tipoPago" disabled />
@@ -153,7 +153,9 @@
     <p class="estado estado--error" *ngIf="error">{{ error }}</p>
     <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
 
-    <button type="submit" [disabled]="guardando">Guardar estancia</button>
+    <button type="submit" [disabled]="guardando">
+      {{ esEdicion ? 'Actualizar estancia' : 'Guardar estancia' }}
+    </button>
   </form>
 
   <div class="modal" *ngIf="mostrarModalCliente">

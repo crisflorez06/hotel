@@ -5,6 +5,8 @@ import com.hotel.dtos.ReservaCalendarioDTO;
 import com.hotel.dtos.ReservaNuevaRequestDTO;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoReserva;
+import com.hotel.models.enums.ModoOcupacion;
+import com.hotel.models.enums.TipoUnidad;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,6 +23,11 @@ public class ReservaMapper {
         entity.setNumeroPersonas(request.getNumeroPersonas());
         entity.setEstado(EstadoReserva.CONFIRMADA);
         entity.setCanalReserva(request.getCanalReserva());
+        if(request.getTipoUnidad() == TipoUnidad.HABITACION) {
+            entity.setModoOcupacion(ModoOcupacion.INDIVIDUAL);
+        } else {
+            entity.setModoOcupacion(ModoOcupacion.COMPLETO);
+        }
         entity.setNotas("Notas al registrar: " + request.getNotas());
 
 
@@ -35,6 +42,7 @@ public class ReservaMapper {
         dto.setFin(reserva.getSalidaEstimada());
         dto.setEstado(reserva.getEstado());
         dto.setNumeroPersonas(reserva.getNumeroPersonas());
+        dto.setNombreCliente(reserva.getOcupante().getNombres() + " " + reserva.getOcupante().getApellidos());
         return dto;
     }
 

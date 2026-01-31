@@ -1,11 +1,13 @@
 package com.hotel.services;
 
+import com.hotel.dtos.EstanciaDTO;
 import com.hotel.dtos.ReservaCalendarioDTO;
 import com.hotel.dtos.ReservaNuevaRequestDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.mappers.ReservaMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.EstadoOperativo;
+import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.ReservaRepository;
@@ -24,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ReservaService {
@@ -33,8 +36,12 @@ public class ReservaService {
     private final ReservaRepository reservaRepository;
     private final OcupanteService ocupanteService;
     private final HabitacionService habitacionService;
+    private final UnidadService unidadService;
+    private final EstanciaService estanciaService;
 
-    public ReservaService(ReservaRepository reservaRepository, OcupanteService ocupanteService, HabitacionService habitacionService) {
+    public ReservaService(ReservaRepository reservaRepository, OcupanteService ocupanteService, HabitacionService habitacionService, UnidadService unidadService, EstanciaService estanciaService) {
+        this.estanciaService = estanciaService;
+        this.unidadService = unidadService;
         this.ocupanteService = ocupanteService;
         this.reservaRepository = reservaRepository;
         this.habitacionService = habitacionService;
@@ -48,9 +55,22 @@ public class ReservaService {
     @Transactional
     public Reserva crearReserva(ReservaNuevaRequestDTO request) {
         logger.info("Verificando disponibilidad para la reserva solicitada");
-        if (!habitacionService.verificarDisponiblidad(request.getCodigo(), request.getTipoUnidad())) {
-            throw new IllegalStateException("La unidad o habitacion no está disponible para la reserva.");
+        List<Reserva> reservasNoDisponibles = estaDisponibleEnRango(request.getCodigo(), request.getTipoUnidad(), request.getEntradaEstimada(), request.getSalidaEstimada());
+        if (reservasNoDisponibles == null) {
+
+
+            //cambiar esto porque devuelve un null en el error  entonces no se podra leer el mensaje
+            String detalles = reservasNoDisponibles.stream()
+                    .map(r -> "Entrada: " + r.getEntradaEstimada() + " - Salida: " + r.getSalidaEstimada())
+                    .collect(Collectors.joining(" | ")); // separador entre reservas
+
+            throw new IllegalStateException(
+                    "Existen reservas en conflicto (" + detalles +
+                            ") para el rango solicitado: Entrada=" + request.getEntradaEstimada() +
+                            " / Salida=" + request.getSalidaEstimada()
+            );
         }
+
 
         logger.info("Validando fechas de entrada y salida estimada");
         if (request.getSalidaEstimada().isBefore(request.getEntradaEstimada())) {
@@ -65,7 +85,8 @@ public class ReservaService {
 
         List<Habitacion> habitaciones = new ArrayList<>( habitacionService.clasificarHabitacionesPorTipoUnidad(request.getCodigo(), request.getTipoUnidad()));
         reserva.setHabitaciones(habitaciones);
-        habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), EstadoOperativo.RESERVADO, request.getTipoUnidad());
+        EstadoOperativo nuevoEstado = actualizarEstadoOperativo(request.getEntradaEstimada(), habitaciones.getFirst().getEstadoOperativo());
+        habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), nuevoEstado, request.getTipoUnidad());
         return reservaRepository.save(reserva);
     }
 
@@ -107,4 +128,51 @@ public class ReservaService {
 
     }
 
+
+    public List<Reserva> estaDisponibleEnRango(String codigo, TipoUnidad tipoUnidad, LocalDateTime desde, LocalDateTime hasta) {
+        logger.info("Verificando disponibilidad en rango para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
+
+        //verificamos si la habitacion o unidad estan disponibles, si tiene estancia ver si su salida estimada es antes de la fecha de entrada de la reserva
+        Boolean estaDisponible = habitacionService.verificarDisponiblidad(codigo, tipoUnidad);
+        if (!estaDisponible) {
+            EstanciaDTO estancia = estanciaService.obtenerEstancia(codigo, tipoUnidad);
+            if(desde.isBefore(estancia.getSalidaEstimada())){
+                return null;
+            }
+        }
+
+        logger.info("Buscando reservas en rango para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
+        if(tipoUnidad.equals(TipoUnidad.HABITACION)) {
+
+            Habitacion habitacion = habitacionService.buscarPorCodigo(codigo);
+            List<Reserva> reservasEnRango = reservaRepository.findReservasByHabitacionAndRango(habitacion.getId(), desde, hasta);
+            if (!reservasEnRango.isEmpty()) {
+                return null;
+            }
+            return reservasEnRango;
+        }
+        logger.info("Buscando reservas en rango para la unidad con codigo: {}", codigo);
+
+        Unidad unidad = unidadService.buscarPorCodigo(codigo);
+        List<Reserva> reservasEnRango = new ArrayList<>();
+        for(Habitacion h : unidad.getHabitaciones()) {
+            List<Reserva> reservasHabitacion = reservaRepository.findReservasByHabitacionAndRango(h.getId(), desde, hasta);
+            reservasEnRango.addAll(reservasHabitacion);
+        }
+
+        logger.info("Total de reservas encontradas en rango para la unidad con codigo {}: {}", codigo, reservasEnRango.size());
+
+        if(!reservasEnRango.isEmpty()) {
+            return null;
+        }
+        return reservasEnRango;
+    }
+
+    private EstadoOperativo actualizarEstadoOperativo(LocalDateTime fechaEntradaEstimada, EstadoOperativo estadoActual) {
+        if(fechaEntradaEstimada.isBefore(LocalDateTime.now())) {
+            return EstadoOperativo.RESERVADO;
+        } else {
+            return estadoActual;
+        }
+    }
 }

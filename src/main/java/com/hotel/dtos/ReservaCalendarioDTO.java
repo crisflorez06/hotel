@@ -16,4 +16,5 @@ public class ReservaCalendarioDTO {
     private String codigoUnidad;
     private TipoUnidad tipoUnidad;
     private Integer numeroPersonas;
+    private String nombreCliente;
 }

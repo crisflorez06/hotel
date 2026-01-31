@@ -1,0 +1,381 @@
+import { CommonModule } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { FlatpickrModule } from 'angularx-flatpickr';
+import { Observable, map } from 'rxjs';
+
+import { ReservaService } from '../../services/reserva.service';
+import { OcupanteService } from '../../services/ocupante.service';
+import { HabitacionService } from '../../services/habitacion.service';
+import { UnidadService } from '../../services/unidad.service';
+import {
+  CanalReserva,
+  EstadoPago,
+  MedioPago,
+  TipoDocumento,
+  TipoOcupante,
+  TipoPago,
+  TipoUnidad,
+} from '../../models/enums';
+import { ReservaNuevoRequest } from '../../models/reserva.model';
+import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
+
+@Component({
+  selector: 'app-reserva-nueva',
+  standalone: true,
+  imports: [CommonModule, FormsModule, FlatpickrModule],
+  templateUrl: './reserva-nueva.component.html',
+  styleUrl: './reserva-nueva.component.css',
+})
+export class ReservaNuevaComponent implements OnInit {
+  codigo = '';
+  tipoUnidad: TipoUnidad | '' = '';
+  codigosDisponibles: string[] = [];
+  cargandoCodigos = false;
+  codigosError = '';
+
+  idOcupante: number | null = null;
+  numeroPersonas: number | null = null;
+  entradaEstimada = '';
+  salidaEstimada = '';
+  canalReserva: CanalReserva = 'MOSTRADOR';
+  notas = '';
+
+  conPago = false;
+  tipoPago: TipoPago = 'RESERVA';
+  monto: number | null = null;
+  medioPago: MedioPago = 'EFECTIVO';
+  fechaPago = '';
+  estadoPago: EstadoPago = 'PENDIENTE';
+
+  mostrarModalCliente = false;
+  creandoCliente = false;
+  clienteError = '';
+  clienteCreado: OcupanteDTO | null = null;
+  clienteNuevo: OcupanteNuevoRequest = {
+    nombres: '',
+    apellidos: '',
+    tipoDocumento: undefined,
+    numeroDocumento: '',
+    telefono: '',
+    email: '',
+    tipoOcupante: 'CLIENTE',
+  };
+  mostrarModalBusquedaCliente = false;
+  buscandoCliente = false;
+  clienteBusquedaDocumento = '';
+  clienteBusquedaError = '';
+  clientesEncontrados: OcupanteDTO[] = [];
+
+  guardando = false;
+  error = '';
+  exito = '';
+  mostrarToast = false;
+  toastMensaje = '';
+
+  tiposUnidad = [
+    { label: 'Unidad', value: 'APARTAMENTO' as TipoUnidad },
+    { label: 'Apartaestudio', value: 'APARTAESTUDIO' as TipoUnidad },
+    { label: 'Habitacion', value: 'HABITACION' as TipoUnidad },
+  ];
+
+  canalesReserva: { label: string; value: CanalReserva }[] = [
+    { label: 'Airbnb', value: 'PLATAFORMA_AIRBINB' },
+    { label: 'Booking', value: 'PLATAFORMA_BOOKING' },
+    { label: 'Expedia', value: 'PLATAFORMA_EXPEDIA' },
+    { label: 'Whatsapp', value: 'WHATSAPP' },
+    { label: 'Telefono', value: 'TELEFONO' },
+    { label: 'Email', value: 'EMAIL' },
+    { label: 'Mostrador', value: 'MOSTRADOR' },
+  ];
+
+  mediosPago: MedioPago[] = [
+    'EFECTIVO',
+    'TARJETA_CREDITO',
+    'TARJETA_DEBITO',
+    'TRANSFERENCIA_BANCARIA',
+    'PLATAFORMA',
+  ];
+
+  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO', 'REEMBOLSADO'];
+  tiposDocumento: TipoDocumento[] = ['CC', 'TI', 'CE', 'PA', 'NIT', 'RC'];
+
+  constructor(
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly reservaService: ReservaService,
+    private readonly ocupanteService: OcupanteService,
+    private readonly habitacionService: HabitacionService,
+    private readonly unidadService: UnidadService
+  ) {}
+
+  ngOnInit(): void {
+    this.codigo = this.route.snapshot.queryParamMap.get('codigo') ?? '';
+    this.tipoUnidad = (this.route.snapshot.queryParamMap.get('tipo') as TipoUnidad) ?? '';
+    if (this.tipoUnidad) {
+      this.cargarCodigosDisponibles(this.tipoUnidad);
+    }
+  }
+
+  onTipoUnidadChange(tipo: TipoUnidad | ''): void {
+    this.tipoUnidad = tipo;
+    this.codigo = '';
+    this.codigosDisponibles = [];
+    this.codigosError = '';
+    if (tipo) {
+      this.cargarCodigosDisponibles(tipo);
+    }
+  }
+
+  guardar(): void {
+    if (
+      !this.tipoUnidad ||
+      !this.codigo.trim() ||
+      this.idOcupante === null ||
+      Number.isNaN(Number(this.idOcupante)) ||
+      this.numeroPersonas === null ||
+      Number.isNaN(Number(this.numeroPersonas)) ||
+      !this.entradaEstimada ||
+      !this.salidaEstimada ||
+      !this.canalReserva
+    ) {
+      this.error = 'Completa los campos obligatorios.';
+      return;
+    }
+
+    if (this.conPago && (!this.monto || !this.fechaPago)) {
+      this.error = 'Completa los campos de pago obligatorios.';
+      return;
+    }
+
+    this.guardando = true;
+    this.error = '';
+    this.exito = '';
+
+    const request: ReservaNuevoRequest = {
+      tipoUnidad: this.tipoUnidad,
+      codigo: this.codigo.trim(),
+      idOcupante: this.idOcupante,
+      numeroPersonas: this.numeroPersonas,
+      entradaEstimada: this.normalizarFechaHora(this.entradaEstimada),
+      salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
+      canalReserva: this.canalReserva,
+      notas: this.notas.trim() || undefined,
+      pago: this.conPago ? this.buildPago() : undefined,
+    };
+
+    this.reservaService.crearReserva(request).subscribe({
+      next: () => {
+        this.guardando = false;
+        this.exito = 'Reserva registrada con exito.';
+        this.mostrarToastExito('Reserva registrada con exito.', true);
+      },
+      error: () => {
+        this.guardando = false;
+        this.error = 'No fue posible registrar la reserva.';
+      },
+    });
+  }
+
+  abrirModalCliente(): void {
+    this.mostrarModalCliente = true;
+    this.clienteError = '';
+  }
+
+  cerrarModalCliente(): void {
+    if (this.creandoCliente) {
+      return;
+    }
+    this.mostrarModalCliente = false;
+  }
+
+  abrirModalBusquedaCliente(): void {
+    this.mostrarModalBusquedaCliente = true;
+    this.clienteBusquedaError = '';
+    this.clientesEncontrados = [];
+  }
+
+  cerrarModalBusquedaCliente(): void {
+    if (this.buscandoCliente) {
+      return;
+    }
+    this.mostrarModalBusquedaCliente = false;
+  }
+
+  crearCliente(): void {
+    const nombres = this.clienteNuevo.nombres.trim();
+    const apellidos = this.clienteNuevo.apellidos.trim();
+
+    if (!nombres || !apellidos) {
+      this.clienteError = 'Completa los campos obligatorios.';
+      return;
+    }
+
+    const request: OcupanteNuevoRequest = {
+      nombres,
+      apellidos,
+      tipoDocumento: this.clienteNuevo.tipoDocumento,
+      numeroDocumento: this.normalizarOpcional(this.clienteNuevo.numeroDocumento),
+      telefono: this.normalizarOpcional(this.clienteNuevo.telefono),
+      email: this.normalizarOpcional(this.clienteNuevo.email),
+      tipoOcupante: 'CLIENTE',
+    };
+
+    this.creandoCliente = true;
+    this.clienteError = '';
+
+    this.ocupanteService.crearOcupante(request).subscribe({
+      next: (cliente) => {
+        this.creandoCliente = false;
+        this.idOcupante = cliente.id;
+        this.clienteCreado = cliente;
+        this.mostrarModalCliente = false;
+        this.limpiarClienteNuevo();
+        this.mostrarToastExito(`Cliente creado: ${cliente.nombres} ${cliente.apellidos}.`);
+      },
+      error: () => {
+        this.creandoCliente = false;
+        this.clienteError = 'No fue posible crear el cliente.';
+      },
+    });
+  }
+
+  buscarCliente(): void {
+    const documento = this.clienteBusquedaDocumento.trim();
+    if (!documento) {
+      this.clienteBusquedaError = 'Ingresa el documento para buscar.';
+      return;
+    }
+
+    this.buscandoCliente = true;
+    this.clienteBusquedaError = '';
+    this.clientesEncontrados = [];
+
+    this.ocupanteService.buscarPorDocumento(documento).subscribe({
+      next: (ocupantes) => {
+        this.buscandoCliente = false;
+        this.clientesEncontrados = this.priorizarClienteEnDuplicados(ocupantes);
+        if (!this.clientesEncontrados.length) {
+          this.clienteBusquedaError = 'No se encontraron clientes.';
+        }
+      },
+      error: () => {
+        this.buscandoCliente = false;
+        this.clienteBusquedaError = 'No fue posible buscar los clientes.';
+      },
+    });
+  }
+
+  seleccionarCliente(cliente: OcupanteDTO): void {
+    this.idOcupante = cliente.id;
+    this.clienteCreado = cliente;
+    this.mostrarModalBusquedaCliente = false;
+  }
+
+  volver(): void {
+    this.router.navigate(['/reserva']);
+  }
+
+  private cargarCodigosDisponibles(tipo: TipoUnidad): void {
+    this.cargandoCodigos = true;
+    this.codigosError = '';
+
+    const request$: Observable<string[]> =
+      tipo === 'HABITACION'
+        ? this.habitacionService.buscarHabitaciones().pipe(map((items) => items.map((i) => i.codigo)))
+        : this.unidadService
+            .buscarUnidades({ tipo })
+            .pipe(map((items) => items.map((i) => i.codigo)));
+
+    request$.subscribe({
+      next: (codigos) => {
+        const codigosLimpios = codigos.filter((codigo) => Boolean(codigo));
+        this.codigosDisponibles = Array.from(new Set(codigosLimpios)).sort((a, b) =>
+          a.localeCompare(b)
+        );
+        this.cargandoCodigos = false;
+        if (!this.codigosDisponibles.length) {
+          this.codigosError = 'No se encontraron codigos disponibles.';
+        }
+      },
+      error: () => {
+        this.cargandoCodigos = false;
+        this.codigosError = 'No fue posible cargar los codigos.';
+      },
+    });
+  }
+
+  private buildPago() {
+    if (!this.monto || !this.fechaPago) {
+      return undefined;
+    }
+
+    return {
+      tipoPago: this.tipoPago,
+      monto: this.monto,
+      medioPago: this.medioPago,
+      fecha: this.normalizarFechaHora(this.fechaPago),
+      estado: this.estadoPago,
+    };
+  }
+
+  private normalizarFechaHora(valor: string): string {
+    return valor.replace(' ', 'T');
+  }
+
+  private mostrarToastExito(mensaje: string, navegar = false): void {
+    this.toastMensaje = mensaje;
+    this.mostrarToast = true;
+    setTimeout(() => {
+      this.mostrarToast = false;
+      if (navegar) {
+        this.router.navigate(['/reserva']);
+      }
+    }, 1500);
+  }
+
+  private normalizarOpcional(valor?: string): string | undefined {
+    const limpio = (valor ?? '').trim();
+    return limpio ? limpio : undefined;
+  }
+
+  private limpiarClienteNuevo(): void {
+    this.clienteNuevo = {
+      nombres: '',
+      apellidos: '',
+      tipoDocumento: undefined,
+      numeroDocumento: '',
+      telefono: '',
+      email: '',
+      tipoOcupante: 'CLIENTE',
+    };
+  }
+
+  private priorizarClienteEnDuplicados(ocupantes: OcupanteDTO[]): OcupanteDTO[] {
+    return this.priorizarTipoEnDuplicados(ocupantes, 'CLIENTE');
+  }
+
+  private priorizarTipoEnDuplicados(
+    ocupantes: OcupanteDTO[],
+    tipo: TipoOcupante
+  ): OcupanteDTO[] {
+    const mapa = new Map<string, OcupanteDTO>();
+
+    ocupantes.forEach((ocupante) => {
+      const key = [
+        ocupante.nombres?.toLowerCase().trim() ?? '',
+        ocupante.apellidos?.toLowerCase().trim() ?? '',
+        ocupante.tipoDocumento ?? '',
+        ocupante.numeroDocumento?.toLowerCase().trim() ?? '',
+      ].join('|');
+
+      const actual = mapa.get(key);
+      if (!actual || (actual.tipoOcupante !== tipo && ocupante.tipoOcupante === tipo)) {
+        mapa.set(key, ocupante);
+      }
+    });
+
+    return Array.from(mapa.values());
+  }
+}

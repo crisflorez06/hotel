@@ -5,6 +5,7 @@ import com.hotel.dtos.EstanciaEditarRequestDTO;
 import com.hotel.dtos.EstanciaNuevoRequestDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.models.*;
+import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoOcupante;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -49,20 +51,20 @@ public class EstanciaService {
     @Transactional
     public Estancia crearEstancia(EstanciaNuevoRequestDTO request) {
 
-        logger.info("Verificando disponibilidad para la estancia solicitada");
+        logger.info("[crearEstancia] Verificando disponibilidad para la unidad o habitacion con codigo: {}", request.getCodigo());
         if (!habitacionService.verificarDisponiblidad(request.getCodigo(), request.getTipoUnidad())) {
             throw new IllegalStateException("La unidad o habitacion no está disponible para la estancia.");
         }
 
-        logger.info("Validando fechas de entrada y salida estimada");
+        logger.info("[crearEstancia] Validando fechas de entrada y salida de la estancia");
         if (request.getSalidaEstimada().isBefore(request.getEntradaReal())) {
             throw new IllegalArgumentException("salida estimada debe ser posterior a entrada real");
         }
 
-        logger.info("Creando estancia para el ocupante titular con ID: {}", request.getIdCliente());
+        logger.info("[crearEstancia] Mapeando datos del request a la entidad Estancia");
         Estancia estancia = EstanciaMapper.requestNuevoToEntity(request);
 
-        logger.info("Buscando y asignando ocupantes para la estancia");
+        logger.info("[crearEstancia] Cargando ocupantes para la estancia");
         List<Ocupante> ocupantes = new ArrayList<>();
 
         Ocupante cliente = ocupanteService.buscarPorId(request.getIdCliente());
@@ -79,16 +81,18 @@ public class EstanciaService {
         estancia.setOcupantes(ocupantes);
 
 
-        logger.info("llenando habitaciones para la estancia");
+        logger.info("[crearEstancia] Llenando habitaciones asociadas a la estancia");
         estancia.setEstanciaHabitaciones(estanciaHabitacionService.llenarHabitaciones(estancia, request.getCodigo(), request.getTipoUnidad()));
 
-        logger.info("Determinando modo de ocupacion para la estancia");
+        logger.info("[crearEstancia] Estableciendo modo de ocupacion para la estancia");
         estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
 
-        logger.info("Cambiando estado de las habitaciones asociadas a la estancia a OCUPADO");
-        habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), EstadoOperativo.OCUPADO, request.getTipoUnidad());
-
-
+        logger.info("[crearEstancia] Cambiando estado de las habitaciones asociadas a la estancia a OCUPADO");
+        if(estancia.getEntradaReal().isBefore(LocalDateTime.now())  || estancia.getEntradaReal().isEqual(LocalDateTime.now())) {
+            estancia.setEstado(EstadoEstancia.ACTIVA);
+            habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), EstadoOperativo.OCUPADO, request.getTipoUnidad());
+        }
+        logger.info("[crearEstancia] Guardando estancia en la base de datos");
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
         if(request.getPago() != null) {
@@ -146,6 +150,7 @@ public class EstanciaService {
         estanciaHabitacionService.vaciarHabitaciones(estancia);
 
         estancia.setActivo(false);
+        estancia.setEstado(EstadoEstancia.FINALIZADA);
         estanciaRepository.save(estancia);
         return null;
     }
@@ -249,5 +254,6 @@ public class EstanciaService {
 
         return ocupantes;
     }
+
 
 }

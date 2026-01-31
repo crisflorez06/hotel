@@ -1,5 +1,6 @@
 package com.hotel.models;
 
+import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.ModoOcupacion;
 import jakarta.persistence.*;
 
@@ -63,6 +64,10 @@ public class Estancia {
     @Enumerated(EnumType.STRING)
     @Column(name = "modo_ocupacion", nullable = false, length = 20)
     private ModoOcupacion modoOcupacion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 20)
+    private EstadoEstancia estado;
 
 
     @Column(name = "precio_total",  precision = 12, scale = 2)

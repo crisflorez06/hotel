@@ -1,9 +1,16 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import { CalendarOptions, DatesSetArg, DayCellContentArg, EventInput } from '@fullcalendar/core';
+import {
+  CalendarOptions,
+  DatesSetArg,
+  DayCellContentArg,
+  DayCellMountArg,
+  EventInput,
+} from '@fullcalendar/core';
 
 import { ReservaService } from '../../services/reserva.service';
 import { ReservaCalendarioDTO } from '../../models/reserva-calendario.model';
@@ -12,17 +19,18 @@ import { EstadoReserva, TipoUnidad } from '../../models/enums';
 @Component({
   selector: 'app-reserva',
   standalone: true,
-  imports: [CommonModule, FormsModule, FullCalendarModule],
+  imports: [CommonModule, FormsModule, FullCalendarModule, RouterModule],
   templateUrl: './reserva.component.html',
   styleUrl: './reserva.component.css',
   encapsulation: ViewEncapsulation.None,
 })
 export class ReservaComponent implements OnInit {
   reservas: ReservaCalendarioDTO[] = [];
+  reservaSeleccionada: ReservaCalendarioDTO | null = null;
   cargando = false;
   error = '';
   private readonly maxUnidadesPorDia = 13;
-  private reservasPorDia = new Map<string, Map<string, EstadoReserva>>();
+  private reservasPorDia = new Map<string, Map<string, ReservaCalendarioDTO>>();
 
   filtroTipoUnidad: TipoUnidad | '' = '';
   filtroCodigo = '';
@@ -54,6 +62,7 @@ export class ReservaComponent implements OnInit {
       return estado ? [`reserva-evento--${estado.toLowerCase()}`] : [];
     },
     dayCellContent: (arg: DayCellContentArg) => this.renderizarContenidoDia(arg),
+    dayCellDidMount: (arg: DayCellMountArg) => this.onDayCellDidMount(arg),
     datesSet: (arg: DatesSetArg) => this.onDatesSet(arg),
   };
 
@@ -135,29 +144,30 @@ export class ReservaComponent implements OnInit {
 
   private construirMapaDias(
     reservas: ReservaCalendarioDTO[],
-  ): Map<string, Map<string, EstadoReserva>> {
-    const mapa = new Map<string, Map<string, EstadoReserva>>();
+  ): Map<string, Map<string, ReservaCalendarioDTO>> {
+    const mapa = new Map<string, Map<string, ReservaCalendarioDTO>>();
 
     reservas.forEach((reserva) => {
       const inicio = this.parsearFechaLocal(reserva.inicio);
       const fin = this.parsearFechaLocal(reserva.fin);
-      if (!inicio || !fin || !reserva.codigoUnidad) {
+      if (!inicio || !fin) {
         return;
       }
 
       const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
       const fechaFinal = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
+      const claveUnidad = reserva.codigoUnidad ?? `ID-${reserva.id}`;
 
       while (fechaActual <= fechaFinal) {
         const clave = this.formatearDia(fechaActual);
         let mapaDia = mapa.get(clave);
         if (!mapaDia) {
-          mapaDia = new Map<string, EstadoReserva>();
+          mapaDia = new Map<string, ReservaCalendarioDTO>();
           mapa.set(clave, mapaDia);
         }
 
-        if (!mapaDia.has(reserva.codigoUnidad)) {
-          mapaDia.set(reserva.codigoUnidad, reserva.estado);
+        if (!mapaDia.has(claveUnidad)) {
+          mapaDia.set(claveUnidad, reserva);
         }
 
         fechaActual.setDate(fechaActual.getDate() + 1);
@@ -176,12 +186,15 @@ export class ReservaComponent implements OnInit {
     const ocupadas = reservasDia.slice(0, this.maxUnidadesPorDia);
 
     const circulosOcupados = ocupadas
-      .map(([codigo, estado]) => {
+      .map(([codigo, reserva]) => {
         const slot = this.obtenerSlotCodigo(codigo);
-        const estadoClase = estado.toLowerCase();
-        return `<span class="reserva-circulo reserva-circulo--slot-${slot} reserva-circulo--${estadoClase}">${this.escaparHtml(
-          codigo,
-        )}</span>`;
+        const estadoClase = reserva.estado.toLowerCase();
+        const etiqueta = reserva.codigoUnidad ?? `Unidad ${reserva.id}`;
+        const etiquetaEscapada = this.escaparHtml(etiqueta);
+        const titulo = this.escaparHtml(
+          `${etiqueta} · ${this.formatearEtiqueta(reserva.estado)}`,
+        );
+        return `<span class="reserva-circulo reserva-circulo--slot-${slot} reserva-circulo--${estadoClase}" data-reserva-id="${reserva.id}" title="${titulo}" aria-label="${titulo}">${etiquetaEscapada}</span>`;
       })
       .join('');
 
@@ -244,5 +257,67 @@ export class ReservaComponent implements OnInit {
       return null;
     }
     return new Date(year, month - 1, day);
+  }
+
+  private onDayCellDidMount(arg: DayCellMountArg): void {
+    arg.el.addEventListener('click', this.onDayCellClick);
+  }
+
+  private onDayCellClick = (event: MouseEvent): void => {
+    const objetivo = event.target as HTMLElement | null;
+    if (!objetivo) {
+      return;
+    }
+
+    const circulo = objetivo.closest('.reserva-circulo') as HTMLElement | null;
+    if (!circulo) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const idTexto = circulo.dataset['reservaId'];
+    const id = idTexto ? Number.parseInt(idTexto, 10) : Number.NaN;
+    if (!Number.isFinite(id)) {
+      return;
+    }
+
+    const reserva = this.reservas.find((item) => item.id === id);
+    if (reserva) {
+      this.abrirDetalle(reserva);
+    }
+  };
+
+  abrirDetalle(reserva: ReservaCalendarioDTO): void {
+    this.reservaSeleccionada = reserva;
+  }
+
+  cerrarDetalle(): void {
+    this.reservaSeleccionada = null;
+  }
+
+  mantenerModal(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
+  formatearFecha(valor: string | null | undefined): string {
+    const fecha = this.parsearFechaLocal(valor);
+    if (!fecha) {
+      return '-';
+    }
+    return fecha.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit',
+    });
+  }
+
+  formatearEtiqueta(valor: string | null | undefined): string {
+    if (!valor) {
+      return '-';
+    }
+    const texto = valor.replace(/_/g, ' ').toLowerCase();
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
   }
 }

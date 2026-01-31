@@ -158,6 +158,19 @@
         <div class="recepcion-modal__acciones recepcion-modal__acciones--estancia">
           <button
             type="button"
+            class="btn-secundario"
+            [routerLink]="['/estancias/nueva']"
+            [queryParams]="{
+              codigo: unidad.codigo,
+              tipo: unidad.tipo,
+              editar: true,
+              estanciaId: estanciaDetalle.id
+            }"
+          >
+            Editar estancia
+          </button>
+          <button
+            type="button"
             class="btn-peligro"
             (click)="eliminarEstancia()"
             [disabled]="eliminandoEstancia"

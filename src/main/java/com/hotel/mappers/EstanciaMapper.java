@@ -3,6 +3,7 @@ package com.hotel.mappers;
 import com.hotel.dtos.EstanciaDTO;
 import com.hotel.dtos.EstanciaNuevoRequestDTO;
 import com.hotel.models.Estancia;
+import com.hotel.models.enums.EstadoEstancia;
 
 import java.time.LocalDateTime;
 
@@ -17,6 +18,7 @@ public class EstanciaMapper {
         entity.setSalidaEstimada(request.getSalidaEstimada());
         entity.setNotas("Notas al registrar: " + request.getNotas());
         entity.setActivo(true);
+        entity.setEstado(EstadoEstancia.ACTIVA);
 
         return entity;
     }

@@ -23,5 +23,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/reserva/reserva.component').then((m) => m.ReservaComponent),
   },
+  {
+    path: 'reservas/nueva',
+    loadComponent: () =>
+      import('./pages/reserva-nueva/reserva-nueva.component').then(
+        (m) => m.ReservaNuevaComponent
+      ),
+  },
   { path: '**', redirectTo: '' },
 ];

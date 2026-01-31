@@ -19,6 +19,15 @@ export type EstadoReserva = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETA
 
 export type ModoOcupacion = 'COMPLETO' | 'INDIVIDUAL';
 
+export type CanalReserva =
+  | 'PLATAFORMA_AIRBINB'
+  | 'PLATAFORMA_BOOKING'
+  | 'PLATAFORMA_EXPEDIA'
+  | 'WHATSAPP'
+  | 'TELEFONO'
+  | 'EMAIL'
+  | 'MOSTRADOR';
+
 export type TipoDocumento = 'CC' | 'TI' | 'CE' | 'PA' | 'NIT' | 'RC';
 
 export type TipoOcupante = 'CLIENTE' | 'ACOMPANANTE';

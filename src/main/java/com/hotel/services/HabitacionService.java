@@ -2,16 +2,18 @@ package com.hotel.services;
 
 import com.hotel.dtos.HabitacionDTO;
 import com.hotel.mappers.HabitacionMapper;
-import com.hotel.models.EstanciaHabitacion;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Unidad;
 import com.hotel.models.enums.EstadoOperativo;
+import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.Piso;
 import com.hotel.models.enums.TipoUnidad;
+import com.hotel.repositories.EstanciaHabitacionRepository;
 import com.hotel.repositories.HabitacionRepository;
+import com.hotel.repositories.ReservaRepository;
 import com.hotel.specifications.HabitacionSpecification;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -27,10 +29,17 @@ public class HabitacionService {
 
     private final HabitacionRepository habitacionRepository;
     private final UnidadService unidadService;
+    private final ReservaRepository reservaRepository;
+    private final EstanciaHabitacionRepository estanciaHabitacionRepository;
 
-    public HabitacionService(HabitacionRepository habitacionRepository, UnidadService unidadService) {
+    public HabitacionService(HabitacionRepository habitacionRepository,
+                             UnidadService unidadService,
+                             ReservaRepository reservaRepository,
+                             EstanciaHabitacionRepository estanciaHabitacionRepository) {
         this.unidadService = unidadService;
         this.habitacionRepository = habitacionRepository;
+        this.reservaRepository = reservaRepository;
+        this.estanciaHabitacionRepository = estanciaHabitacionRepository;
     }
 
     public List<HabitacionDTO> buscarHabitaciones(

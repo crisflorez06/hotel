@@ -7,7 +7,7 @@ import { FlatpickrModule } from 'angularx-flatpickr';
 import { EstanciaService } from '../../services/estancia.service';
 import { OcupanteService } from '../../services/ocupante.service';
 import { EstadoPago, MedioPago, TipoDocumento, TipoOcupante, TipoPago, TipoUnidad } from '../../models/enums';
-import { EstanciaNuevoRequest } from '../../models/estancia.model';
+import { EstanciaEditarRequest, EstanciaNuevoRequest } from '../../models/estancia.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 
 @Component({
@@ -20,6 +20,8 @@ import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 export class EstanciaNuevaComponent implements OnInit {
   codigo = '';
   tipoUnidad: TipoUnidad | '' = '';
+  estanciaId: number | null = null;
+  esEdicion = false;
 
   idCliente: number | null = null;
   entradaReal = '';
@@ -96,8 +98,22 @@ export class EstanciaNuevaComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.codigo = this.route.snapshot.queryParamMap.get('codigo') ?? '';
-    this.tipoUnidad = (this.route.snapshot.queryParamMap.get('tipo') as TipoUnidad) ?? '';
+    const params = this.route.snapshot.queryParamMap;
+    this.codigo = params.get('codigo') ?? '';
+    this.tipoUnidad = (params.get('tipo') as TipoUnidad) ?? '';
+    const editarParam = params.get('editar');
+    const estanciaIdParam = params.get('estanciaId');
+
+    this.esEdicion = editarParam === 'true' || editarParam === '1' || !!estanciaIdParam;
+    this.estanciaId = estanciaIdParam ? Number.parseInt(estanciaIdParam, 10) : null;
+
+    if (this.esEdicion) {
+      if (!this.codigo || !this.tipoUnidad) {
+        this.error = 'No se encontraron datos de la unidad para editar la estancia.';
+        return;
+      }
+      this.cargarEstanciaParaEdicion(this.codigo, this.tipoUnidad as TipoUnidad);
+    }
   }
 
   guardar(): void {
@@ -116,6 +132,35 @@ export class EstanciaNuevaComponent implements OnInit {
     this.guardando = true;
     this.error = '';
     this.exito = '';
+
+    if (this.esEdicion) {
+      if (!this.estanciaId) {
+        this.guardando = false;
+        this.error = 'No se encontro la estancia a editar.';
+        return;
+      }
+
+      const request: EstanciaEditarRequest = {
+        idCliente: this.idCliente,
+        entradaReal: this.normalizarFechaHora(this.entradaReal),
+        salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
+        idAcompanantes: this.parseAcompanantes(),
+        notas: this.notas || undefined,
+      };
+
+      this.estanciaService.editarEstancia(this.estanciaId, request).subscribe({
+        next: () => {
+          this.guardando = false;
+          this.exito = 'Estancia actualizada con exito.';
+          this.mostrarToastExito('Estancia actualizada con exito.', true);
+        },
+        error: () => {
+          this.guardando = false;
+          this.error = 'No fue posible actualizar la estancia.';
+        },
+      });
+      return;
+    }
 
     const request: EstanciaNuevoRequest = {
       tipoUnidad: this.tipoUnidad,
@@ -376,6 +421,42 @@ export class EstanciaNuevaComponent implements OnInit {
 
   private normalizarFechaHora(valor: string): string {
     return valor.replace(' ', 'T');
+  }
+
+  private cargarEstanciaParaEdicion(codigo: string, tipoUnidad: TipoUnidad): void {
+    this.estanciaService.obtenerEstanciaActiva(codigo, tipoUnidad).subscribe({
+      next: (estancia) => {
+        this.estanciaId = estancia.id;
+        this.entradaReal = this.formatearFechaHora(estancia.entradaReal);
+        this.salidaEstimada = this.formatearFechaHora(estancia.salidaEstimada);
+        this.notas = estancia.notas ?? '';
+        this.conPago = false;
+
+        const cliente = estancia.ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        this.idCliente = cliente?.id ?? null;
+        this.clienteCreado = cliente ?? null;
+
+        this.acompanantesCreados = estancia.ocupantes.filter(
+          (ocupante) => ocupante.tipoOcupante === 'ACOMPANANTE'
+        );
+        this.idAcompanantes = '';
+      },
+      error: () => {
+        this.error = 'No fue posible cargar la estancia para editar.';
+      },
+    });
+  }
+
+  private formatearFechaHora(valor: string | null | undefined): string {
+    if (!valor) {
+      return '';
+    }
+    const normalizado = valor.replace(' ', 'T');
+    const [fecha, hora] = normalizado.split('T');
+    if (!fecha || !hora) {
+      return valor;
+    }
+    return `${fecha} ${hora.slice(0, 5)}`;
   }
 
   private mostrarToastExito(mensaje: string, navegar = false): void {
