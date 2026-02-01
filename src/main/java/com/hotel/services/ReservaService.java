@@ -11,6 +11,8 @@ import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.ReservaRepository;
+import com.hotel.resolvers.AlojamientoResolver;
+import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.ReservaSpecification;
 import jakarta.persistence.EntityNotFoundException;
 import java.time.LocalDateTime;
@@ -38,13 +40,23 @@ public class ReservaService {
     private final HabitacionService habitacionService;
     private final UnidadService unidadService;
     private final EstanciaService estanciaService;
+    private final AlojamientoResolver alojamientoResolver;
+    private final UnidadHabitacionResolver unidadHabitacionResolver;
 
-    public ReservaService(ReservaRepository reservaRepository, OcupanteService ocupanteService, HabitacionService habitacionService, UnidadService unidadService, EstanciaService estanciaService) {
+    public ReservaService(ReservaRepository reservaRepository,
+                          AlojamientoResolver alojamientoResolver,
+                          OcupanteService ocupanteService,
+                          HabitacionService habitacionService,
+                          UnidadService unidadService,
+                          EstanciaService estanciaService,
+                          UnidadHabitacionResolver unidadHabitacionResolver) {
+        this.unidadHabitacionResolver = unidadHabitacionResolver;
         this.estanciaService = estanciaService;
         this.unidadService = unidadService;
         this.ocupanteService = ocupanteService;
         this.reservaRepository = reservaRepository;
         this.habitacionService = habitacionService;
+        this.alojamientoResolver = alojamientoResolver;
     }
 
     public Reserva buscarPorId(Long id) {
@@ -83,10 +95,10 @@ public class ReservaService {
         logger.info("Buscando ocupante con ID: {}", request.getIdOcupante());
         reserva.setOcupante(ocupanteService.buscarPorId(request.getIdOcupante()));
 
-        List<Habitacion> habitaciones = new ArrayList<>( habitacionService.clasificarHabitacionesPorTipoUnidad(request.getCodigo(), request.getTipoUnidad()));
+        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(request.getCodigo(), request.getTipoUnidad());
         reserva.setHabitaciones(habitaciones);
-        EstadoOperativo nuevoEstado = actualizarEstadoOperativo(request.getEntradaEstimada(), habitaciones.getFirst().getEstadoOperativo());
-        habitacionService.cambiarEstadoHabitaciones(request.getCodigo(), nuevoEstado, request.getTipoUnidad());
+        EstadoOperativo nuevoEstado = EstadoOperativo.DISPONIBLE;
+        alojamientoResolver.actualizarEstadoAlojamiento(habitaciones, nuevoEstado);
         return reservaRepository.save(reserva);
     }
 
@@ -133,7 +145,7 @@ public class ReservaService {
         logger.info("Verificando disponibilidad en rango para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
 
         //verificamos si la habitacion o unidad estan disponibles, si tiene estancia ver si su salida estimada es antes de la fecha de entrada de la reserva
-        Boolean estaDisponible = habitacionService.verificarDisponiblidad(codigo, tipoUnidad);
+        Boolean estaDisponible = alojamientoResolver.verificarDisponiblidad(codigo, tipoUnidad);
         if (!estaDisponible) {
             EstanciaDTO estancia = estanciaService.obtenerEstancia(codigo, tipoUnidad);
             if(desde.isBefore(estancia.getSalidaEstimada())){
@@ -166,13 +178,5 @@ public class ReservaService {
             return null;
         }
         return reservasEnRango;
-    }
-
-    private EstadoOperativo actualizarEstadoOperativo(LocalDateTime fechaEntradaEstimada, EstadoOperativo estadoActual) {
-        if(fechaEntradaEstimada.isBefore(LocalDateTime.now())) {
-            return EstadoOperativo.RESERVADO;
-        } else {
-            return estadoActual;
-        }
     }
 }

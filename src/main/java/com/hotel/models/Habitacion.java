@@ -57,8 +57,8 @@ public class Habitacion {
     @EqualsAndHashCode.Exclude
     private List<Reserva> reservas;
 
-    @OneToMany(mappedBy = "habitacion")
+    @ManyToMany(mappedBy = "habitaciones")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<EstanciaHabitacion> estanciaHabitaciones;
+    private List<Estancia> estancias;
 }

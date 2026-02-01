@@ -7,7 +7,6 @@ import com.hotel.models.Unidad;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoReserva;
-import com.hotel.repositories.EstanciaHabitacionRepository;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.HabitacionRepository;
 import com.hotel.repositories.ReservaRepository;
@@ -35,19 +34,16 @@ public class EstadoOperativoScheduler {
     private final UnidadRepository unidadRepository;
     private final ReservaRepository reservaRepository;
     private final EstanciaRepository estanciaRepository;
-    private final EstanciaHabitacionRepository estanciaHabitacionRepository;
 
     public EstadoOperativoScheduler(
             HabitacionRepository habitacionRepository,
             UnidadRepository unidadRepository,
             ReservaRepository reservaRepository,
-            EstanciaRepository estanciaRepository,
-            EstanciaHabitacionRepository estanciaHabitacionRepository) {
+            EstanciaRepository estanciaRepository) {
         this.habitacionRepository = habitacionRepository;
         this.unidadRepository = unidadRepository;
         this.reservaRepository = reservaRepository;
         this.estanciaRepository = estanciaRepository;
-        this.estanciaHabitacionRepository = estanciaHabitacionRepository;
     }
 
     @EventListener(ApplicationReadyEvent.class)
@@ -66,7 +62,6 @@ public class EstadoOperativoScheduler {
 
     private void reconciliarEstados(LocalDateTime ahora) {
         actualizarReservasExpiradas(ahora);
-        actualizarEstadosEstancias(ahora);
         actualizarHabitacionesYUnidades(ahora);
     }
 
@@ -81,37 +76,7 @@ public class EstadoOperativoScheduler {
         logger.info("[Scheduler] Reservas expiradas: {}", reservas.size());
     }
 
-    private void actualizarEstadosEstancias(LocalDateTime ahora) {
-        List<Estancia> estancias = estanciaRepository.findByActivoTrue();
-        if (estancias.isEmpty()) {
-            return;
-        }
 
-        List<Reserva> reservasActualizar = new ArrayList<>();
-        for (Estancia estancia : estancias) {
-            if (estancia.getSalidaReal() != null) {
-                estancia.setEstado(EstadoEstancia.FINALIZADA);
-                estancia.setActivo(false);
-                Reserva reserva = estancia.getReserva();
-                if (reserva != null && reserva.getEstado() != EstadoReserva.COMPLETADA) {
-                    reserva.setEstado(EstadoReserva.COMPLETADA);
-                    reservasActualizar.add(reserva);
-                }
-                continue;
-            }
-
-            if (estancia.getSalidaEstimada() != null && estancia.getSalidaEstimada().isBefore(ahora)) {
-                estancia.setEstado(EstadoEstancia.EXCEDIDA);
-            } else {
-                estancia.setEstado(EstadoEstancia.ACTIVA);
-            }
-        }
-
-        estanciaRepository.saveAll(estancias);
-        if (!reservasActualizar.isEmpty()) {
-            reservaRepository.saveAll(reservasActualizar);
-        }
-    }
 
     private void actualizarHabitacionesYUnidades(LocalDateTime ahora) {
         List<Habitacion> habitaciones = habitacionRepository.findAll();
@@ -153,7 +118,7 @@ public class EstadoOperativoScheduler {
     }
 
     private EstadoOperativo resolverEstadoHabitacion(Habitacion habitacion, LocalDateTime ahora) {
-        Optional<Estancia> estanciaOpt = estanciaHabitacionRepository.findActiveEstanciaByHabitacionId(habitacion.getId());
+        Optional<Estancia> estanciaOpt = estanciaRepository.findActivaOExcedidaPorHabitacionId(habitacion.getId());
         if (estanciaOpt.isPresent()) {
 
             return EstadoOperativo.OCUPADO;
@@ -164,7 +129,7 @@ public class EstadoOperativoScheduler {
                 ahora,
                 List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA));
 
-        return reservada ? EstadoOperativo.RESERVADO : EstadoOperativo.DISPONIBLE;
+        return reservada ? EstadoOperativo.OCUPADO : EstadoOperativo.DISPONIBLE;
     }
 
     private EstadoOperativo calcularEstadoUnidad(List<Habitacion> habitaciones) {

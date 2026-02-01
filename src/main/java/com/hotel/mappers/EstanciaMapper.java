@@ -17,7 +17,6 @@ public class EstanciaMapper {
         entity.setEntradaReal(request.getEntradaReal());
         entity.setSalidaEstimada(request.getSalidaEstimada());
         entity.setNotas("Notas al registrar: " + request.getNotas());
-        entity.setActivo(true);
         entity.setEstado(EstadoEstancia.ACTIVA);
 
         return entity;

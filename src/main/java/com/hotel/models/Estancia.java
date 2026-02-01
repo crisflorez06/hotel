@@ -76,15 +76,19 @@ public class Estancia {
     @Column(columnDefinition = "text")
     private String notas;
 
-    @OneToMany(mappedBy = "estancia", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ManyToMany
+    @JoinTable(
+            name = "estancia_habitaciones",
+            joinColumns = @JoinColumn(name = "id_estancia"),
+            inverseJoinColumns = @JoinColumn(name = "id_habitacion")
+    )
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private List<EstanciaHabitacion> estanciaHabitaciones;
+    private List<Habitacion> habitaciones;
 
     @OneToOne(mappedBy = "estancia")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Pago pago;
 
-    private boolean activo;
 }

@@ -7,6 +7,8 @@ import com.hotel.models.Ocupante;
 import com.hotel.models.enums.TipoOcupante;
 import com.hotel.repositories.OcupanteRepository;
 import jakarta.persistence.EntityNotFoundException;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -50,7 +52,7 @@ public class OcupanteService {
 
 
 
-    public Ocupante crearOcupanteConDiferenteTipo(Ocupante ocupante, TipoOcupante tipoOcupante) {
+    private Ocupante crearOcupanteConDiferenteTipo(Ocupante ocupante, TipoOcupante tipoOcupante) {
         logger.info("Creando ocupante con diferente tipo: {} {}", ocupante.getNombres(), ocupante.getApellidos());
         Ocupante nuevoOcupante = new Ocupante();
         nuevoOcupante.setNombres(ocupante.getNombres());
@@ -62,6 +64,34 @@ public class OcupanteService {
         nuevoOcupante.setTelefono(ocupante.getTelefono());
         nuevoOcupante.setCreadoEn(ocupante.getCreadoEn());
         return ocupanteRepository.save(nuevoOcupante);
+    }
+
+    public List<Ocupante> determinarOcupantesEstancia(Long idCliente, List<Long> idsAcompanantes) {
+        logger.info("[OcupanteService.determinarOcupantesEstancia] Cargando ocupantes para la estancia");
+        List<Ocupante> ocupantes = new ArrayList<>();
+
+        Ocupante cliente = buscarPorId(idCliente);
+        TipoOcupante tipoOcupanteCliente = cliente.getTipoOcupante();
+
+        logger.info("[OcupanteService.determinarOcupantesEstancia] se valida si el cliente antes fue registrado como ACOMPAÑANTE");
+        if (tipoOcupanteCliente != TipoOcupante.CLIENTE) {
+            ocupantes.add(crearOcupanteConDiferenteTipo(cliente, TipoOcupante.CLIENTE));
+        } else {
+            ocupantes.add(cliente);
+        }
+
+        for(Long idAcompanante : idsAcompanantes) {
+            Ocupante acompanante = buscarPorId(idAcompanante);
+            TipoOcupante tipoOcupanteAcompanante = acompanante.getTipoOcupante();
+
+            logger.info("[OcupanteService.determinarOcupantesEstancia] se valida si el acompañante antes fue registrado como CLIENTE");
+            if (tipoOcupanteAcompanante != TipoOcupante.ACOMPANANTE) {
+                ocupantes.add(crearOcupanteConDiferenteTipo(acompanante, TipoOcupante.ACOMPANANTE));
+            } else {
+                ocupantes.add(acompanante);
+            }
+        }
+        return ocupantes;
     }
 
 }

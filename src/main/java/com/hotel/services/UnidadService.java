@@ -2,7 +2,6 @@ package com.hotel.services;
 
 import com.hotel.dtos.UnidadDTO;
 import com.hotel.mappers.UnidadMapper;
-import com.hotel.models.EstanciaHabitacion;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Unidad;
 import com.hotel.models.enums.EstadoOperativo;
@@ -55,16 +54,12 @@ public class UnidadService {
     }
 
     @Transactional
-    public void cambiarEstadoUnidad(String codigoUnidad, List<Habitacion> habitacionesModificadas, EstadoOperativo nuevoEstado) {
-        logger.info("Cambiando estado de la unidad con codigo: {}", codigoUnidad);
-        Unidad unidad = buscarPorCodigo(codigoUnidad);
+    public void cambiarEstadoUnidad(Unidad unidad) {
 
-        logger.info("Cambiando estado de la unidad asociada a las habitaciones modificadas");
-        List<Habitacion> habitacionesUnidad = actualizarHabitacionesUnidad(unidad, habitacionesModificadas, nuevoEstado);
 
-        EstadoOperativo primerEstado = habitacionesUnidad.getFirst().getEstadoOperativo();
+        EstadoOperativo primerEstado = unidad.getHabitaciones().getFirst().getEstadoOperativo();
 
-        boolean todosIguales = habitacionesUnidad.stream()
+        boolean todosIguales = unidad.getHabitaciones().stream()
                 .allMatch(h -> h.getEstadoOperativo() == primerEstado);
 
         EstadoOperativo estadoCalculado = todosIguales
@@ -72,30 +67,11 @@ public class UnidadService {
                 : EstadoOperativo.PARCIALMENTE;
 
 
-        logger.info("Unidad {} -> Estado calculado: {}", codigoUnidad, estadoCalculado);
         unidad.setEstadoOperativo(estadoCalculado);
         unidadRepository.save(unidad);
     }
 
-    private List<Habitacion> actualizarHabitacionesUnidad(Unidad unidad, List<Habitacion> habitacionesModificadas, EstadoOperativo nuevoEstado) {
-        logger.info("Actualizando habitaciones de la unidad asociada a las habitaciones modificadas");
-        List<Habitacion> habitacionesUnidad = unidad.getHabitaciones();
 
-
-        logger.info("Habitaciones de la unidad antes de la actualizacion: {}", habitacionesUnidad);
-        for (Habitacion h: habitacionesUnidad) {
-            for (Habitacion hm : habitacionesModificadas) {
-                logger.info("habitacion modificada con codigo: {}", hm.getCodigo() + " y estado: " + hm.getEstadoOperativo());
-                if (h.getCodigo().equals(hm.getCodigo())) {
-                    h.setEstadoOperativo(nuevoEstado);
-                    logger.info("Habitacion actualizada: {}", h.getCodigo());
-                }
-            }
-            logger.info("habitacion procesada a estado: {}", h.getCodigo() + " -> " + h.getEstadoOperativo());
-        }
-        logger.info("Habitaciones de la unidad despues de la actualizacion: {}", habitacionesUnidad);
-        return habitacionesUnidad;
-    }
 
 
 
