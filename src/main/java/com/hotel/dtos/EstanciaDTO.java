@@ -20,6 +20,6 @@ public class EstanciaDTO {
     private ModoOcupacion modoOcupacion;
     private List<OcupanteDTO> ocupantes;
     private String notas;
-    private List<PagoDTO> pagos;
+    private PagoDTO pago;
 
 }

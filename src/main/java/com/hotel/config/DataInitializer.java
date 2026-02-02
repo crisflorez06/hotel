@@ -2,12 +2,17 @@ package com.hotel.config;
 
 import com.hotel.models.Habitacion;
 import com.hotel.models.Ocupante;
+import com.hotel.models.AjusteTemporada;
+import com.hotel.models.TarifaBase;
 import com.hotel.models.Unidad;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.HabitacionRepository;
 import com.hotel.repositories.OcupanteRepository;
+import com.hotel.repositories.AjusteTemporadaRepository;
+import com.hotel.repositories.TarifaBaseRepository;
 import com.hotel.repositories.UnidadRepository;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
@@ -26,16 +31,22 @@ public class DataInitializer implements CommandLineRunner {
     private final HabitacionRepository habitacionRepository;
     private final OcupanteRepository ocupanteRepository;
     private final EstanciaRepository estanciaRepository;
+    private final TarifaBaseRepository tarifaBaseRepository;
+    private final AjusteTemporadaRepository ajusteTemporadaRepository;
 
     public DataInitializer(
             UnidadRepository unidadRepository,
             HabitacionRepository habitacionRepository,
             OcupanteRepository ocupanteRepository,
-            EstanciaRepository estanciaRepository) {
+            EstanciaRepository estanciaRepository,
+            TarifaBaseRepository tarifaBaseRepository,
+            AjusteTemporadaRepository ajusteTemporadaRepository) {
         this.unidadRepository = unidadRepository;
         this.habitacionRepository = habitacionRepository;
         this.ocupanteRepository = ocupanteRepository;
         this.estanciaRepository = estanciaRepository;
+        this.tarifaBaseRepository = tarifaBaseRepository;
+        this.ajusteTemporadaRepository = ajusteTemporadaRepository;
     }
 
     @Override
@@ -73,6 +84,17 @@ public class DataInitializer implements CommandLineRunner {
         ocupantes.add(buildOcupante("Laura", "Perez", "80000000", TipoOcupante.ACOMPANANTE));
         ocupantes.add(buildOcupante("Carlos", "Gomez", "80000001", TipoOcupante.ACOMPANANTE));
         ocupanteRepository.saveAll(ocupantes);
+
+        List<TarifaBase> tarifas = new ArrayList<>();
+        tarifas.add(buildTarifaBase(TipoUnidad.HABITACION, 180000, 200000, 0, 85000, 90000, 0));
+        tarifas.add(buildTarifaBase(TipoUnidad.APARTAESTUDIO, 230000, 300000, 2000000, 85000, 90000, 0));
+        tarifas.add(buildTarifaBase(TipoUnidad.APARTAMENTO, 250000, 300000, 3000000, 85000, 90000, 0));
+        tarifaBaseRepository.saveAll(tarifas);
+
+        if (ajusteTemporadaRepository.count() == 0) {
+            ajusteTemporadaRepository.save(new AjusteTemporada(null, Temporada.BAJA, true));
+            ajusteTemporadaRepository.save(new AjusteTemporada(null, Temporada.ALTA, false));
+        }
 
     }
 
@@ -114,6 +136,26 @@ public class DataInitializer implements CommandLineRunner {
         ocupante.setTipoOcupante(tipoOcupante);
         ocupante.setCreadoEn(LocalDateTime.now());
         return ocupante;
+    }
+
+    private TarifaBase buildTarifaBase(
+            TipoUnidad tipoUnidad,
+            double precioDiaTemBaja,
+            double precioDiaTemAlta,
+            double precioEstadiaCorta,
+            double precioPersonaAdicionalTemBaja,
+            double precioPersonaAdicionalTemAlta,
+            double precioEstadiaPersonaAdicionalCorta) {
+        TarifaBase tarifa = new TarifaBase();
+        tarifa.setTipoUnidad(tipoUnidad);
+        tarifa.setPrecioDiaTemBaja(BigDecimal.valueOf(precioDiaTemBaja));
+        tarifa.setPrecioDiaTemAlta(BigDecimal.valueOf(precioDiaTemAlta));
+        tarifa.setPrecioEstadiaCorta(BigDecimal.valueOf(precioEstadiaCorta));
+        tarifa.setPrecioPersonaAdicionalTemBaja(BigDecimal.valueOf(precioPersonaAdicionalTemBaja));
+        tarifa.setPrecioPersonaAdicionalTemAlta(BigDecimal.valueOf(precioPersonaAdicionalTemAlta));
+        tarifa.setPrecioEstadiaPersonaAdicionalCorta(BigDecimal.valueOf(precioEstadiaPersonaAdicionalCorta));
+        tarifa.setFechaCreacion(LocalDateTime.now());
+        return tarifa;
     }
 
 }

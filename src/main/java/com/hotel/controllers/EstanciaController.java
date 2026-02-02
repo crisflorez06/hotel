@@ -1,8 +1,7 @@
 package com.hotel.controllers;
 
 import com.hotel.dtos.EstanciaDTO;
-import com.hotel.dtos.EstanciaEditarRequestDTO;
-import com.hotel.dtos.EstanciaNuevoRequestDTO;
+import com.hotel.dtos.EstanciaRequestDTO;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.EstanciaService;
 import jakarta.validation.Valid;
@@ -20,7 +19,7 @@ public class EstanciaController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> crearEstancia(@Valid @RequestBody EstanciaNuevoRequestDTO request) {
+    public ResponseEntity<Void> crearEstancia(@Valid @RequestBody EstanciaRequestDTO request) {
         estanciaService.crearEstancia(request);
         return ResponseEntity.status(201).build();
     }
@@ -28,7 +27,7 @@ public class EstanciaController {
     @PutMapping("/{id}")
     public ResponseEntity<Void> editarEstancia(
             @PathVariable("id") Long id,
-            @RequestBody EstanciaEditarRequestDTO request) {
+            @RequestBody EstanciaRequestDTO request) {
         estanciaService.editarEstancia(request, id);
         return ResponseEntity.noContent().build();
     }

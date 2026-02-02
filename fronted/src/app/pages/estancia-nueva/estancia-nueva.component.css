@@ -128,6 +128,33 @@
   border: 1px dashed #cbd5f5;
 }
 
+.calculo {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.calculo h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.calculo p {
+  margin: 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.calculo__resultado {
+  color: #0f172a;
+}
+
 .estancia__form button[type='submit'] {
   grid-column: 1 / -1;
   justify-self: start;

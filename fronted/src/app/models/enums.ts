@@ -31,3 +31,5 @@ export type CanalReserva =
 export type TipoDocumento = 'CC' | 'TI' | 'CE' | 'PA' | 'NIT' | 'RC';
 
 export type TipoOcupante = 'CLIENTE' | 'ACOMPANANTE';
+
+export type Temporada = 'ALTA' | 'BAJA';

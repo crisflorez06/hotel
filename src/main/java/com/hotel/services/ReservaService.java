@@ -36,27 +36,21 @@ public class ReservaService {
     private static final Logger logger = LoggerFactory.getLogger(ReservaService.class);
 
     private final ReservaRepository reservaRepository;
+    private final PagoService pagoService;
     private final OcupanteService ocupanteService;
-    private final HabitacionService habitacionService;
-    private final UnidadService unidadService;
-    private final EstanciaService estanciaService;
-    private final AlojamientoResolver alojamientoResolver;
     private final UnidadHabitacionResolver unidadHabitacionResolver;
+    private final DisponibilidadService disponibilidadService;
 
     public ReservaService(ReservaRepository reservaRepository,
-                          AlojamientoResolver alojamientoResolver,
                           OcupanteService ocupanteService,
-                          HabitacionService habitacionService,
-                          UnidadService unidadService,
-                          EstanciaService estanciaService,
-                          UnidadHabitacionResolver unidadHabitacionResolver) {
+                          PagoService pagoService,
+                          UnidadHabitacionResolver unidadHabitacionResolver,
+                          DisponibilidadService disponibilidadService) {
+        this.pagoService = pagoService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
-        this.estanciaService = estanciaService;
-        this.unidadService = unidadService;
         this.ocupanteService = ocupanteService;
         this.reservaRepository = reservaRepository;
-        this.habitacionService = habitacionService;
-        this.alojamientoResolver = alojamientoResolver;
+        this.disponibilidadService = disponibilidadService;
     }
 
     public Reserva buscarPorId(Long id) {
@@ -66,40 +60,44 @@ public class ReservaService {
 
     @Transactional
     public Reserva crearReserva(ReservaNuevaRequestDTO request) {
-        logger.info("Verificando disponibilidad para la reserva solicitada");
-        List<Reserva> reservasNoDisponibles = estaDisponibleEnRango(request.getCodigo(), request.getTipoUnidad(), request.getEntradaEstimada(), request.getSalidaEstimada());
-        if (reservasNoDisponibles == null) {
+
+        String codigo = request.getCodigo();
+        TipoUnidad tipoUnidad = request.getTipoUnidad();
+        LocalDateTime entradaEstimada = request.getEntradaEstimada();
+        LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
 
-            //cambiar esto porque devuelve un null en el error  entonces no se podra leer el mensaje
-            String detalles = reservasNoDisponibles.stream()
-                    .map(r -> "Entrada: " + r.getEntradaEstimada() + " - Salida: " + r.getSalidaEstimada())
-                    .collect(Collectors.joining(" | ")); // separador entre reservas
-
-            throw new IllegalStateException(
-                    "Existen reservas en conflicto (" + detalles +
-                            ") para el rango solicitado: Entrada=" + request.getEntradaEstimada() +
-                            " / Salida=" + request.getSalidaEstimada()
-            );
+        logger.info("[crearReserva] Verificando disponibilidad para la unidad o habitacion con codigo: {}", request.getCodigo());
+        String existeReserva = disponibilidadService.verificarDisponibilidad(codigo, tipoUnidad, entradaEstimada, salidaEstimada);
+        if (!existeReserva.isEmpty()) {
+            throw new IllegalArgumentException("No es posible crear la reserva: " + existeReserva);
         }
 
-
-        logger.info("Validando fechas de entrada y salida estimada");
-        if (request.getSalidaEstimada().isBefore(request.getEntradaEstimada())) {
-            throw new IllegalArgumentException("salida estimada debe ser posterior a entrada estimada");
+        logger.info("[crearReserva] Validando fechas de entrada y salida estimadas");
+        String fechaConflicto = fechaTieneConflicto(salidaEstimada, entradaEstimada);
+        if (!fechaConflicto.isEmpty()) {
+            throw new IllegalArgumentException("No es posible crear la reserva: " + fechaConflicto);
         }
 
-        logger.info("Creando reserva para el ocupante con ID: {}", request.getIdOcupante());
+        logger.info("[crearReserva] Creando reserva para el ocupante con ID: {}", request.getIdOcupante());
         Reserva reserva = ReservaMapper.requestNuevoToEntity(request);
 
-        logger.info("Buscando ocupante con ID: {}", request.getIdOcupante());
+        logger.info("[crearReserva] Buscando ocupante para asignar a la reserva");
         reserva.setOcupante(ocupanteService.buscarPorId(request.getIdOcupante()));
 
+        logger.info("[crearReserva] Asignando habitaciones a la reserva");
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(request.getCodigo(), request.getTipoUnidad());
         reserva.setHabitaciones(habitaciones);
-        EstadoOperativo nuevoEstado = EstadoOperativo.DISPONIBLE;
-        alojamientoResolver.actualizarEstadoAlojamiento(habitaciones, nuevoEstado);
-        return reservaRepository.save(reserva);
+
+        Reserva reservaGuardada = reservaRepository.save(reserva);
+
+        if(request.getPago() != null) {
+            logger.info("[crearReserva] Creando pago asociado a la reserva con ID: {}", reservaGuardada.getId());
+            Pago pago = pagoService.crearPago(request.getPago(), reservaGuardada.getId());
+            reservaGuardada.setPago(pago);
+        }
+
+        return reservaGuardada;
     }
 
     public List<ReservaCalendarioDTO> buscarReservasCalendario(String mes, TipoUnidad tipoUnidad, String codigoUnidad) {
@@ -141,42 +139,14 @@ public class ReservaService {
     }
 
 
-    public List<Reserva> estaDisponibleEnRango(String codigo, TipoUnidad tipoUnidad, LocalDateTime desde, LocalDateTime hasta) {
-        logger.info("Verificando disponibilidad en rango para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-
-        //verificamos si la habitacion o unidad estan disponibles, si tiene estancia ver si su salida estimada es antes de la fecha de entrada de la reserva
-        Boolean estaDisponible = alojamientoResolver.verificarDisponiblidad(codigo, tipoUnidad);
-        if (!estaDisponible) {
-            EstanciaDTO estancia = estanciaService.obtenerEstancia(codigo, tipoUnidad);
-            if(desde.isBefore(estancia.getSalidaEstimada())){
-                return null;
-            }
+    private String fechaTieneConflicto(LocalDateTime fechaSalidaEstimada, LocalDateTime fechaEntradaEstimada) {
+        if (fechaSalidaEstimada.isBefore(fechaEntradaEstimada) || fechaSalidaEstimada.isEqual(fechaEntradaEstimada)) {
+            return "fecha de salida estimada debe ser posterior a fecha de entrada estimada";
+        }
+        if(fechaEntradaEstimada.isBefore(LocalDateTime.now())) {
+            return "fecha de entrada estimada no puede ser anterior a la fecha actual";
         }
 
-        logger.info("Buscando reservas en rango para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-        if(tipoUnidad.equals(TipoUnidad.HABITACION)) {
-
-            Habitacion habitacion = habitacionService.buscarPorCodigo(codigo);
-            List<Reserva> reservasEnRango = reservaRepository.findReservasByHabitacionAndRango(habitacion.getId(), desde, hasta);
-            if (!reservasEnRango.isEmpty()) {
-                return null;
-            }
-            return reservasEnRango;
-        }
-        logger.info("Buscando reservas en rango para la unidad con codigo: {}", codigo);
-
-        Unidad unidad = unidadService.buscarPorCodigo(codigo);
-        List<Reserva> reservasEnRango = new ArrayList<>();
-        for(Habitacion h : unidad.getHabitaciones()) {
-            List<Reserva> reservasHabitacion = reservaRepository.findReservasByHabitacionAndRango(h.getId(), desde, hasta);
-            reservasEnRango.addAll(reservasHabitacion);
-        }
-
-        logger.info("Total de reservas encontradas en rango para la unidad con codigo {}: {}", codigo, reservasEnRango.size());
-
-        if(!reservasEnRango.isEmpty()) {
-            return null;
-        }
-        return reservasEnRango;
+        return "";
     }
 }

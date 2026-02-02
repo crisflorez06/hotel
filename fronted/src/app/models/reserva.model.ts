@@ -10,5 +10,5 @@ export interface ReservaNuevoRequest {
   salidaEstimada: string;
   canalReserva: CanalReserva;
   notas?: string;
-  pago?: PagoNuevoRequest;
+  pago?: PagoNuevoRequest | null;
 }

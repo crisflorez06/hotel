@@ -13,6 +13,8 @@ export interface EstanciaNuevoRequest {
 }
 
 export interface EstanciaEditarRequest {
+  tipoUnidad: TipoUnidad;
+  codigo: string;
   idCliente?: number;
   entradaReal?: string;
   salidaEstimada?: string;

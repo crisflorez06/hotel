@@ -1,7 +1,7 @@
 package com.hotel.mappers;
 
 import com.hotel.dtos.EstanciaDTO;
-import com.hotel.dtos.EstanciaNuevoRequestDTO;
+import com.hotel.dtos.EstanciaRequestDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.enums.EstadoEstancia;
 
@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 
 public class EstanciaMapper {
 
-    public static Estancia requestNuevoToEntity(EstanciaNuevoRequestDTO request) {
+    public static Estancia requestToEntity(EstanciaRequestDTO request) {
         Estancia entity = new Estancia();
 
         entity.setCodigoFolio(generateCodigoEstancia());

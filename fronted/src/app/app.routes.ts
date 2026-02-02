@@ -24,6 +24,15 @@ export const routes: Routes = [
       import('./pages/reserva/reserva.component').then((m) => m.ReservaComponent),
   },
   {
+    path: 'pagos',
+    loadComponent: () => import('./pages/pagos/pagos.component').then((m) => m.PagosComponent),
+  },
+  {
+    path: 'ajustes',
+    loadComponent: () =>
+      import('./pages/ajustes/ajustes.component').then((m) => m.AjustesComponent),
+  },
+  {
     path: 'reservas/nueva',
     loadComponent: () =>
       import('./pages/reserva-nueva/reserva-nueva.component').then(

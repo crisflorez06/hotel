@@ -1,0 +1,49 @@
+package com.hotel.specifications;
+
+import com.hotel.models.Pago;
+import com.hotel.models.enums.EstadoPago;
+import com.hotel.models.enums.MedioPago;
+import com.hotel.models.enums.TipoPago;
+import jakarta.persistence.criteria.Predicate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import org.springframework.data.jpa.domain.Specification;
+
+public class PagoSpecification {
+
+    public static Specification<Pago> byFilters(
+            List<EstadoPago> estados,
+            List<MedioPago> mediosPago,
+            TipoPago tipoPago,
+            LocalDateTime desde,
+            LocalDateTime hasta) {
+
+        return (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (estados != null && !estados.isEmpty()) {
+                predicates.add(root.get("estado").in(estados));
+            }
+            if (mediosPago != null && !mediosPago.isEmpty()) {
+                predicates.add(root.get("medioPago").in(mediosPago));
+            }
+            if (tipoPago != null) {
+                if (tipoPago == TipoPago.ESTANCIA) {
+                    predicates.add(criteriaBuilder.isNotNull(root.get("estancia")));
+                } else {
+                    predicates.add(criteriaBuilder.isNotNull(root.get("reserva")));
+                }
+            }
+            if (desde != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("fecha"), desde));
+            }
+            if (hasta != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("fecha"), hasta));
+            }
+
+            query.orderBy(criteriaBuilder.desc(root.get("fecha")));
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+}

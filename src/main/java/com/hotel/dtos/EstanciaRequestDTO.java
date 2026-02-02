@@ -8,7 +8,7 @@ import java.util.List;
 import lombok.Data;
 
 @Data
-public class EstanciaNuevoRequestDTO {
+public class EstanciaRequestDTO {
 
 
     @NotNull(message = "tipoUnidad es obligatorio")

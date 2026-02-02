@@ -1,0 +1,42 @@
+<section class="ajustes">
+  <header class="ajustes__header">
+    <div>
+      <h1>Ajustes de temporada</h1>
+      <p>Activa la temporada vigente para actualizar las tarifas.</p>
+    </div>
+  </header>
+
+  <form class="ajustes__form" (ngSubmit)="activarTemporada()">
+    <div class="ajustes__estado">
+      <span>Temporada activa:</span>
+      <strong *ngIf="!cargandoActual; else cargandoActualTpl">
+        {{ temporadaActiva || 'Sin definir' }}
+      </strong>
+      <ng-template #cargandoActualTpl>
+        <span class="ajustes__cargando">Cargando...</span>
+      </ng-template>
+    </div>
+
+    <div class="campo">
+      <label>Temporada activa</label>
+      <select
+        name="temporada"
+        [(ngModel)]="temporadaSeleccionada"
+        (ngModelChange)="limpiarMensajes()"
+        required
+      >
+        <option [ngValue]="''">Selecciona una opcion</option>
+        <option *ngFor="let temporada of temporadas" [ngValue]="temporada.value">
+          {{ temporada.label }}
+        </option>
+      </select>
+    </div>
+
+    <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+    <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
+
+    <button type="submit" [disabled]="guardando">
+      {{ guardando ? 'Guardando...' : 'Activar temporada' }}
+    </button>
+  </form>
+</section>

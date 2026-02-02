@@ -9,17 +9,18 @@ import { ReservaService } from '../../services/reserva.service';
 import { OcupanteService } from '../../services/ocupante.service';
 import { HabitacionService } from '../../services/habitacion.service';
 import { UnidadService } from '../../services/unidad.service';
+import { PagoService } from '../../services/pago.service';
 import {
   CanalReserva,
   EstadoPago,
   MedioPago,
   TipoDocumento,
   TipoOcupante,
-  TipoPago,
   TipoUnidad,
 } from '../../models/enums';
 import { ReservaNuevoRequest } from '../../models/reserva.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
+import { PagoNuevoRequest } from '../../models/pago.model';
 
 @Component({
   selector: 'app-reserva-nueva',
@@ -43,8 +44,10 @@ export class ReservaNuevaComponent implements OnInit {
   notas = '';
 
   conPago = false;
-  tipoPago: TipoPago = 'RESERVA';
   monto: number | null = null;
+  totalCalculado: number | null = null;
+  calculandoPago = false;
+  calculoError = '';
   medioPago: MedioPago = 'EFECTIVO';
   fechaPago = '';
   estadoPago: EstadoPago = 'PENDIENTE';
@@ -107,7 +110,8 @@ export class ReservaNuevaComponent implements OnInit {
     private readonly reservaService: ReservaService,
     private readonly ocupanteService: OcupanteService,
     private readonly habitacionService: HabitacionService,
-    private readonly unidadService: UnidadService
+    private readonly unidadService: UnidadService,
+    private readonly pagoService: PagoService
   ) {}
 
   ngOnInit(): void {
@@ -126,6 +130,7 @@ export class ReservaNuevaComponent implements OnInit {
     if (tipo) {
       this.cargarCodigosDisponibles(tipo);
     }
+    this.recalcularPago();
   }
 
   guardar(): void {
@@ -144,7 +149,10 @@ export class ReservaNuevaComponent implements OnInit {
       return;
     }
 
-    if (this.conPago && (!this.monto || !this.fechaPago)) {
+    if (
+      this.conPago &&
+      (this.monto === null || Number.isNaN(Number(this.monto)) || this.monto <= 0 || !this.fechaPago)
+    ) {
       this.error = 'Completa los campos de pago obligatorios.';
       return;
     }
@@ -162,7 +170,7 @@ export class ReservaNuevaComponent implements OnInit {
       salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
       canalReserva: this.canalReserva,
       notas: this.notas.trim() || undefined,
-      pago: this.conPago ? this.buildPago() : undefined,
+      pago: this.conPago ? this.buildPago() : null,
     };
 
     this.reservaService.crearReserva(request).subscribe({
@@ -176,6 +184,47 @@ export class ReservaNuevaComponent implements OnInit {
         this.error = 'No fue posible registrar la reserva.';
       },
     });
+  }
+
+  recalcularPago(): void {
+    if (!this.conPago) {
+      this.totalCalculado = null;
+      this.calculoError = '';
+      return;
+    }
+
+    this.calculoError = '';
+    this.totalCalculado = null;
+
+    if (!this.tipoUnidad || !this.entradaEstimada || !this.salidaEstimada) {
+      return;
+    }
+
+    if (!this.numeroPersonas || this.numeroPersonas < 1) {
+      this.calculoError = 'El numero de personas debe ser al menos 1.';
+      return;
+    }
+
+    this.calculandoPago = true;
+
+    this.pagoService
+      .calcularTotal({
+        tipoUnidad: this.tipoUnidad,
+        numeroPersonas: this.numeroPersonas,
+        fechaEntrada: this.normalizarFechaHora(this.entradaEstimada),
+        fechaSalida: this.normalizarFechaHora(this.salidaEstimada),
+      })
+      .subscribe({
+        next: (total) => {
+          this.totalCalculado = total;
+          this.monto = total;
+          this.calculandoPago = false;
+        },
+        error: () => {
+          this.calculoError = 'No fue posible calcular el pago.';
+          this.calculandoPago = false;
+        },
+      });
   }
 
   abrirModalCliente(): void {
@@ -306,14 +355,12 @@ export class ReservaNuevaComponent implements OnInit {
     });
   }
 
-  private buildPago() {
-    if (!this.monto || !this.fechaPago) {
-      return undefined;
-    }
+  private buildPago(): PagoNuevoRequest {
+    const monto = Number(this.monto ?? 0);
 
     return {
-      tipoPago: this.tipoPago,
-      monto: this.monto,
+      tipoPago: 'RESERVA',
+      monto,
       medioPago: this.medioPago,
       fecha: this.normalizarFechaHora(this.fechaPago),
       estado: this.estadoPago,

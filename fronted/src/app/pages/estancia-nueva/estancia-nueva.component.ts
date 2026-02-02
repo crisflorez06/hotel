@@ -9,6 +9,7 @@ import { OcupanteService } from '../../services/ocupante.service';
 import { EstadoPago, MedioPago, TipoDocumento, TipoOcupante, TipoPago, TipoUnidad } from '../../models/enums';
 import { EstanciaEditarRequest, EstanciaNuevoRequest } from '../../models/estancia.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
+import { PagoService } from '../../services/pago.service';
 
 @Component({
   selector: 'app-estancia-nueva',
@@ -32,6 +33,9 @@ export class EstanciaNuevaComponent implements OnInit {
   conPago = false;
   tipoPago: TipoPago = 'ESTANCIA';
   monto: number | null = null;
+  totalCalculado: number | null = null;
+  calculandoPago = false;
+  calculoError = '';
   medioPago: MedioPago = 'EFECTIVO';
   fechaPago = '';
   estadoPago: EstadoPago = 'PENDIENTE';
@@ -94,7 +98,8 @@ export class EstanciaNuevaComponent implements OnInit {
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly estanciaService: EstanciaService,
-    private readonly ocupanteService: OcupanteService
+    private readonly ocupanteService: OcupanteService,
+    private readonly pagoService: PagoService
   ) {}
 
   ngOnInit(): void {
@@ -141,6 +146,8 @@ export class EstanciaNuevaComponent implements OnInit {
       }
 
       const request: EstanciaEditarRequest = {
+        tipoUnidad: this.tipoUnidad as TipoUnidad,
+        codigo: this.codigo,
         idCliente: this.idCliente,
         entradaReal: this.normalizarFechaHora(this.entradaReal),
         salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
@@ -184,6 +191,48 @@ export class EstanciaNuevaComponent implements OnInit {
         this.error = 'No fue posible registrar la estancia.';
       },
     });
+  }
+
+  recalcularPago(): void {
+    if (!this.conPago || this.esEdicion) {
+      this.totalCalculado = null;
+      this.calculoError = '';
+      return;
+    }
+
+    this.calculoError = '';
+    this.totalCalculado = null;
+
+    if (!this.tipoUnidad || !this.entradaReal || !this.salidaEstimada) {
+      return;
+    }
+
+    const numeroPersonas = this.obtenerNumeroPersonas();
+    if (numeroPersonas < 1) {
+      this.calculoError = 'El numero de personas debe ser al menos 1.';
+      return;
+    }
+
+    this.calculandoPago = true;
+
+    this.pagoService
+      .calcularTotal({
+        tipoUnidad: this.tipoUnidad,
+        numeroPersonas,
+        fechaEntrada: this.normalizarFechaHora(this.entradaReal),
+        fechaSalida: this.normalizarFechaHora(this.salidaEstimada),
+      })
+      .subscribe({
+        next: (total) => {
+          this.totalCalculado = total;
+          this.monto = total;
+          this.calculandoPago = false;
+        },
+        error: () => {
+          this.calculoError = 'No fue posible calcular el pago.';
+          this.calculandoPago = false;
+        },
+      });
   }
 
   abrirModalCliente(): void {
@@ -333,6 +382,7 @@ export class EstanciaNuevaComponent implements OnInit {
         this.creandoAcompanante = false;
         if (!this.acompanantesCreados.some((item) => item.id === acompanante.id)) {
           this.acompanantesCreados = [...this.acompanantesCreados, acompanante];
+          this.recalcularPago();
         }
         this.mostrarModalAcompanante = false;
         this.limpiarAcompananteNuevo();
@@ -349,6 +399,7 @@ export class EstanciaNuevaComponent implements OnInit {
 
   quitarAcompanante(id: number): void {
     this.acompanantesCreados = this.acompanantesCreados.filter((item) => item.id !== id);
+    this.recalcularPago();
   }
 
   buscarAcompanante(): void {
@@ -383,6 +434,7 @@ export class EstanciaNuevaComponent implements OnInit {
   seleccionarAcompanante(acompanante: OcupanteDTO): void {
     if (!this.acompanantesCreados.some((item) => item.id === acompanante.id)) {
       this.acompanantesCreados = [...this.acompanantesCreados, acompanante];
+      this.recalcularPago();
     }
   }
 
@@ -403,6 +455,16 @@ export class EstanciaNuevaComponent implements OnInit {
     const idsCreados = this.acompanantesCreados.map((item) => item.id);
     const ids = Array.from(new Set([...idsCreados, ...idsManual]));
     return ids.length ? ids : undefined;
+  }
+
+  obtenerNumeroPersonas(): number {
+    const idsManual = this.idAcompanantes
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => !Number.isNaN(value) && value > 0);
+    const idsCreados = this.acompanantesCreados.map((item) => item.id);
+    const totalAcompanantes = new Set([...idsCreados, ...idsManual]).size;
+    return 1 + totalAcompanantes;
   }
 
   private buildPago() {

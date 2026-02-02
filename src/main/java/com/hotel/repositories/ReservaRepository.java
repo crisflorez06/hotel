@@ -12,14 +12,14 @@ import org.springframework.data.repository.query.Param;
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
 
     @Query("""
-           select r
+           select count(r) > 0
            from Reserva r
            join r.habitaciones h
            where h.id = :habitacionId
-             and r.entradaEstimada < :hasta
-             and r.salidaEstimada > :desde
+             and r.entradaEstimada <= :hasta
+             and r.salidaEstimada >= :desde
            """)
-    List<Reserva> findReservasByHabitacionAndRango(
+    boolean existsReservaByHabitacionAndRango(
             @Param("habitacionId") Long habitacionId,
             @Param("desde") LocalDateTime desde,
             @Param("hasta") LocalDateTime hasta);

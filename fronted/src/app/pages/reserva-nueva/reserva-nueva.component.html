@@ -66,7 +66,13 @@
 
     <div class="campo">
       <label>Numero de personas *</label>
-      <input type="number" [(ngModel)]="numeroPersonas" name="numeroPersonas" min="1" />
+      <input
+        type="number"
+        [(ngModel)]="numeroPersonas"
+        name="numeroPersonas"
+        min="1"
+        (ngModelChange)="recalcularPago()"
+      />
     </div>
 
     <div class="campo">
@@ -76,6 +82,7 @@
         mwlFlatpickr
         [(ngModel)]="entradaEstimada"
         name="entradaEstimada"
+        (ngModelChange)="recalcularPago()"
         [enableTime]="true"
         [time24hr]="true"
         [dateFormat]="'Y-m-d H:i'"
@@ -91,6 +98,7 @@
         mwlFlatpickr
         [(ngModel)]="salidaEstimada"
         name="salidaEstimada"
+        (ngModelChange)="recalcularPago()"
         [enableTime]="true"
         [time24hr]="true"
         [dateFormat]="'Y-m-d H:i'"
@@ -115,7 +123,7 @@
 
     <div class="campo campo--full">
       <label>
-        <input type="checkbox" [(ngModel)]="conPago" name="conPago" />
+        <input type="checkbox" [(ngModel)]="conPago" name="conPago" (ngModelChange)="recalcularPago()" />
         Registrar pago
       </label>
     </div>
@@ -123,11 +131,22 @@
     <div class="pago" *ngIf="conPago">
       <div class="campo">
         <label>Tipo pago</label>
-        <input type="text" [value]="tipoPago" disabled />
+        <input type="text" value="RESERVA" disabled />
       </div>
       <div class="campo">
         <label>Monto *</label>
         <input type="number" [(ngModel)]="monto" name="monto" />
+      </div>
+
+      <div class="calculo">
+        <div>
+          <h3>Calculo automatico</h3>
+          <p *ngIf="calculandoPago">Calculando...</p>
+          <p class="calculo__resultado" *ngIf="totalCalculado !== null">
+            Total calculado: <strong>{{ totalCalculado | number : '1.0-0' }}</strong>
+          </p>
+          <p class="estado estado--error" *ngIf="calculoError">{{ calculoError }}</p>
+        </div>
       </div>
       <div class="campo">
         <label>Medio de pago</label>

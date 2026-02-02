@@ -55,6 +55,7 @@
         mwlFlatpickr
         [(ngModel)]="entradaReal"
         name="entradaReal"
+        (ngModelChange)="recalcularPago()"
         [enableTime]="true"
         [time24hr]="true"
         [dateFormat]="'Y-m-d H:i'"
@@ -70,6 +71,7 @@
         mwlFlatpickr
         [(ngModel)]="salidaEstimada"
         name="salidaEstimada"
+        (ngModelChange)="recalcularPago()"
         [enableTime]="true"
         [time24hr]="true"
         [dateFormat]="'Y-m-d H:i'"
@@ -109,7 +111,7 @@
 
     <div class="campo campo--full" *ngIf="!esEdicion">
       <label>
-        <input type="checkbox" [(ngModel)]="conPago" name="conPago" />
+        <input type="checkbox" [(ngModel)]="conPago" name="conPago" (ngModelChange)="recalcularPago()" />
         Registrar pago
       </label>
     </div>
@@ -123,6 +125,21 @@
         <label>Monto *</label>
         <input type="number" [(ngModel)]="monto" name="monto" />
       </div>
+
+      <div class="calculo">
+        <div>
+          <h3>Calcular pago</h3>
+          <p>
+            Total de personas: <strong>{{ obtenerNumeroPersonas() }}</strong>
+          </p>
+          <p *ngIf="calculandoPago">Calculando...</p>
+          <p class="calculo__resultado" *ngIf="totalCalculado !== null">
+            Total calculado: <strong>{{ totalCalculado | number : '1.0-0' }}</strong>
+          </p>
+          <p class="estado estado--error" *ngIf="calculoError">{{ calculoError }}</p>
+        </div>
+      </div>
+
       <div class="campo">
         <label>Medio de pago</label>
         <select [(ngModel)]="medioPago" name="medioPago">

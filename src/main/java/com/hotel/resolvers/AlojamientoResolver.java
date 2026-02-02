@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
@@ -16,31 +17,11 @@ public class AlojamientoResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(AlojamientoResolver.class);
 
-    private final UnidadHabitacionResolver unidadHabitacionResolver;
     private final UnidadService unidadService;
 
-    public AlojamientoResolver(UnidadHabitacionResolver unidadHabitacionResolver, UnidadService unidadService) {
+    public AlojamientoResolver(UnidadService unidadService) {
         this.unidadService = unidadService;
-        this.unidadHabitacionResolver = unidadHabitacionResolver;
     }
-
-    public Boolean verificarDisponiblidad(String codigo, TipoUnidad tipoUnidad) {
-        logger.info("[AlojamientoResolver.verificarDisponiblidad] Verificando disponibilidad para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-
-        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-
-        for (Habitacion habitacion : habitaciones) {
-            if (!habitacion.getEstadoOperativo().equals(EstadoOperativo.DISPONIBLE)) {
-                logger.info("[AlojamientoResolver.verificarDisponiblidad] Habitacion con codigo: {} no está disponible (estado: {})", habitacion.getCodigo(), habitacion.getEstadoOperativo());
-                return false;
-            }
-        }
-
-        logger.info("[AlojamientoResolver.verificarDisponiblidad] Todas las habitaciones están disponibles para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-        return true;
-
-    }
-
 
     public void actualizarEstadoAlojamiento(List<Habitacion> habitacionesModificadas, EstadoOperativo nuevoEstado) {
 
@@ -63,6 +44,8 @@ public class AlojamientoResolver {
         unidadService.cambiarEstadoUnidad(unidad);
 
     }
+
+
 
 
 }
