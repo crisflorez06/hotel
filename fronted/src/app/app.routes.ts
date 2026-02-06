@@ -12,10 +12,24 @@ export const routes: Routes = [
       import('./pages/recepcion/recepcion.component').then((m) => m.RecepcionComponent),
   },
   {
+    path: 'recepcion/panel',
+    loadComponent: () =>
+      import('./pages/recepcion-panel/recepcion-panel.component').then(
+        (m) => m.RecepcionPanelComponent
+      ),
+  },
+  {
     path: 'estancias/nueva',
     loadComponent: () =>
       import('./pages/estancia-nueva/estancia-nueva.component').then(
         (m) => m.EstanciaNuevaComponent
+      ),
+  },
+  {
+    path: 'estancias/salida',
+    loadComponent: () =>
+      import('./pages/estancia-salida/estancia-salida.component').then(
+        (m) => m.EstanciaSalidaComponent
       ),
   },
   {

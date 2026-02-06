@@ -1,7 +1,8 @@
 package com.hotel.mappers;
 
-import com.hotel.dtos.EstanciaDTO;
-import com.hotel.dtos.EstanciaRequestDTO;
+import com.hotel.dtos.estancia.EstanciaDTO;
+import com.hotel.dtos.estancia.EstanciaRequestDTO;
+import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.enums.EstadoEstancia;
 
@@ -13,7 +14,6 @@ public class EstanciaMapper {
         Estancia entity = new Estancia();
 
         entity.setCodigoFolio(generateCodigoEstancia());
-        entity.setFechaCreacion(LocalDateTime.now());
         entity.setEntradaReal(request.getEntradaReal());
         entity.setSalidaEstimada(request.getSalidaEstimada());
         entity.setNotas("Notas al registrar: " + request.getNotas());
@@ -27,14 +27,29 @@ public class EstanciaMapper {
 
         dto.setId(entity.getId());
         dto.setCodigoFolio(entity.getCodigoFolio());
-        dto.setFechaCreacion(entity.getFechaCreacion());
         dto.setEntradaReal(entity.getEntradaReal());
         dto.setSalidaEstimada(entity.getSalidaEstimada());
         dto.setModoOcupacion(entity.getModoOcupacion());
         dto.setNotas(entity.getNotas());
         dto.setOcupantes(OcupanteMapper.listaOcupanteToDto(entity.getOcupantes()));
+        if(entity.getPagos() != null) {
+            dto.setPagos(PagoMapper.entityListToDTOList(entity.getPagos()));
+        }
 
         return dto;
+    }
+
+    public static void activarToEntity(ActivarEstanciaDTO request, Estancia entity) {
+
+        if (!request.getEntradaReal().equals(entity.getEntradaReal())) {
+            entity.setEntradaReal(request.getEntradaReal());
+        }
+        if (!request.getSalidaEstimada().equals(entity.getSalidaEstimada())) {
+            entity.setSalidaEstimada(request.getSalidaEstimada());
+        }
+
+        entity.setEstado(EstadoEstancia.ACTIVA);
+
     }
 
     private static String generateCodigoEstancia() {

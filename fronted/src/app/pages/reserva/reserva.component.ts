@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { FullCalendarModule } from '@fullcalendar/angular';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import {
@@ -29,6 +29,12 @@ export class ReservaComponent implements OnInit {
   reservaSeleccionada: ReservaCalendarioDTO | null = null;
   cargando = false;
   error = '';
+  modalBusquedaAbierta = false;
+  busquedaDocumento = '';
+  busquedaReservas: ReservaCalendarioDTO[] = [];
+  busquedaCargando = false;
+  busquedaError = '';
+  busquedaHecha = false;
   private readonly maxUnidadesPorDia = 13;
   private reservasPorDia = new Map<string, Map<string, ReservaCalendarioDTO>>();
 
@@ -66,7 +72,10 @@ export class ReservaComponent implements OnInit {
     datesSet: (arg: DatesSetArg) => this.onDatesSet(arg),
   };
 
-  constructor(private readonly reservaService: ReservaService) {}
+  constructor(
+    private readonly reservaService: ReservaService,
+    private readonly router: Router
+  ) {}
 
   ngOnInit(): void {
     this.cargarReservasMes(this.mesActivo);
@@ -299,6 +308,68 @@ export class ReservaComponent implements OnInit {
 
   mantenerModal(event: MouseEvent): void {
     event.stopPropagation();
+  }
+
+  abrirBusqueda(): void {
+    this.modalBusquedaAbierta = true;
+    this.busquedaError = '';
+  }
+
+  cerrarBusqueda(): void {
+    this.modalBusquedaAbierta = false;
+    this.busquedaDocumento = '';
+    this.busquedaReservas = [];
+    this.busquedaError = '';
+    this.busquedaHecha = false;
+    this.busquedaCargando = false;
+  }
+
+  buscarReservasPorDocumento(): void {
+    const documento = this.busquedaDocumento.trim();
+    if (!documento) {
+      this.busquedaError = 'Ingresa el numero de documento para buscar.';
+      this.busquedaReservas = [];
+      this.busquedaHecha = true;
+      return;
+    }
+
+    this.busquedaCargando = true;
+    this.busquedaError = '';
+    this.reservaService.buscarPorDocumento(documento).subscribe({
+      next: (reservas) => {
+        this.busquedaReservas = reservas;
+        this.busquedaCargando = false;
+        this.busquedaHecha = true;
+      },
+      error: () => {
+        this.busquedaError = 'No fue posible buscar reservas con ese documento.';
+        this.busquedaReservas = [];
+        this.busquedaCargando = false;
+        this.busquedaHecha = true;
+      },
+    });
+  }
+
+  verMasReserva(reserva: ReservaCalendarioDTO): void {
+    this.cerrarBusqueda();
+    this.abrirDetalle(reserva);
+  }
+
+  darIngreso(reserva: ReservaCalendarioDTO): void {
+    console.log('reserva', reserva);
+    this.cerrarBusqueda();
+    this.router.navigate(['/estancias/nueva'], {
+      state: {
+        idReserva: reserva.id,
+        idCliente: reserva.idCliente && reserva.idCliente > 0 ? reserva.idCliente : undefined,
+        idPagoReserva: reserva.idPagoReserva ?? undefined,
+        nombreCliente: reserva.nombreCliente ?? '',
+        codigo: reserva.codigoUnidad ?? '',
+        tipo: reserva.tipoUnidad ?? '',
+        entrada: reserva.inicio ?? '',
+        salida: reserva.fin ?? '',
+      },
+    });
   }
 
   formatearFecha(valor: string | null | undefined): string {

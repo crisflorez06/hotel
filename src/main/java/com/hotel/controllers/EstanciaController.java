@@ -1,7 +1,9 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.EstanciaDTO;
-import com.hotel.dtos.EstanciaRequestDTO;
+import com.hotel.dtos.estancia.EstanciaDTO;
+import com.hotel.dtos.estancia.EstanciaRequestDTO;
+import com.hotel.dtos.estancia.ActivarEstanciaDTO;
+import com.hotel.dtos.estancia.SalidaEstanciaDTO;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.EstanciaService;
 import jakarta.validation.Valid;
@@ -20,7 +22,7 @@ public class EstanciaController {
 
     @PostMapping
     public ResponseEntity<Void> crearEstancia(@Valid @RequestBody EstanciaRequestDTO request) {
-        estanciaService.crearEstancia(request);
+        estanciaService.crearEstanciaNueva(request);
         return ResponseEntity.status(201).build();
     }
 
@@ -36,6 +38,18 @@ public class EstanciaController {
     public ResponseEntity<Void> eliminarEstancia(@PathVariable("id") Long id) {
         estanciaService.eliminarEstancia(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/finalizar")
+    public ResponseEntity<Void> finalizarEstancia(@Valid @RequestBody SalidaEstanciaDTO request) {
+        estanciaService.finalizarEstancia(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/activar")
+    public ResponseEntity<Void> activarEstancia(@Valid @RequestBody ActivarEstanciaDTO request) {
+        estanciaService.activarEstancia(request);
+        return ResponseEntity.status(201).build();
     }
 
     @GetMapping("/activa")

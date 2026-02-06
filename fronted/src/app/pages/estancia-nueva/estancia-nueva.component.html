@@ -20,14 +20,20 @@
     </div>
 
     <div class="campo">
-      <label>Cliente *</label>
+      <label>Cliente <span *ngIf="!idReserva">*</span></label>
+      <span class="ayuda" *ngIf="idReserva">Se usara el cliente asociado a la reserva.</span>
       <input type="hidden" [(ngModel)]="idCliente" name="idCliente" />
       <div class="campo__inline">
         <span class="campo__valor" *ngIf="clienteCreado; else clientePendiente">
           {{ clienteCreado.nombres }} {{ clienteCreado.apellidos }}
         </span>
         <ng-template #clientePendiente>
-          <span class="campo__valor">Sin cliente seleccionado</span>
+          <span class="campo__valor" *ngIf="idCliente; else clienteNoAsignado">
+            Cliente asignado (ID: {{ idCliente }})
+          </span>
+          <ng-template #clienteNoAsignado>
+            <span class="campo__valor">Sin cliente seleccionado</span>
+          </ng-template>
         </ng-template>
         <button
           type="button"

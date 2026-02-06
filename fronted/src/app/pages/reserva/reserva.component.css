@@ -36,6 +36,22 @@
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.2);
 }
 
+.reserva__buscar {
+  border: 1px solid #0f172a;
+  border-radius: 0.7rem;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  color: #0f172a;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reserva__buscar:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+}
+
 .reserva__header h1 {
   margin: 0 0 0.35rem;
   font-size: 1.9rem;
@@ -442,8 +458,136 @@
   color: #b91c1c;
 }
 
+.reserva-busqueda__form {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.reserva-busqueda__form label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.reserva-busqueda__input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.6rem;
+}
+
+.reserva-busqueda__input input {
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid #cbd5f5;
+  font-size: 0.95rem;
+}
+
+.reserva-busqueda__input button {
+  border: none;
+  border-radius: 0.7rem;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #0f172a;
+  color: #f8fafc;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reserva-busqueda__input button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.reserva-busqueda__resultados {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.reserva-busqueda__lista {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reserva-busqueda__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.9rem;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.reserva-busqueda__acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reserva-busqueda__btn {
+  border-radius: 999px;
+  padding: 0.5rem 0.95rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reserva-busqueda__btn--ghost {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.reserva-busqueda__btn--primary {
+  background: #0f766e;
+  color: #f8fafc;
+  border-color: #0f766e;
+}
+
+.reserva-busqueda__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.reserva-busqueda__info {
+  display: grid;
+  gap: 0.2rem;
+  color: #0f172a;
+}
+
+.reserva-busqueda__info strong {
+  font-size: 1rem;
+}
+
+.reserva-busqueda__info span {
+  font-size: 0.88rem;
+  color: #475569;
+}
+
+.reserva-busqueda__info .reserva-modal__estado {
+  justify-self: start;
+  margin-top: 0.2rem;
+}
+
 @media (max-width: 960px) {
   .reserva__mes {
     align-self: flex-start;
+  }
+
+  .reserva-busqueda__input {
+    grid-template-columns: 1fr;
+  }
+
+  .reserva-busqueda__item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .reserva-busqueda__acciones {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }

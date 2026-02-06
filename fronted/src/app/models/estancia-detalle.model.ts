@@ -11,5 +11,6 @@ export interface EstanciaDTO {
   modoOcupacion: ModoOcupacion;
   ocupantes: OcupanteDTO[];
   notas: string | null;
-  pagos: PagoDTO[];
+  pagoReserva?: PagoDTO | null;
+  pagoEstancia?: PagoDTO | null;
 }

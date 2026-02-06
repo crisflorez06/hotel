@@ -1,7 +1,7 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.AuthRequest;
-import com.hotel.dtos.AuthResponse;
+import com.hotel.dtos.login.AuthRequest;
+import com.hotel.dtos.login.AuthResponse;
 import com.hotel.security.JwtService;
 import com.hotel.security.UserDetailsServiceImpl;
 import org.springframework.security.authentication.AuthenticationManager;

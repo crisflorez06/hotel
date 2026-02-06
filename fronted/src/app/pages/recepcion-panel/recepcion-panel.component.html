@@ -1,0 +1,205 @@
+<section class="panel">
+  <header class="panel__header">
+    <div class="panel__header-top">
+      <a class="panel__back" routerLink="/recepcion">Volver a recepción</a>
+      <span class="panel__clock">Vista detallada</span>
+    </div>
+    <div class="panel__title">
+      <div>
+        <p class="panel__eyebrow">Panel operativo</p>
+        <h1>Unidad y estancia</h1>
+        <p class="panel__subtitle">
+          Resumen para reservas, pagos, ocupantes y movimientos.
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <p class="panel__state" *ngIf="cargando">Cargando información...</p>
+  <p class="panel__state panel__state--error" *ngIf="!cargando && error">{{ error }}</p>
+
+  <div class="panel__grid" *ngIf="!cargando && !error && unidad">
+    <section class="panel__summary">
+      <div class="panel__summary-top">
+        <div class="panel__status" [ngClass]="estadoClass(unidad.estado)">
+          {{ unidad.estado }}
+        </div>
+        <span class="panel__badge">Hotel</span>
+      </div>
+      <h2>{{ unidad.codigo }}</h2>
+      <p class="panel__meta">
+        {{ unidad.tipo }} · Piso {{ unidad.piso.replace('PISO_', '') }}
+      </p>
+      <div class="panel__meta">Habitaciones: {{ unidad.habitaciones.length }}</div>
+
+      <div class="panel__stats">
+        <div class="panel__stat">
+          <span>Ocupación</span>
+          <strong>{{ resumenOcupacion(unidad) }}</strong>
+        </div>
+        <div class="panel__stat">
+          <span>Habitaciones</span>
+          <strong>{{ unidad.habitaciones.length }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel__section">
+      <div class="panel__section-head">
+        <h3>Habitaciones</h3>
+        <span class="panel__section-note">Estado por habitación</span>
+      </div>
+      <ul class="panel__list">
+        <li class="panel__room" *ngFor="let habitacion of unidad.habitaciones">
+          <div class="panel__room-info">
+            <span>{{ habitacion.codigo }}</span>
+            <span class="panel__chip" [ngClass]="estadoClass(habitacion.estado)">
+              {{ habitacion.estado }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="btn-ghost"
+            *ngIf="habitacion.estado !== 'DISPONIBLE'"
+            (click)="abrirHabitacion(habitacion)"
+          >
+            Ver estancia
+          </button>
+          <a
+            class="btn-secondary"
+            *ngIf="habitacion.estado === 'DISPONIBLE'"
+            [routerLink]="['/estancias/nueva']"
+            [queryParams]="{ codigo: habitacion.codigo, tipo: 'HABITACION' }"
+          >
+            Asignar estancia
+          </a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="panel__section panel__section--wide">
+      <div class="panel__section-head">
+        <h3>Estancia activa</h3>
+        <span class="panel__section-note">Pagos y ocupantes</span>
+      </div>
+      <div class="panel__action-card" *ngIf="unidad">
+        <div>
+          <p class="panel__action-title">Acciones rápidas</p>
+          <p class="panel__action-subtitle">
+            Operaciones frecuentes para esta unidad sin perder tiempo en navegación.
+          </p>
+        </div>
+        <div class="panel__action-row">
+          <button type="button" class="btn-primary" (click)="verEstancia(unidad)">
+            Ver estancia
+          </button>
+          <a
+            class="btn-secondary"
+            *ngIf="!esNoDisponible(unidad.estado)"
+            [routerLink]="['/estancias/nueva']"
+            [queryParams]="{ codigo: unidad.codigo, tipo: unidad.tipo }"
+          >
+            Crear estancia
+          </a>
+        </div>
+      </div>
+      <p class="panel__state" *ngIf="estanciaCargando">Cargando estancia...</p>
+      <p class="panel__state panel__state--error" *ngIf="!estanciaCargando && estanciaError">
+        {{ estanciaError }}
+      </p>
+
+      <div class="panel__detail" *ngIf="estanciaDetalle">
+        <div class="panel__grid-detail">
+          <span>Folio: {{ estanciaDetalle.codigoFolio }}</span>
+          <span>Modo: {{ estanciaDetalle.modoOcupacion }}</span>
+          <span>Entrada: {{ estanciaDetalle.entradaReal }}</span>
+          <span>Salida: {{ estanciaDetalle.salidaEstimada }}</span>
+        </div>
+
+        <div class="panel__subsection">
+          <h4>Ocupantes</h4>
+          <ul class="panel__list">
+            <li *ngFor="let ocupante of estanciaDetalle.ocupantes">
+              <span>{{ ocupante.nombres }} {{ ocupante.apellidos }}</span>
+              <span>{{ ocupante.tipoDocumento }} {{ ocupante.numeroDocumento }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="panel__subsection">
+          <h4>Pagos</h4>
+          <p *ngIf="!estanciaDetalle.pagoReserva && !estanciaDetalle.pagoEstancia">
+            Sin pagos asociados.
+          </p>
+
+          <div class="panel__payment" *ngIf="estanciaDetalle.pagoReserva as pagoReserva">
+            <div class="panel__payment-row">
+              <span>Pago reserva</span>
+              <span>{{ pagoReserva.monto | currency: 'COP' : 'symbol' : '1.0-0' }}</span>
+              <button type="button" class="btn-ghost" (click)="togglePagoReservaDetalle()">
+                {{ mostrarPagoReservaDetalle ? 'Ver menos' : 'Ver más' }}
+              </button>
+            </div>
+            <div class="panel__grid-detail" *ngIf="mostrarPagoReservaDetalle">
+              <span>Medio: {{ pagoReserva.medioPago }}</span>
+              <span>Estado: {{ pagoReserva.estado }}</span>
+              <span>Fecha: {{ formatearFecha(pagoReserva.fecha) }}</span>
+              <span *ngIf="pagoReserva.tipoPago">Tipo: {{ pagoReserva.tipoPago }}</span>
+            </div>
+          </div>
+
+          <div class="panel__payment" *ngIf="estanciaDetalle.pagoEstancia as pagoEstancia">
+            <div class="panel__payment-row">
+              <span>Pago estancia</span>
+              <span>{{ pagoEstancia.monto | currency: 'COP' : 'symbol' : '1.0-0' }}</span>
+              <button type="button" class="btn-ghost" (click)="togglePagoEstanciaDetalle()">
+                {{ mostrarPagoEstanciaDetalle ? 'Ver menos' : 'Ver más' }}
+              </button>
+            </div>
+            <div class="panel__grid-detail" *ngIf="mostrarPagoEstanciaDetalle">
+              <span>Medio: {{ pagoEstancia.medioPago }}</span>
+              <span>Estado: {{ pagoEstancia.estado }}</span>
+              <span>Fecha: {{ formatearFecha(pagoEstancia.fecha) }}</span>
+              <span *ngIf="pagoEstancia.tipoPago">Tipo: {{ pagoEstancia.tipoPago }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel__actions">
+          <button type="button" class="btn-primary" (click)="darSalida()">
+            Finalizar estancia
+          </button>
+          <a
+            class="btn-secondary"
+            [routerLink]="['/estancias/nueva']"
+            [queryParams]="{
+              codigo: unidad.codigo,
+              tipo: unidad.tipo,
+              editar: true,
+              estanciaId: estanciaDetalle.id
+            }"
+          >
+            Editar estancia
+          </a>
+        </div>
+        <details class="panel__admin-actions">
+          <summary>Acciones de administración</summary>
+          <p class="panel__admin-note">
+            Esta acción es irreversible y solo se recomienda para correcciones.
+          </p>
+          <button
+            type="button"
+            class="btn-danger"
+            (click)="eliminarEstancia()"
+            [disabled]="eliminandoEstancia"
+          >
+            Eliminar estancia
+          </button>
+        </details>
+        <p class="panel__state panel__state--error" *ngIf="eliminarError">
+          {{ eliminarError }}
+        </p>
+      </div>
+    </section>
+  </div>
+</section>

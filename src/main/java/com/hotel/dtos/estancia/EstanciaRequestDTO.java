@@ -1,5 +1,6 @@
-package com.hotel.dtos;
+package com.hotel.dtos.estancia;
 
+import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.models.enums.TipoUnidad;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,6 +17,8 @@ public class EstanciaRequestDTO {
 
     @NotBlank(message = "codigo es obligatorio")
     private String codigo;
+
+    private Long idReserva;
 
     @NotNull(message = "idCliente es obligatorio")
     private Long idCliente;

@@ -8,6 +8,9 @@
       <button type="button" class="reserva__crear" [routerLink]="['/reservas/nueva']">
         Crear reserva
       </button>
+      <button type="button" class="reserva__buscar" (click)="abrirBusqueda()">
+        Buscar reserva
+      </button>
       <span class="reserva__mes">{{ mesActivo }}</span>
     </div>
   </header>
@@ -93,6 +96,74 @@
         <div>
           <span class="reserva-modal__label">Fin</span>
           <strong>{{ formatearFecha(reserva.fin) }}</strong>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="modalBusquedaAbierta">
+    <div class="modal__backdrop" (click)="cerrarBusqueda()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header">
+        <div>
+          <h2>Buscar reserva</h2>
+          <p>Ingresa el numero de documento para encontrar reservas activas.</p>
+        </div>
+        <button type="button" class="modal__cerrar" (click)="cerrarBusqueda()">Cerrar</button>
+      </header>
+
+      <form class="reserva-busqueda__form" (ngSubmit)="buscarReservasPorDocumento()">
+        <label for="busquedaDocumento">Numero de documento</label>
+        <div class="reserva-busqueda__input">
+          <input
+            id="busquedaDocumento"
+            type="text"
+            name="busquedaDocumento"
+            [(ngModel)]="busquedaDocumento"
+            placeholder="Ej: 10203040"
+          />
+          <button type="submit" [disabled]="busquedaCargando">Buscar</button>
+        </div>
+      </form>
+
+      <p class="estado" *ngIf="busquedaCargando">Buscando reservas...</p>
+      <p class="estado estado--error" *ngIf="busquedaError">{{ busquedaError }}</p>
+
+      <div class="reserva-busqueda__resultados" *ngIf="busquedaHecha && !busquedaCargando">
+        <p class="estado estado--ok" *ngIf="!busquedaReservas.length && !busquedaError">
+          No se encontraron reservas con ese documento.
+        </p>
+
+        <div class="reserva-busqueda__lista" *ngIf="busquedaReservas.length">
+          <article class="reserva-busqueda__item" *ngFor="let reserva of busquedaReservas">
+            <div class="reserva-busqueda__info">
+              <strong>{{ reserva.codigoUnidad || 'Unidad ' + reserva.id }}</strong>
+              <span>{{ formatearEtiqueta(reserva.tipoUnidad) }}</span>
+              <span>Cliente: {{ reserva.nombreCliente || '-' }}</span>
+              <span>
+                {{ formatearFecha(reserva.inicio) }} - {{ formatearFecha(reserva.fin) }}
+              </span>
+              <span class="reserva-modal__estado reserva-modal__estado--{{ reserva.estado.toLowerCase() }}">
+                {{ formatearEtiqueta(reserva.estado) }}
+              </span>
+            </div>
+            <div class="reserva-busqueda__acciones">
+              <button
+                type="button"
+                class="reserva-busqueda__btn reserva-busqueda__btn--ghost"
+                (click)="verMasReserva(reserva)"
+              >
+                Ver mas
+              </button>
+              <button
+                type="button"
+                class="reserva-busqueda__btn reserva-busqueda__btn--primary"
+                (click)="darIngreso(reserva)"
+              >
+                Dar ingreso
+              </button>
+            </div>
+          </article>
         </div>
       </div>
     </div>

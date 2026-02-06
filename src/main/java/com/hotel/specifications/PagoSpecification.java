@@ -29,11 +29,7 @@ public class PagoSpecification {
                 predicates.add(root.get("medioPago").in(mediosPago));
             }
             if (tipoPago != null) {
-                if (tipoPago == TipoPago.ESTANCIA) {
-                    predicates.add(criteriaBuilder.isNotNull(root.get("estancia")));
-                } else {
-                    predicates.add(criteriaBuilder.isNotNull(root.get("reserva")));
-                }
+                predicates.add(criteriaBuilder.equal(root.get("tipoPago"), tipoPago));
             }
             if (desde != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("fecha"), desde));

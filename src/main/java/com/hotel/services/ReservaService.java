@@ -1,17 +1,14 @@
 package com.hotel.services;
 
-import com.hotel.dtos.EstanciaDTO;
-import com.hotel.dtos.ReservaCalendarioDTO;
-import com.hotel.dtos.ReservaNuevaRequestDTO;
-import com.hotel.mappers.EstanciaMapper;
+import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
 import com.hotel.mappers.ReservaMapper;
 import com.hotel.models.*;
-import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.ReservaRepository;
-import com.hotel.resolvers.AlojamientoResolver;
+import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.ReservaSpecification;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,10 +22,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 public class ReservaService {
@@ -40,12 +34,15 @@ public class ReservaService {
     private final OcupanteService ocupanteService;
     private final UnidadHabitacionResolver unidadHabitacionResolver;
     private final DisponibilidadService disponibilidadService;
+    private final EstanciaReservaResolver estanciaReservaResolver;
 
     public ReservaService(ReservaRepository reservaRepository,
                           OcupanteService ocupanteService,
                           PagoService pagoService,
                           UnidadHabitacionResolver unidadHabitacionResolver,
-                          DisponibilidadService disponibilidadService) {
+                          DisponibilidadService disponibilidadService,
+                          EstanciaReservaResolver estanciaReservaResolver) {
+        this.estanciaReservaResolver = estanciaReservaResolver;
         this.pagoService = pagoService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
         this.ocupanteService = ocupanteService;
@@ -83,21 +80,20 @@ public class ReservaService {
         Reserva reserva = ReservaMapper.requestNuevoToEntity(request);
 
         logger.info("[crearReserva] Buscando ocupante para asignar a la reserva");
-        reserva.setOcupante(ocupanteService.buscarPorId(request.getIdOcupante()));
+        reserva.setCliente(ocupanteService.buscarPorId(request.getIdOcupante()));
 
         logger.info("[crearReserva] Asignando habitaciones a la reserva");
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(request.getCodigo(), request.getTipoUnidad());
         reserva.setHabitaciones(habitaciones);
 
-        Reserva reservaGuardada = reservaRepository.save(reserva);
+        logger.info("[crearReserva] Creando estancia asociada a la reserva");
+        Estancia estancia = estanciaReservaResolver.crearEstanciaDesdeReserva(reserva);
+        reserva.setEstancia(estancia);
 
-        if(request.getPago() != null) {
-            logger.info("[crearReserva] Creando pago asociado a la reserva con ID: {}", reservaGuardada.getId());
-            Pago pago = pagoService.crearPago(request.getPago(), reservaGuardada.getId());
-            reservaGuardada.setPago(pago);
-        }
+        logger.info("[crearReserva] Creando pago inicial asociado a la estancia de la reserva");
+        pagoService.crearPago(request.getPago(), estancia);
 
-        return reservaGuardada;
+        return reservaRepository.save(reserva);
     }
 
     public List<ReservaCalendarioDTO> buscarReservasCalendario(String mes, TipoUnidad tipoUnidad, String codigoUnidad) {
@@ -122,11 +118,30 @@ public class ReservaService {
         return llenarTipoYCodigoUnidad(ReservaMapper.entityListaToCalendarioDTOList(reservas));
     }
 
+    public List<ReservaCalendarioDTO> buscarReservasPorNumeroDocumento(String numeroDocumento) {
+        if (numeroDocumento == null || numeroDocumento.isBlank()) {
+            throw new IllegalArgumentException("numeroDocumento es obligatorio");
+        }
+
+        List<Reserva> reservas = reservaRepository.findByCliente_NumeroDocumentoContainingIgnoreCaseAndEstadoIn(
+                numeroDocumento,
+                List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA));
+
+
+        return llenarTipoYCodigoUnidad(ReservaMapper.entityListaToCalendarioDTOList(reservas));
+    }
+
+    public Reserva cambiarEstadoReserva(Long reservaId, EstadoReserva nuevoEstado) {
+        Reserva reserva = buscarPorId(reservaId);
+        reserva.setEstado(nuevoEstado);
+        return reservaRepository.save(reserva);
+    }
+
     private List<ReservaCalendarioDTO> llenarTipoYCodigoUnidad(List<ReservaCalendarioDTO> reservas) {
         for(ReservaCalendarioDTO reservaDto : reservas) {
             Reserva reserva = buscarPorId(reservaDto.getId());
             if(reserva.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
-                reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getCodigo());
+                reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getCodigo());
                 reservaDto.setTipoUnidad(TipoUnidad.HABITACION);
             } else {
                 reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getCodigo());
@@ -149,4 +164,6 @@ public class ReservaService {
 
         return "";
     }
+
+
 }

@@ -1,4 +1,4 @@
-package com.hotel.dtos;
+package com.hotel.dtos.ocupante;
 
 import com.hotel.models.enums.TipoDocumento;
 import com.hotel.models.enums.TipoOcupante;

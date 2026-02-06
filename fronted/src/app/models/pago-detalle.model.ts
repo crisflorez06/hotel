@@ -1,10 +1,10 @@
-import { EstadoPago, MedioPago } from './enums';
+import { EstadoPago, MedioPago, TipoPago } from './enums';
 
 export interface PagoDTO {
   id: number;
-  montoPagoReserva: number | null;
-  montoPagoEstancia: number | null;
+  monto: number;
   medioPago: MedioPago;
   fecha: string;
   estado: EstadoPago;
+  tipoPago?: TipoPago;
 }

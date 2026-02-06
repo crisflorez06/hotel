@@ -1,9 +1,8 @@
-package com.hotel.dtos;
+package com.hotel.dtos.estancia;
 
+import com.hotel.dtos.ocupante.OcupanteDTO;
+import com.hotel.dtos.pago.PagoDTO;
 import com.hotel.models.enums.ModoOcupacion;
-import com.hotel.models.enums.TipoUnidad;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -20,6 +19,6 @@ public class EstanciaDTO {
     private ModoOcupacion modoOcupacion;
     private List<OcupanteDTO> ocupantes;
     private String notas;
-    private PagoDTO pago;
+    private List<PagoDTO> pagos;
 
 }

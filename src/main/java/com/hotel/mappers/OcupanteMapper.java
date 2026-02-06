@@ -1,7 +1,7 @@
 package com.hotel.mappers;
 
-import com.hotel.dtos.OcupanteDTO;
-import com.hotel.dtos.OcupanteNuevoRequestDTO;
+import com.hotel.dtos.ocupante.OcupanteDTO;
+import com.hotel.dtos.ocupante.OcupanteNuevoRequestDTO;
 import com.hotel.models.Ocupante;
 import java.time.LocalDateTime;
 import java.util.List;

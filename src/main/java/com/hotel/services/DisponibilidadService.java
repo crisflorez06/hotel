@@ -4,6 +4,7 @@ import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
+import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.ReservaRepository;
@@ -89,7 +90,8 @@ public class DisponibilidadService {
             boolean existeReserva = reservaRepository.existsReservaByHabitacionAndRango(
                     habitacion.getId(),
                     fechaIncioReserva,
-                    fechaFinReserva
+                    fechaFinReserva,
+                    List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)
             );
             if (existeReserva) {
                 logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Existe una reserva activa para la habitacion con codigo: {} en el rango de fechas: {} - {}", habitacion.getCodigo(), fechaIncioReserva, fechaFinReserva);

@@ -1,12 +1,14 @@
 package com.hotel.mappers;
 
 
-import com.hotel.dtos.ReservaCalendarioDTO;
-import com.hotel.dtos.ReservaNuevaRequestDTO;
+import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
+import com.hotel.mappers.PagoMapper;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
+import com.hotel.models.enums.TipoPago;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,7 +44,15 @@ public class ReservaMapper {
         dto.setFin(reserva.getSalidaEstimada());
         dto.setEstado(reserva.getEstado());
         dto.setNumeroPersonas(reserva.getNumeroPersonas());
-        dto.setNombreCliente(reserva.getOcupante().getNombres() + " " + reserva.getOcupante().getApellidos());
+        dto.setNombreCliente(reserva.getCliente().getNombres() + " " + reserva.getCliente().getApellidos());
+        dto.setIdCliente(reserva.getCliente().getId());
+
+        if (reserva.getEstancia() != null && reserva.getEstancia().getPagos() != null) {
+            dto.setPagosReserva(reserva.getEstancia().getPagos().stream()
+                    .filter(pago -> pago.getTipoPago() == TipoPago.RESERVA)
+                    .map(PagoMapper::entityToDTO)
+                    .toList());
+        }
         return dto;
     }
 

@@ -1,7 +1,7 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.CalcularPagoDTO;
-import com.hotel.dtos.PagoDTO;
+import com.hotel.dtos.pago.CalcularPagoDTO;
+import com.hotel.dtos.pago.PagoDTO;
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.MedioPago;
 import com.hotel.models.enums.TipoPago;
@@ -41,6 +41,6 @@ public class PagoController {
 
     @PostMapping("/total")
     public double calcularTotal(@RequestBody CalcularPagoDTO request) {
-        return pagoService.calcularTotalPagos(request);
+        return pagoService.obtenerEstimacionPago(request);
     }
 }

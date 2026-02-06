@@ -34,10 +34,10 @@ public class Reserva {
     private String codigo;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_ocupante", nullable = false)
+    @JoinColumn(name = "id_cliente", nullable = false)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Ocupante ocupante;
+    private Ocupante cliente;
 
     @Column(name = "numero_personas", nullable = false)
     private Integer numeroPersonas;
@@ -80,9 +80,4 @@ public class Reserva {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Estancia estancia;
-
-    @OneToOne(mappedBy = "reserva")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Pago pago;
 }

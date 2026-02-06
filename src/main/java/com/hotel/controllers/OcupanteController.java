@@ -1,7 +1,7 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.OcupanteDTO;
-import com.hotel.dtos.OcupanteNuevoRequestDTO;
+import com.hotel.dtos.ocupante.OcupanteDTO;
+import com.hotel.dtos.ocupante.OcupanteNuevoRequestDTO;
 import com.hotel.services.OcupanteService;
 import jakarta.validation.Valid;
 import java.util.List;

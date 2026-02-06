@@ -1,9 +1,10 @@
-package com.hotel.dtos;
+package com.hotel.dtos.reserva;
 
-import java.time.LocalDateTime;
-
+import com.hotel.dtos.pago.PagoDTO;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.TipoUnidad;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Data;
 
 @Data
@@ -17,4 +18,6 @@ public class ReservaCalendarioDTO {
     private TipoUnidad tipoUnidad;
     private Integer numeroPersonas;
     private String nombreCliente;
+    private Long idCliente;
+    private List<PagoDTO> pagosReserva;
 }

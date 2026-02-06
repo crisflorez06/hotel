@@ -49,10 +49,8 @@ public class Estancia {
     @EqualsAndHashCode.Exclude
     private List<Ocupante> ocupantes;
 
-    @Column(name = "fecha_creacion", nullable = false)
-    private LocalDateTime fechaCreacion;
 
-    @Column(name = "entrada_real", nullable = false)
+    @Column(name = "entrada_real", nullable = true)
     private LocalDateTime entradaReal;
 
     @Column(name = "salida_estimado", nullable = false)
@@ -86,9 +84,10 @@ public class Estancia {
     @EqualsAndHashCode.Exclude
     private List<Habitacion> habitaciones;
 
-    @OneToOne(mappedBy = "estancia")
+    @OneToMany(mappedBy = "estancia", fetch = FetchType.LAZY)
+    @OrderBy("fecha DESC")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private Pago pago;
+    private List<Pago> pagos;
 
 }

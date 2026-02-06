@@ -6,10 +6,8 @@ import { RouterLink } from '@angular/router';
 import { HabitacionDTO } from '../../models/habitacion.model';
 import { UnidadDTO } from '../../models/unidad.model';
 import { HabitacionService } from '../../services/habitacion.service';
-import { EstanciaService } from '../../services/estancia.service';
 import { UnidadService } from '../../services/unidad.service';
 import { EstadoOperativo, Piso, TipoUnidad } from '../../models/enums';
-import { EstanciaDTO } from '../../models/estancia-detalle.model';
 
 @Component({
   selector: 'app-recepcion',
@@ -22,12 +20,7 @@ export class RecepcionComponent implements OnInit {
   unidades: UnidadDTO[] = [];
   cargando = true;
   error = '';
-  unidadSeleccionada: UnidadDTO | null = null;
-  estanciaDetalle: EstanciaDTO | null = null;
-  estanciaCargando = false;
-  estanciaError = '';
-  eliminandoEstancia = false;
-  eliminarError = '';
+  private codigoTimer?: ReturnType<typeof setTimeout>;
 
   filtroTipo: TipoUnidad | '' = '';
   filtroEstados: EstadoOperativo[] = [];
@@ -44,8 +37,7 @@ export class RecepcionComponent implements OnInit {
 
   constructor(
     private readonly unidadService: UnidadService,
-    private readonly habitacionService: HabitacionService,
-    private readonly estanciaService: EstanciaService
+    private readonly habitacionService: HabitacionService
   ) {}
 
   ngOnInit(): void {
@@ -58,6 +50,47 @@ export class RecepcionComponent implements OnInit {
 
   trackByHabitacion(_: number, item: HabitacionDTO) {
     return item.id;
+  }
+
+  esTipoSeleccionado(tipo: TipoUnidad | ''): boolean {
+    return this.filtroTipo === tipo;
+  }
+
+  setTipo(tipo: TipoUnidad | ''): void {
+    this.filtroTipo = tipo;
+    this.buscarUnidades();
+  }
+
+  esEstadoSeleccionado(estado: EstadoOperativo): boolean {
+    return this.filtroEstados.includes(estado);
+  }
+
+  toggleEstado(estado: EstadoOperativo): void {
+    this.filtroEstados = this.filtroEstados.includes(estado)
+      ? this.filtroEstados.filter((item) => item !== estado)
+      : [...this.filtroEstados, estado];
+    this.buscarUnidades();
+  }
+
+  esPisoSeleccionado(piso: Piso): boolean {
+    return this.filtroPisos.includes(piso);
+  }
+
+  togglePiso(piso: Piso): void {
+    this.filtroPisos = this.filtroPisos.includes(piso)
+      ? this.filtroPisos.filter((item) => item !== piso)
+      : [...this.filtroPisos, piso];
+    this.buscarUnidades();
+  }
+
+  onCodigoChange(valor: string): void {
+    this.filtroCodigo = valor;
+    if (this.codigoTimer) {
+      clearTimeout(this.codigoTimer);
+    }
+    this.codigoTimer = setTimeout(() => {
+      this.buscarUnidades();
+    }, 250);
   }
 
   estadoClass(estado: string) {
@@ -79,40 +112,14 @@ export class RecepcionComponent implements OnInit {
     return estado === 'OCUPADO' || estado === 'RESERVADO' || estado === 'PARCIALMENTE';
   }
 
-  verEstancia(unidad: UnidadDTO): void {
-    this.estanciaCargando = true;
-    this.estanciaError = '';
-    this.estanciaDetalle = null;
-    this.eliminarError = '';
-
-    this.estanciaService.obtenerEstanciaActiva(unidad.codigo, unidad.tipo).subscribe({
-      next: (estancia) => {
-        this.estanciaDetalle = estancia;
-        this.estanciaCargando = false;
-      },
-      error: () => {
-        this.estanciaError = 'No hay estancia activa para esta unidad.';
-        this.estanciaCargando = false;
-      },
-    });
+  esApartamento(unidad: UnidadDTO): boolean {
+    return unidad.tipo === 'APARTAMENTO';
   }
 
-  abrirDetalle(unidad: UnidadDTO): void {
-    this.unidadSeleccionada = unidad;
-    this.estanciaDetalle = null;
-    this.estanciaError = '';
-    this.eliminarError = '';
-  }
-
-  cerrarDetalle(): void {
-    this.unidadSeleccionada = null;
-    this.estanciaDetalle = null;
-    this.estanciaError = '';
-    this.eliminarError = '';
-  }
-
-  mantenerModal(event: MouseEvent): void {
-    event.stopPropagation();
+  habitacionesNoDisponibles(unidad: UnidadDTO): number {
+    return unidad.habitaciones.filter(
+      (habitacion) => habitacion.estado !== 'DISPONIBLE'
+    ).length;
   }
 
   buscarUnidades(): void {
@@ -164,32 +171,6 @@ export class RecepcionComponent implements OnInit {
     this.buscarUnidades();
   }
 
-  eliminarEstancia(): void {
-    if (!this.estanciaDetalle || this.eliminandoEstancia) {
-      return;
-    }
-
-    const confirmar = window.confirm('¿Seguro que deseas eliminar la estancia activa?');
-    if (!confirmar) {
-      return;
-    }
-
-    this.eliminandoEstancia = true;
-    this.eliminarError = '';
-
-    this.estanciaService.eliminarEstancia(this.estanciaDetalle.id).subscribe({
-      next: () => {
-        this.estanciaDetalle = null;
-        this.eliminandoEstancia = false;
-        this.buscarUnidades();
-      },
-      error: () => {
-        this.eliminandoEstancia = false;
-        this.eliminarError = 'No fue posible eliminar la estancia.';
-      },
-    });
-  }
-
   private mapearHabitaciones(habitaciones: HabitacionDTO[]): UnidadDTO[] {
     return habitaciones.map((habitacion) => ({
       id: habitacion.id,
@@ -200,4 +181,5 @@ export class RecepcionComponent implements OnInit {
       habitaciones: [habitacion],
     }));
   }
+
 }

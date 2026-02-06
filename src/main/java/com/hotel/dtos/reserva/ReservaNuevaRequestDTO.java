@@ -1,12 +1,12 @@
-package com.hotel.dtos;
+package com.hotel.dtos.reserva;
 
-import com.hotel.models.Pago;
+import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.TipoUnidad;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.time.LocalDateTime;
-import java.util.List;
+
 import lombok.Data;
 
 @Data

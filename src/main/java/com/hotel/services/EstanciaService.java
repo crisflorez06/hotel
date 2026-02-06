@@ -1,19 +1,18 @@
 package com.hotel.services;
 
-import com.hotel.dtos.EstanciaDTO;
-import com.hotel.dtos.EstanciaRequestDTO;
-import com.hotel.dtos.PagoNuevoRequestDTO;
+import com.hotel.dtos.estancia.ActivarEstanciaDTO;
+import com.hotel.dtos.estancia.EstanciaDTO;
+import com.hotel.dtos.estancia.EstanciaRequestDTO;
+import com.hotel.dtos.estancia.SalidaEstanciaDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
-import com.hotel.models.enums.EstadoEstancia;
-import com.hotel.models.enums.EstadoOperativo;
-import com.hotel.models.enums.ModoOcupacion;
-import com.hotel.models.enums.TipoUnidad;
+import com.hotel.models.enums.*;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.resolvers.AlojamientoResolver;
+import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -30,12 +30,12 @@ public class EstanciaService {
     private static final Logger logger = LoggerFactory.getLogger(EstanciaService.class);
 
     private final EstanciaRepository estanciaRepository;
-    private final ReservaService reservaService;
     private final OcupanteService ocupanteService;
     private final PagoService pagoService;
     private final AlojamientoResolver alojamientoResolver;
     private final UnidadHabitacionResolver unidadHabitacionResolver;
     private final DisponibilidadService disponibilidadService;
+    private final EstanciaReservaResolver ERService;
 
 
     public EstanciaService(EstanciaRepository estanciaRepository,
@@ -44,8 +44,8 @@ public class EstanciaService {
                            AlojamientoResolver alojamientoResolver,
                            UnidadHabitacionResolver unidadHabitacionResolver,
                            DisponibilidadService disponibilidadService,
-                           ReservaService reservaService) {
-        this.reservaService = reservaService;
+                           EstanciaReservaResolver ERService) {
+        this.ERService = ERService;
         this.disponibilidadService = disponibilidadService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
         this.alojamientoResolver = alojamientoResolver;
@@ -55,53 +55,81 @@ public class EstanciaService {
     }
 
     @Transactional
-    public Estancia crearEstancia(EstanciaRequestDTO request) {
+    public Estancia crearEstanciaNueva(EstanciaRequestDTO request) {
 
-        String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
+        String codigo = request.getCodigo();
 
-        logger.info("[crearEstancia] Verificando disponibilidad para la unidad o habitacion con codigo: {}", codigo);
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(codigo, tipoUnidad, request.getEntradaReal(), request.getSalidaEstimada());
 
-        if(!existeDisponibilidad.isEmpty()) {
-            throw new IllegalStateException("No se puede crear la estancia: " + existeDisponibilidad);
-        }
+        logger.info("[crearEstanciaNueva] Validando creacion de nueva estancia");
+        validarCreacionEstancia(request.getEntradaReal(), request.getSalidaEstimada(), codigo, tipoUnidad);
 
-        //si se crea mas verificaciones del request creo un metodo aparte para validaciones
-        logger.info("[crearEstancia] Validando fechas de entrada y salida de la estancia");
-        if (request.getSalidaEstimada().isBefore(request.getEntradaReal())) {
-            throw new IllegalArgumentException("salida estimada debe ser posterior a entrada real");
-        }
-
-        logger.info("[crearEstancia] Mapeando datos del request a la entidad Estancia");
+        logger.info("[crearEstanciaNueva] Mapeando datos del request a la entidad Estancia");
         Estancia estancia = EstanciaMapper.requestToEntity(request);
 
-        logger.info("[crearEstancia] Determinando ocupantes de la estancia");
+        logger.info("[crearEstanciaNueva] Determinando ocupantes de la estancia");
         estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
 
-        logger.info("[crearEstancia] Llenando habitaciones asociadas a la estancia");
+        logger.info("[crearEstanciaNueva] Llenando habitaciones asociadas a la estancia");
         estancia.setHabitaciones(unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad));
 
-        logger.info("[crearEstancia] Estableciendo modo de ocupacion para la estancia");
-        estancia.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+        logger.info("[crearEstanciaNueva] Estableciendo modo de ocupacion para la estancia");
+        estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
 
-        logger.info("[crearEstancia] Determinando estado inicial de la estancia");
-        estancia.setEstado(determinarEstadoEstancia(request.getEntradaReal(), request.getSalidaEstimada()));
+        logger.info("[crearEstanciaNueva] Determinando estado inicial de la estancia");
+        estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
 
-        logger.info("[crearEstancia] Guardando estancia en la base de datos");
+        logger.info("[crearEstanciaNueva] Guardando estancia en la base de datos");
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
-        logger.info("[crearEstancia] Actualizando estado de las habitaciones asociadas a la estancia");
+        logger.info("[crearEstanciaNueva] Actualizando estado de las habitaciones asociadas a la estancia");
         alojamientoResolver.actualizarEstadoAlojamiento(estanciaGuardada.getHabitaciones(), EstadoOperativo.OCUPADO);
 
-        if(request.getPago() != null) {
-            logger.info("[crearEstancia] Creando pago asociado a la estancia");
-            Pago pago = pagoService.crearPago(request.getPago(), estanciaGuardada.getId());
-            estancia.setPago(pago);
-        }
+        logger.info("[crearEstanciaNueva] Creando pagos asociados a la estancia");
+        pagoService.crearPago(request.getPago(), estanciaGuardada);
 
         return estanciaGuardada;
     }
+
+
+
+    @Transactional
+    public Estancia activarEstancia(ActivarEstanciaDTO request) {
+
+        Reserva reserva = ERService.buscarReservaPorIdDesdeEstancia(request.getIdReserva());
+        Estancia estancia = reserva.getEstancia();
+
+        logger.info("[activarEstancia] Validando reglas de negocio para activar estancia desde reserva con id: {}", request.getIdReserva());
+        validarActivacionEstancia(reserva, estancia);
+
+        logger.info("[activarEstancia] validando fechas de entrada y salida de la estancia");
+        validarFechasEstancia(request.getEntradaReal(), request.getSalidaEstimada());
+
+        // 3) Aplicar cambios a la estancia
+        logger.info("[activarEstancia] Actualizando estancia a ACTIVA");
+        estancia.setEntradaReal(request.getEntradaReal());
+        estancia.setSalidaEstimada(request.getSalidaEstimada());
+        estancia.setEstado(EstadoEstancia.ACTIVA);
+
+        logger.info("[activarEstancia] Determinando ocupantes de la estancia");
+        estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
+
+        logger.info("[activarEstancia] Determinando estado inicial de la estancia");
+        estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
+
+        logger.info("[activarEstancia] Guardando estancia en la base de datos");
+        Estancia estanciaGuardada = estanciaRepository.save(estancia);
+
+        logger.info("[activarEstancia] Actualizando estado de las habitaciones asociadas a la estancia");
+        alojamientoResolver.actualizarEstadoAlojamiento(estanciaGuardada.getHabitaciones(), EstadoOperativo.OCUPADO);
+
+        logger.info("[activarEstancia] Creando pagos asociados a la estancia");
+        pagoService.crearPago(request.getPago(), estanciaGuardada);
+
+        return estanciaGuardada;
+
+    }
+
 
     @Transactional
     public void editarEstancia(EstanciaRequestDTO request, Long idEstancia) {
@@ -157,40 +185,78 @@ public class EstanciaService {
         Estancia estancia = estanciaRepository.findActivaOExcedidaPorHabitacionId(habitacionId).orElseThrow(
                 () -> new IllegalArgumentException("No se encontró una estancia activa o excedida para la unidad con codigo: " + codigo)
         );
+
+
+        logger.info("[obtenerEstanciaPorUnidad] Mapeando estancia a DTO");
         return EstanciaMapper.entityToDTO(estancia);
+
     }
 
     //verificar reglas de negocio para finalizar estancia
     @Transactional
-    public void finalizarEstancia(Long idEstancia, PagoNuevoRequestDTO pagoRequest) {
+    public void finalizarEstancia(SalidaEstanciaDTO request) {
+
+        Long idEstancia = request.getIdEstancia();
+
         logger.info("[finalizarEstancia] Finalizando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
 
         estancia.setEstado(EstadoEstancia.FINALIZADA);
-        estancia.setSalidaReal(LocalDateTime.now());
+        estancia.setSalidaReal(request.getFechaSalidaReal());
 
-        if(pagoRequest != null) {
+        if(request.getPagoEstancia() != null) {
             logger.info("[finalizarEstancia] Creando pago asociado a la estancia finalizada");
-            Pago pago = pagoService.crearPago(pagoRequest, estancia.getId());
-            estancia.setPago(pago);
+            Pago pago = pagoService.crearPago(request.getPagoEstancia(), estancia);
+            if (estancia.getPagos() == null) {
+                estancia.setPagos(new ArrayList<>());
+            }
+            estancia.getPagos().add(pago);
         }
         estanciaRepository.save(estancia);
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
     }
 
-    //verificar reglas de negocio para crear estancia con reserva
-    @Transactional
-    public EstanciaDTO crearEstanciaConReserva(Long idReserva, EstanciaRequestDTO request) {
-        logger.info("[crearEstanciaConReserva] Obteniendo reserva con id: {}", idReserva);
-        Reserva reserva = reservaService.buscarPorId(idReserva);
-        Estancia estancia = crearEstancia(request);
-        estancia.setReserva(reserva);
-        estancia = estanciaRepository.save(estancia);
-        return EstanciaMapper.entityToDTO(estancia);
+
+    private void validarCreacionEstancia(LocalDateTime entradaReal, LocalDateTime salidaEstimada, String codigo, TipoUnidad tipoUnidad) {
+        logger.info("[validarCreacionEstancia] Validando fechas de entrada y salida");
+        validarFechasEstancia(entradaReal, salidaEstimada);
+
+        logger.info("[validarCreacionEstancia] Verificando disponibilidad para codigo: {}", codigo);
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidad(
+                codigo, tipoUnidad, entradaReal, salidaEstimada
+        );
+
+        if (!detalleNoDisponible.isEmpty()) {
+            throw new IllegalStateException("No se puede crear la estancia: " + detalleNoDisponible);
+        }
     }
 
+    private void validarActivacionEstancia(Reserva reserva, Estancia estancia) {
+
+        logger.info("[validarActivacionEstancia] Validando estado de reserva");
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA && reserva.getEstado() != EstadoReserva.PENDIENTE) {
+            throw new IllegalStateException("La reserva debe estar CONFIRMADA para hacer check-in");
+        }
+
+        logger.info("[validarActivacionEstancia] Validando existencia de estancia asociada");
+        if (estancia == null) {
+            throw new IllegalStateException("La reserva no tiene estancia asociada");
+        }
+
+        logger.info("[validarActivacionEstancia] Validando estado de estancia");
+        if (estancia.getEstado() != EstadoEstancia.RESERVADA) {
+            throw new IllegalStateException("La estancia debe estar en estado RESERVADA para hacer check-in");
+        }
+
+    }
+
+    private void validarFechasEstancia(LocalDateTime entrada, LocalDateTime salida) {
+        if (salida.isBefore(entrada) || salida.isEqual(entrada)) {
+            throw new IllegalArgumentException("La fecha de salida debe ser posterior a la fecha de entrada");
+        }
+    }
 
 
     private ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {

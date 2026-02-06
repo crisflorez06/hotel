@@ -1,7 +1,7 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.ReservaCalendarioDTO;
-import com.hotel.dtos.ReservaNuevaRequestDTO;
+import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.ReservaService;
 import jakarta.validation.Valid;
@@ -36,5 +36,11 @@ public class ReservaController {
             @RequestParam(required = false) TipoUnidad tipoUnidad,
             @RequestParam(required = false) String codigoUnidad) {
         return reservaService.buscarReservasCalendario(mes, tipoUnidad, codigoUnidad);
+    }
+
+    @GetMapping("/buscar-por-documento")
+    public List<ReservaCalendarioDTO> buscarReservasPorDocumento(
+            @RequestParam("numero") String numeroDocumento) {
+        return reservaService.buscarReservasPorNumeroDocumento(numeroDocumento);
     }
 }

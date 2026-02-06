@@ -1,8 +1,9 @@
 package com.hotel.mappers;
 
-import com.hotel.dtos.PagoDTO;
-import com.hotel.dtos.PagoNuevoRequestDTO;
+import com.hotel.dtos.pago.PagoDTO;
+import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.models.Pago;
+import com.hotel.models.enums.TipoPago;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,6 +14,7 @@ public class PagoMapper {
     public static Pago requestNuevoToEntity(PagoNuevoRequestDTO request) {
         Pago entity = new Pago();
 
+        entity.setTipoPago(request.getTipoPago());
         entity.setMonto(request.getMonto());
         entity.setMedioPago(request.getMedioPago());
         entity.setFecha(request.getFecha());
@@ -28,12 +30,12 @@ public class PagoMapper {
         dto.setFecha(pago.getFecha());
         dto.setEstado(pago.getEstado());
         dto.setMedioPago(pago.getMedioPago());
-
-        if (pago.getReserva() != null) {
-            dto.setMontoPagoReserva(pago.getMonto());
-        } else {
-            dto.setMontoPagoEstancia(pago.getMonto());
+        dto.setMonto(pago.getMonto());
+        TipoPago tipoPago = pago.getTipoPago();
+        if (tipoPago == null) {
+            tipoPago = pago.getEstancia() != null ? TipoPago.ESTANCIA : TipoPago.RESERVA;
         }
+        dto.setTipoPago(tipoPago);
 
         return dto;
     }

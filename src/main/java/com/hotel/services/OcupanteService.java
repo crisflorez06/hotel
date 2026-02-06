@@ -1,7 +1,7 @@
 package com.hotel.services;
 
-import com.hotel.dtos.OcupanteDTO;
-import com.hotel.dtos.OcupanteNuevoRequestDTO;
+import com.hotel.dtos.ocupante.OcupanteDTO;
+import com.hotel.dtos.ocupante.OcupanteNuevoRequestDTO;
 import com.hotel.mappers.OcupanteMapper;
 import com.hotel.models.Ocupante;
 import com.hotel.models.enums.TipoOcupante;

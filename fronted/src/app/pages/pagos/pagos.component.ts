@@ -128,11 +128,11 @@ export class PagosComponent implements OnInit {
   }
 
   obtenerTipoPago(pago: PagoDTO): string {
-    return pago.montoPagoEstancia != null ? 'ESTANCIA' : 'RESERVA';
+    return pago.tipoPago ?? '-';
   }
 
   obtenerMonto(pago: PagoDTO): number | null {
-    return pago.montoPagoEstancia ?? pago.montoPagoReserva;
+    return pago.monto ?? null;
   }
 
   private normalizarFechaFiltro(fecha: string): string | undefined {

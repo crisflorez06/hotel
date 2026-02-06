@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface EstanciaRepository extends JpaRepository<Estancia, Long> {
 
+    Optional<Estancia> findByReserva_Id(Long reservaId);
+
     @Query("""
            select e
            from Estancia e

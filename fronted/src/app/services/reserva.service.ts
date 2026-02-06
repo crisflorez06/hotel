@@ -26,4 +26,10 @@ export class ReservaService {
   crearReserva(request: ReservaNuevoRequest) {
     return this.http.post<void>(this.baseUrl, request);
   }
+
+  buscarPorDocumento(numeroDocumento: string) {
+    return this.http.get<ReservaCalendarioDTO[]>(`${this.baseUrl}/buscar-por-documento`, {
+      params: { numero: numeroDocumento },
+    });
+  }
 }

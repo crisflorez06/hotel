@@ -10,6 +10,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
+    List<Reserva> findByCliente_NumeroDocumentoContainingIgnoreCaseAndEstadoIn(
+            String numeroDocumento,
+            List<EstadoReserva> estados);
 
     @Query("""
            select count(r) > 0
@@ -18,11 +21,13 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
            where h.id = :habitacionId
              and r.entradaEstimada <= :hasta
              and r.salidaEstimada >= :desde
+             and r.estado in :estados
            """)
     boolean existsReservaByHabitacionAndRango(
             @Param("habitacionId") Long habitacionId,
             @Param("desde") LocalDateTime desde,
-            @Param("hasta") LocalDateTime hasta);
+            @Param("hasta") LocalDateTime hasta,
+            @Param("estados") List<EstadoReserva> estados);
 
     @Query("""
            select count(r) > 0

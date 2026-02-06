@@ -11,6 +11,8 @@ export interface CalcularPagoRequest {
   numeroPersonas: number;
   fechaEntrada: string;
   fechaSalida: string;
+  idPagoReserva?: number;
+  idPagoEstancia?: number;
 }
 
 export interface BuscarPagosParams {

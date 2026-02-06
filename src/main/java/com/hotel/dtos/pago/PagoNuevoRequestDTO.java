@@ -1,4 +1,4 @@
-package com.hotel.dtos;
+package com.hotel.dtos.pago;
 
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.MedioPago;

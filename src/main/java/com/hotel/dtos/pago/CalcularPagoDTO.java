@@ -1,4 +1,4 @@
-package com.hotel.dtos;
+package com.hotel.dtos.pago;
 
 import com.hotel.models.enums.TipoUnidad;
 import jakarta.validation.constraints.Min;
@@ -23,4 +23,9 @@ public class CalcularPagoDTO {
 
     @NotNull(message = "La fecha de salida es obligatoria")
     private LocalDateTime fechaSalida;
+
+    private Long idPagoReserva;
+
+    private Long idPagoEstancia;
+
 }

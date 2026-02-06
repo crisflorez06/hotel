@@ -7,7 +7,7 @@ import { FlatpickrModule } from 'angularx-flatpickr';
 import { EstanciaService } from '../../services/estancia.service';
 import { OcupanteService } from '../../services/ocupante.service';
 import { EstadoPago, MedioPago, TipoDocumento, TipoOcupante, TipoPago, TipoUnidad } from '../../models/enums';
-import { EstanciaEditarRequest, EstanciaNuevoRequest } from '../../models/estancia.model';
+import { EstanciaActivarRequest, EstanciaEditarRequest, EstanciaNuevoRequest } from '../../models/estancia.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { PagoService } from '../../services/pago.service';
 
@@ -23,6 +23,8 @@ export class EstanciaNuevaComponent implements OnInit {
   tipoUnidad: TipoUnidad | '' = '';
   estanciaId: number | null = null;
   esEdicion = false;
+  idReserva: number | null = null;
+  idPagoReserva: number | null = null;
 
   idCliente: number | null = null;
   entradaReal = '';
@@ -103,14 +105,83 @@ export class EstanciaNuevaComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    const params = this.route.snapshot.queryParamMap;
-    this.codigo = params.get('codigo') ?? '';
-    this.tipoUnidad = (params.get('tipo') as TipoUnidad) ?? '';
-    const editarParam = params.get('editar');
-    const estanciaIdParam = params.get('estanciaId');
+    const state = (this.router.getCurrentNavigation()?.extras.state ??
+      history.state) as Partial<Record<string, unknown>> | null;
+    const queryParams = this.route.snapshot.queryParamMap;
 
+    const codigo =
+      (state?.['codigo'] as string | undefined) ?? queryParams.get('codigo') ?? '';
+    const tipo =
+      (state?.['tipo'] as TipoUnidad | undefined) ??
+      (queryParams.get('tipo') as TipoUnidad | null) ??
+      '';
+    const idClienteParam =
+      (state?.['idCliente'] as number | string | undefined) ?? queryParams.get('idCliente') ?? undefined;
+    const idPagoReservaParam =
+      (state?.['idPagoReserva'] as number | string | undefined) ??
+      queryParams.get('idPagoReserva') ??
+      undefined;
+    const nombreClienteParam =
+      (state?.['nombreCliente'] as string | undefined) ?? queryParams.get('nombreCliente') ?? undefined;
+    const idReservaParam =
+      (state?.['idReserva'] as number | string | undefined) ?? queryParams.get('idReserva') ?? undefined;
+    const editarParam =
+      (state?.['editar'] as string | undefined) ?? queryParams.get('editar') ?? undefined;
+    const estanciaIdParam =
+      (state?.['estanciaId'] as number | string | undefined) ??
+      queryParams.get('estanciaId') ??
+      undefined;
+    const entradaParam =
+      (state?.['entrada'] as string | undefined) ?? queryParams.get('entrada') ?? undefined;
+    const salidaParam =
+      (state?.['salida'] as string | undefined) ?? queryParams.get('salida') ?? undefined;
+
+    this.codigo = codigo;
+    this.tipoUnidad = tipo;
+
+    if (idClienteParam !== undefined && idClienteParam !== null && idClienteParam !== '') {
+      const parsed =
+        typeof idClienteParam === 'number' ? idClienteParam : Number.parseInt(idClienteParam, 10);
+      this.idCliente = Number.isNaN(parsed) || parsed <= 0 ? null : parsed;
+    }
+    if (this.idCliente && nombreClienteParam) {
+      const nombreCompleto = nombreClienteParam.trim();
+      if (nombreCompleto) {
+        const partes = nombreCompleto.split(' ').filter((parte) => parte.trim());
+        const apellidos = partes.length > 1 ? partes.at(-1) ?? '' : '';
+        const nombres = partes.length > 1 ? partes.slice(0, -1).join(' ') : nombreCompleto;
+        this.clienteCreado = {
+          id: this.idCliente,
+          nombres,
+          apellidos,
+          tipoOcupante: 'CLIENTE',
+        };
+      }
+    }
+
+    if (idReservaParam !== undefined && idReservaParam !== null && idReservaParam !== '') {
+      const parsed =
+        typeof idReservaParam === 'number' ? idReservaParam : Number.parseInt(idReservaParam, 10);
+      this.idReserva = Number.isNaN(parsed) ? null : parsed;
+    } else {
+      this.idReserva = null;
+    }
+
+    if (idPagoReservaParam !== undefined && idPagoReservaParam !== null && idPagoReservaParam !== '') {
+      const parsed =
+        typeof idPagoReservaParam === 'number'
+          ? idPagoReservaParam
+          : Number.parseInt(idPagoReservaParam, 10);
+      this.idPagoReserva = Number.isNaN(parsed) ? null : parsed;
+    } else {
+      this.idPagoReserva = null;
+    }
     this.esEdicion = editarParam === 'true' || editarParam === '1' || !!estanciaIdParam;
-    this.estanciaId = estanciaIdParam ? Number.parseInt(estanciaIdParam, 10) : null;
+    this.estanciaId = estanciaIdParam
+      ? typeof estanciaIdParam === 'number'
+        ? estanciaIdParam
+        : Number.parseInt(estanciaIdParam, 10)
+      : null;
 
     if (this.esEdicion) {
       if (!this.codigo || !this.tipoUnidad) {
@@ -118,6 +189,15 @@ export class EstanciaNuevaComponent implements OnInit {
         return;
       }
       this.cargarEstanciaParaEdicion(this.codigo, this.tipoUnidad as TipoUnidad);
+      return;
+    }
+
+    if (entradaParam) {
+      this.entradaReal = this.formatearFechaHora(entradaParam);
+    }
+
+    if (salidaParam) {
+      this.salidaEstimada = this.formatearFechaHora(salidaParam);
     }
   }
 
@@ -169,9 +249,34 @@ export class EstanciaNuevaComponent implements OnInit {
       return;
     }
 
+    if (this.idReserva) {
+      const request: EstanciaActivarRequest = {
+        idReserva: this.idReserva,
+        idCliente: this.idCliente,
+        entradaReal: this.normalizarFechaHora(this.entradaReal),
+        salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
+        idAcompanantes: this.parseAcompanantes(),
+        pago: this.conPago ? this.buildPago() : null,
+      };
+
+      this.estanciaService.activarEstancia(request).subscribe({
+        next: () => {
+          this.guardando = false;
+          this.exito = 'Estancia activada con exito.';
+          this.mostrarToastExito('Estancia activada con exito.', true);
+        },
+        error: () => {
+          this.guardando = false;
+          this.error = 'No fue posible activar la estancia.';
+        },
+      });
+      return;
+    }
+
     const request: EstanciaNuevoRequest = {
       tipoUnidad: this.tipoUnidad,
       codigo: this.codigo,
+      idReserva: this.idReserva ?? undefined,
       idCliente: this.idCliente,
       entradaReal: this.normalizarFechaHora(this.entradaReal),
       salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
@@ -221,6 +326,7 @@ export class EstanciaNuevaComponent implements OnInit {
         numeroPersonas,
         fechaEntrada: this.normalizarFechaHora(this.entradaReal),
         fechaSalida: this.normalizarFechaHora(this.salidaEstimada),
+        ...(this.idPagoReserva ? { idPagoReserva: this.idPagoReserva } : {}),
       })
       .subscribe({
         next: (total) => {
