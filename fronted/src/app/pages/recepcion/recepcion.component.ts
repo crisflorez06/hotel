@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 import { HabitacionDTO } from '../../models/habitacion.model';
 import { UnidadDTO } from '../../models/unidad.model';
@@ -37,7 +37,8 @@ export class RecepcionComponent implements OnInit {
 
   constructor(
     private readonly unidadService: UnidadService,
-    private readonly habitacionService: HabitacionService
+    private readonly habitacionService: HabitacionService,
+    private readonly router: Router
   ) {}
 
   ngOnInit(): void {
@@ -169,6 +170,12 @@ export class RecepcionComponent implements OnInit {
     this.filtroPisos = [];
     this.filtroCodigo = '';
     this.buscarUnidades();
+  }
+
+  abrirDetalle(unidad: UnidadDTO): void {
+    this.router.navigate(['/recepcion/panel'], {
+      queryParams: { codigo: unidad.codigo, tipo: unidad.tipo },
+    });
   }
 
   private mapearHabitaciones(habitaciones: HabitacionDTO[]): UnidadDTO[] {

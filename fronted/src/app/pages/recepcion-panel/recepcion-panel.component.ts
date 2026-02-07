@@ -4,11 +4,13 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { HabitacionDTO } from '../../models/habitacion.model';
 import { UnidadDTO } from '../../models/unidad.model';
-import { EstanciaDTO } from '../../models/estancia-detalle.model';
+import { DetalleEstanciaDTO, EstanciaDTO } from '../../models/estancia-detalle.model';
 import { EstadoOperativo, Piso, TipoUnidad } from '../../models/enums';
 import { HabitacionService } from '../../services/habitacion.service';
 import { UnidadService } from '../../services/unidad.service';
 import { EstanciaService } from '../../services/estancia.service';
+import { DetalleService } from '../../services/detalle.service';
+import { switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-recepcion-panel',
@@ -22,13 +24,12 @@ export class RecepcionPanelComponent implements OnInit {
   cargando = true;
   error = '';
 
+  detalleEstancia: DetalleEstanciaDTO | null = null;
   estanciaDetalle: EstanciaDTO | null = null;
   estanciaCargando = false;
   estanciaError = '';
   eliminandoEstancia = false;
   eliminarError = '';
-  mostrarPagoReservaDetalle = false;
-  mostrarPagoEstanciaDetalle = false;
 
   private codigo = '';
   private tipo: TipoUnidad | '' = '';
@@ -38,7 +39,8 @@ export class RecepcionPanelComponent implements OnInit {
     private readonly router: Router,
     private readonly unidadService: UnidadService,
     private readonly habitacionService: HabitacionService,
-    private readonly estanciaService: EstanciaService
+    private readonly estanciaService: EstanciaService,
+    private readonly detalleService: DetalleService
   ) {}
 
   ngOnInit(): void {
@@ -87,20 +89,26 @@ export class RecepcionPanelComponent implements OnInit {
     this.estanciaCargando = true;
     this.estanciaError = '';
     this.estanciaDetalle = null;
+    this.detalleEstancia = null;
     this.eliminarError = '';
-    this.mostrarPagoReservaDetalle = false;
-    this.mostrarPagoEstanciaDetalle = false;
 
-    this.estanciaService.obtenerEstanciaActiva(unidad.codigo, unidad.tipo).subscribe({
-      next: (estancia) => {
-        this.estanciaDetalle = estancia;
-        this.estanciaCargando = false;
-      },
-      error: () => {
-        this.estanciaError = 'No hay estancia activa para esta unidad.';
-        this.estanciaCargando = false;
-      },
-    });
+    this.estanciaService
+      .obtenerEstanciaActiva(unidad.codigo, unidad.tipo)
+      .pipe(switchMap((estancia) => this.detalleService.obtenerDetalleEstancia(estancia.id)))
+      .subscribe({
+        next: (detalle) => {
+          this.detalleEstancia = detalle;
+          this.estanciaDetalle = detalle.estancia;
+        if (detalle.unidad && detalle.unidad.habitaciones?.length) {
+          this.unidad = detalle.unidad;
+        }
+          this.estanciaCargando = false;
+        },
+        error: () => {
+          this.estanciaError = 'No hay estancia activa para esta unidad.';
+          this.estanciaCargando = false;
+        },
+      });
   }
 
   eliminarEstancia(): void {
@@ -140,17 +148,9 @@ export class RecepcionPanelComponent implements OnInit {
         entrada: this.estanciaDetalle.entradaReal,
         salida: this.estanciaDetalle.salidaEstimada,
         numeroPersonas: this.estanciaDetalle.ocupantes.length,
-        idPagoEstancia: this.estanciaDetalle.pagoEstancia?.id ?? null,
+        idPagoEstancia: this.obtenerPagoEstanciaId(),
       },
     });
-  }
-
-  togglePagoReservaDetalle(): void {
-    this.mostrarPagoReservaDetalle = !this.mostrarPagoReservaDetalle;
-  }
-
-  togglePagoEstanciaDetalle(): void {
-    this.mostrarPagoEstanciaDetalle = !this.mostrarPagoEstanciaDetalle;
   }
 
   formatearFecha(fecha: string): string {
@@ -158,11 +158,33 @@ export class RecepcionPanelComponent implements OnInit {
     return Number.isNaN(fechaObj.getTime()) ? fecha : fechaObj.toLocaleString('es-CO');
   }
 
+  totalPagosEstancia(): number {
+    return (this.estanciaDetalle?.pagos ?? []).reduce((total, pago) => total + pago.monto, 0);
+  }
+
+  totalPagosReserva(): number {
+    return (this.detalleEstancia?.reserva?.pagosReserva ?? []).reduce(
+      (total, pago) => total + pago.monto,
+      0
+    );
+  }
+
+  totalPagos(): number {
+    return this.totalPagosEstancia() + this.totalPagosReserva();
+  }
+
+  private obtenerPagoEstanciaId(): number | null {
+    const pagos = this.estanciaDetalle?.pagos ?? [];
+    const pagoEstancia = pagos.find((pago) => pago.tipoPago === 'ESTANCIA');
+    return pagoEstancia?.id ?? null;
+  }
+
   private cargarUnidad(): void {
     this.cargando = true;
     this.error = '';
     this.unidad = null;
     this.estanciaDetalle = null;
+    this.detalleEstancia = null;
     this.estanciaError = '';
 
     if (!this.codigo) {
@@ -206,6 +228,9 @@ export class RecepcionPanelComponent implements OnInit {
             this.error = 'No se encontró la unidad solicitada.';
           } else {
             this.unidad = unidades[0];
+            if (this.esNoDisponible(this.unidad.estado)) {
+              this.verEstancia(this.unidad);
+            }
           }
           this.cargando = false;
         },

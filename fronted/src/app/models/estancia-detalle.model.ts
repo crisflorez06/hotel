@@ -1,16 +1,22 @@
 import { ModoOcupacion } from './enums';
 import { OcupanteDTO } from './ocupante.model';
 import { PagoDTO } from './pago-detalle.model';
+import { UnidadDTO } from './unidad.model';
+import { ReservaCalendarioDTO } from './reserva-calendario.model';
 
 export interface EstanciaDTO {
   id: number;
   codigoFolio: string;
-  fechaCreacion: string;
   entradaReal: string;
   salidaEstimada: string;
   modoOcupacion: ModoOcupacion;
   ocupantes: OcupanteDTO[];
   notas: string | null;
-  pagoReserva?: PagoDTO | null;
-  pagoEstancia?: PagoDTO | null;
+  pagos?: PagoDTO[];
+}
+
+export interface DetalleEstanciaDTO {
+  unidad: UnidadDTO | null;
+  estancia: EstanciaDTO;
+  reserva: ReservaCalendarioDTO | null;
 }

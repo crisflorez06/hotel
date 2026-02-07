@@ -1,4 +1,5 @@
 import { EstadoReserva, TipoUnidad } from './enums';
+import { PagoDTO } from './pago-detalle.model';
 
 export interface ReservaCalendarioDTO {
   id: number;
@@ -11,4 +12,5 @@ export interface ReservaCalendarioDTO {
   tipoUnidad: TipoUnidad | null;
   numeroPersonas: number | null;
   nombreCliente: string | null;
+  pagosReserva?: PagoDTO[];
 }
