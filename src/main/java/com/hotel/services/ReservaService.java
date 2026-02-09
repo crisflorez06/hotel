@@ -65,7 +65,7 @@ public class ReservaService {
 
 
         logger.info("[crearReserva] Verificando disponibilidad para la unidad o habitacion con codigo: {}", request.getCodigo());
-        String existeReserva = disponibilidadService.verificarDisponibilidad(codigo, tipoUnidad, entradaEstimada, salidaEstimada);
+        String existeReserva = disponibilidadService.verificarDisponibilidad(null, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
         if (!existeReserva.isEmpty()) {
             throw new IllegalArgumentException("No es posible crear la reserva: " + existeReserva);
         }
@@ -125,7 +125,7 @@ public class ReservaService {
 
         List<Reserva> reservas = reservaRepository.findByCliente_NumeroDocumentoContainingIgnoreCaseAndEstadoIn(
                 numeroDocumento,
-                List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA));
+                List.of(EstadoReserva.CONFIRMADA));
 
 
         return llenarTipoYCodigoUnidad(ReservaMapper.entityListaToCalendarioDTOList(reservas));

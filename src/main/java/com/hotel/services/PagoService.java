@@ -17,6 +17,7 @@ import jakarta.persistence.EntityNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
@@ -55,6 +56,36 @@ public class PagoService {
         pago.setEstancia(estancia);
 
         return pagoRepository.save(pago);
+    }
+
+    @Transactional
+    public Pago reemplazarPago(PagoNuevoRequestDTO request, Pago pagoAnterior) {
+        if (request == null) {
+            logger.info("[reemplazarPago] No se proporcionó información de pago. Se omite el reemplazo.");
+            return null;
+        }
+
+        if (pagoAnterior == null) {
+            logger.info("[reemplazarPago] No existe pago anterior. Se crea un pago nuevo.");
+            Pago pagoNuevo = PagoMapper.requestNuevoToEntity(request);
+            return pagoRepository.save(pagoNuevo);
+        }
+
+        logger.info("[reemplazarPago] Reemplazando pago con id: {}", pagoAnterior.getId());
+        pagoAnterior.setEstado(EstadoPago.REEMBOLSADO);
+        pagoRepository.save(pagoAnterior);
+
+        Pago pagoNuevo = PagoMapper.requestNuevoToEntity(request);
+        pagoNuevo.setEstancia(pagoAnterior.getEstancia());
+
+        return pagoRepository.save(pagoNuevo);
+    }
+
+    public Optional<Pago> buscarUltimoPagoPorEstancia(Long idEstancia) {
+        if (idEstancia == null) {
+            return Optional.empty();
+        }
+        return pagoRepository.findFirstByEstanciaIdOrderByFechaCreacionDesc(idEstancia);
     }
 
     public Page<PagoDTO> buscarPagos(

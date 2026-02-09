@@ -36,7 +36,7 @@ public class DisponibilidadService {
     }
 
 
-    public String verificarDisponibilidad(String codigo, TipoUnidad tipoUnidad, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
+    public String verificarDisponibilidad(Estancia estancia, String codigo, TipoUnidad tipoUnidad, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
 
         logger.info("[DisponibilidadService.verificarDisponiblidad] Verificando disponibilidad para reserva con codigo: {} y tipoUnidad: {} en el rango de fechas: {} - {}", codigo, tipoUnidad, fechaIncioReserva, fechaFinReserva);
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
@@ -51,12 +51,17 @@ public class DisponibilidadService {
         if (!tieneDisponiblidadEstancia(codigo, tipoUnidad)){
 
             Long habitacionId = habitaciones.getFirst().getId();
-            Estancia estancia = estanciaRepository.findActivaOExcedidaPorHabitacionId(habitacionId).orElseThrow(
+            Estancia estanciaDb = estanciaRepository.findActivaOExcedidaPorHabitacionId(habitacionId).orElseThrow(
                     () -> new IllegalArgumentException("No se encontró una estancia activa o excedida para la unidad con codigo: " + codigo)
             );
 
+            if (estanciaDb.equals(estancia)){
+                logger.info("[DisponibilidadService.verificarDisponiblidad] La estancia con id: {} es la misma que se está verificando, se omite la verificación de solapamiento", estanciaDb.getId());
+                return "";
+            }
+
             //debo solucionar para que en string me salga el codigo exacto de la habitacion o habitaciones que tienen la estancia
-            if(fechaIncioReserva.isBefore(estancia.getSalidaEstimada()) || estancia.getEstado().equals(EstadoEstancia.EXCEDIDA)) {
+            if(fechaIncioReserva.isBefore(estanciaDb.getSalidaEstimada()) || estanciaDb.getEstado().equals(EstadoEstancia.EXCEDIDA)) {
                 logger.info("[DisponibilidadService.verificarDisponiblidad] Existe una estancia activa o excedida que se solapa con la reserva para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
                 return "existe una estancia para la habitacion con codigo: " + codigo;
             }
@@ -91,7 +96,7 @@ public class DisponibilidadService {
                     habitacion.getId(),
                     fechaIncioReserva,
                     fechaFinReserva,
-                    List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)
+                    List.of(EstadoReserva.CONFIRMADA)
             );
             if (existeReserva) {
                 logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Existe una reserva activa para la habitacion con codigo: {} en el rango de fechas: {} - {}", habitacion.getCodigo(), fechaIncioReserva, fechaFinReserva);

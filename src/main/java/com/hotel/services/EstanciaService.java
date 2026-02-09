@@ -139,16 +139,18 @@ public class EstanciaService {
         LocalDateTime entradaReal = request.getEntradaReal();
         LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
-        logger.info("[editarEstancia] verificando entrada y salida de la estancia");
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(codigo, tipoUnidad, entradaReal, salidaEstimada);
-        if(!existeDisponibilidad.isEmpty()) {
-            throw new IllegalStateException("No se puede crear la estancia: " + existeDisponibilidad);
-        }
-
         logger.info("[editarEstancia] Editando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
 
+        logger.info("[editarEstancia] verificando entrada y salida de la estancia");
+        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(estancia, codigo, tipoUnidad, entradaReal, salidaEstimada);
+        if(!existeDisponibilidad.isEmpty()) {
+            throw new IllegalStateException("No se puede editar la estancia: " + existeDisponibilidad);
+        }
+
+        logger.info("[editarEstancia] Verificando que no cambio el codigo, ya que no se permite cambiar la unidad asignada a una estancia");
+        validarCambioDeCodigo(request.getCodigo(), request.getTipoUnidad(), estancia);
 
         estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
         estancia.setEntradaReal(entradaReal);
@@ -158,6 +160,26 @@ public class EstanciaService {
         estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
 
         estancia.setNotas(estancia.getNotas() + " | Notas editadas: " + request.getNotas());
+
+        if(request.getPago() != null) {
+            logger.info("[editarEstancia] Creando nuevo o editando el pago asociado a la estancia editada");
+            Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstancia(estancia.getId()).orElse(null);
+
+            Pago pago = (pagoAnterior == null)
+                    ? pagoService.crearPago(request.getPago(), estancia)
+                    : pagoService.reemplazarPago(request.getPago(), pagoAnterior);
+
+            if (estancia.getPagos() == null) {
+                estancia.setPagos(new ArrayList<>());
+            } else {
+                estancia.getPagos().clear();
+            }
+
+            if (pagoAnterior != null) {
+                estancia.getPagos().add(pagoAnterior);
+            }
+            estancia.getPagos().add(pago);
+        }
 
         estanciaRepository.save(estancia);
 
@@ -225,7 +247,7 @@ public class EstanciaService {
 
         logger.info("[validarCreacionEstancia] Verificando disponibilidad para codigo: {}", codigo);
         String detalleNoDisponible = disponibilidadService.verificarDisponibilidad(
-                codigo, tipoUnidad, entradaReal, salidaEstimada
+                null, codigo, tipoUnidad, entradaReal, salidaEstimada
         );
 
         if (!detalleNoDisponible.isEmpty()) {
@@ -233,10 +255,24 @@ public class EstanciaService {
         }
     }
 
+    private void validarCambioDeCodigo(String codigo, TipoUnidad tipoUnidad, Estancia estancia) {
+        logger.info("[validarCambioDeCodigo] Validando que no se cambie el codigo de la unidad asignada a la estancia");
+        if (tipoUnidad.equals(TipoUnidad.HABITACION)) {
+            if(!estancia.getHabitaciones().getFirst().getCodigo().equals(codigo)) {
+                throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la estancia");
+            }
+        }
+        if(tipoUnidad.equals(TipoUnidad.APARTAMENTO) || tipoUnidad.equals(TipoUnidad.APARTAESTUDIO)) {
+            if(!estancia.getHabitaciones().getFirst().getUnidad().getCodigo().equals(codigo)) {
+                throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la estancia");
+            }
+        }
+    }
+
     private void validarActivacionEstancia(Reserva reserva, Estancia estancia) {
 
         logger.info("[validarActivacionEstancia] Validando estado de reserva");
-        if (reserva.getEstado() != EstadoReserva.CONFIRMADA && reserva.getEstado() != EstadoReserva.PENDIENTE) {
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
             throw new IllegalStateException("La reserva debe estar CONFIRMADA para hacer check-in");
         }
 

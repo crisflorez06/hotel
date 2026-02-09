@@ -7,5 +7,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 public interface PagoRepository extends JpaRepository<Pago, Long>, JpaSpecificationExecutor<Pago> {
 
+    Optional<Pago> findFirstByEstanciaIdOrderByFechaCreacionDesc(Long idEstancia);
 
 }

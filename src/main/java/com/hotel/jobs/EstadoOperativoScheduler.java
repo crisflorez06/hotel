@@ -66,7 +66,7 @@ public class EstadoOperativoScheduler {
     }
 
     private void actualizarReservasExpiradas(LocalDateTime ahora) {
-        List<EstadoReserva> estados = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
+        List<EstadoReserva> estados = List.of(EstadoReserva.CONFIRMADA);
         List<Reserva> reservas = reservaRepository.findReservasExpiradas(estados, ahora);
         if (reservas.isEmpty()) {
             return;
@@ -127,7 +127,7 @@ public class EstadoOperativoScheduler {
         boolean reservada = reservaRepository.existsReservaActivaByHabitacionIdAndMomento(
                 habitacion.getId(),
                 ahora,
-                List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA));
+                List.of(EstadoReserva.CONFIRMADA));
 
         return reservada ? EstadoOperativo.OCUPADO : EstadoOperativo.DISPONIBLE;
     }

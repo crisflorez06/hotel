@@ -18,8 +18,6 @@ public class EstanciaRequestDTO {
     @NotBlank(message = "codigo es obligatorio")
     private String codigo;
 
-    private Long idReserva;
-
     @NotNull(message = "idCliente es obligatorio")
     private Long idCliente;
 

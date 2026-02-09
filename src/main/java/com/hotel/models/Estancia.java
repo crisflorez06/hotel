@@ -33,7 +33,7 @@ public class Estancia {
     @Column(name = "codigo_folio", nullable = false, unique = true, length = 30)
     private String codigoFolio;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = true)
+    @OneToOne(fetch = FetchType.LAZY, optional = true, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "id_reserva", unique = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

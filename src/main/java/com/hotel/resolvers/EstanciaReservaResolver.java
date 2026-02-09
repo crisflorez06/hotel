@@ -38,6 +38,7 @@ public class EstanciaReservaResolver {
         estancia.setNotas("Estancia creada desde reserva: " + reserva.getNotas());
         estancia.setHabitaciones(reserva.getHabitaciones());
         estancia.setReserva(reserva);
+        reserva.setEstancia(estancia);
 
         return estanciaRepository.save(estancia);
     }
