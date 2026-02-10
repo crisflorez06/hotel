@@ -4,5 +4,6 @@ public enum EstadoPago {
     PENDIENTE,
     COMPLETADO,
     FALLIDO,
-    REEMBOLSADO
+    ELIMINADO,
+    MODIFICADO
 }

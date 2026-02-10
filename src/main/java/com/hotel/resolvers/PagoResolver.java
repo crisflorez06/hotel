@@ -1,6 +1,9 @@
 package com.hotel.resolvers;
 
 import com.hotel.dtos.pago.CalcularPagoDTO;
+import com.hotel.models.Estancia;
+import com.hotel.models.Pago;
+import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.PagoRepository;
 import com.hotel.services.TarifaBaseService;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Component
 public class PagoResolver {
@@ -103,5 +107,6 @@ public class PagoResolver {
                 .multiply(BigDecimal.valueOf(personasAdicionales))
                 .multiply(BigDecimal.valueOf(totalDias));
     }
+
 
 }

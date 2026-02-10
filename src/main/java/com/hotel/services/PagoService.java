@@ -15,6 +15,7 @@ import com.hotel.resolvers.PagoResolver;
 import com.hotel.specifications.PagoSpecification;
 import jakarta.persistence.EntityNotFoundException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -31,16 +32,13 @@ public class PagoService {
     private static final Logger logger = LoggerFactory.getLogger(PagoService.class);
 
     private final PagoRepository pagoRepository;
-    private final EstanciaRepository estanciaRepository;
     private final PagoResolver pagoResolver;
 
 
     public PagoService(PagoRepository pagoRepository,
-                       EstanciaRepository estanciaRepository,
                        PagoResolver pagoResolver) {
         this.pagoResolver = pagoResolver;
         this.pagoRepository = pagoRepository;
-        this.estanciaRepository = estanciaRepository;
     }
 
     @Transactional
@@ -72,7 +70,7 @@ public class PagoService {
         }
 
         logger.info("[reemplazarPago] Reemplazando pago con id: {}", pagoAnterior.getId());
-        pagoAnterior.setEstado(EstadoPago.REEMBOLSADO);
+        pagoAnterior.setEstado(EstadoPago.MODIFICADO);
         pagoRepository.save(pagoAnterior);
 
         Pago pagoNuevo = PagoMapper.requestNuevoToEntity(request);
@@ -110,14 +108,25 @@ public class PagoService {
         return pagoResolver.calcularEstimacionPago(request);
     }
 
+    public void eliminarPagos(Long idEstancia) {
+        logger.info("[eliminarPagosPorEstancia] Eliminando pagos asociados a la estancia con id: {}", idEstancia);
+        List<Pago> pagos = pagoRepository.findByEstanciaId(idEstancia);
+        for(Pago pago : pagos) {
+            logger.info("[eliminarPagosPorEstancia] Eliminando pago con id: {}", pago.getId());
+            pago.setEstado(EstadoPago.ELIMINADO);
+        }
 
-    public PagoDTO mapearPagoAEstancia(Pago pagoEstancia) {
-        return PagoMapper.entityToDTO(pagoEstancia);
+        pagoRepository.saveAll(pagos);
     }
 
+    public BigDecimal sumarTotalPagosPorEstancia(Long idEstancia) {
+        logger.info("[sumarTotalPagosPorEstancia] Sumando total de pagos para la estancia con id: {}", idEstancia);
 
-
-
+        return pagoRepository.sumarMontoPorEstanciaYEstados(
+                idEstancia,
+                List.of(EstadoPago.PENDIENTE, EstadoPago.COMPLETADO)
+        );
+    }
 
 
 }

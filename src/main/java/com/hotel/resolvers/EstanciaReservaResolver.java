@@ -47,4 +47,9 @@ public class EstanciaReservaResolver {
         return reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new IllegalArgumentException("No se encontró una reserva con id: " + reservaId));
     }
+
+    public void actualizarEstadoReservaDesdeEstancia(Reserva reserva, EstadoReserva nuevoEstado) {
+        reserva.setEstado(nuevoEstado);
+        reservaRepository.save(reserva);
+    }
 }

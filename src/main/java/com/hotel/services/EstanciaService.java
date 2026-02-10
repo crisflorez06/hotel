@@ -109,7 +109,6 @@ public class EstanciaService {
         logger.info("[activarEstancia] Actualizando estancia a ACTIVA");
         estancia.setEntradaReal(request.getEntradaReal());
         estancia.setSalidaEstimada(request.getSalidaEstimada());
-        estancia.setEstado(EstadoEstancia.ACTIVA);
 
         logger.info("[activarEstancia] Determinando ocupantes de la estancia");
         estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
@@ -119,6 +118,9 @@ public class EstanciaService {
 
         logger.info("[activarEstancia] Guardando estancia en la base de datos");
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
+
+        logger.info("[activarEstancia] Actualizando estado de la reserva asociada a la estancia a COMPLETADA");
+        ERService.actualizarEstadoReservaDesdeEstancia(reserva, EstadoReserva.COMPLETADA);
 
         logger.info("[activarEstancia] Actualizando estado de las habitaciones asociadas a la estancia");
         alojamientoResolver.actualizarEstadoAlojamiento(estanciaGuardada.getHabitaciones(), EstadoOperativo.OCUPADO);
@@ -165,20 +167,11 @@ public class EstanciaService {
             logger.info("[editarEstancia] Creando nuevo o editando el pago asociado a la estancia editada");
             Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstancia(estancia.getId()).orElse(null);
 
-            Pago pago = (pagoAnterior == null)
-                    ? pagoService.crearPago(request.getPago(), estancia)
-                    : pagoService.reemplazarPago(request.getPago(), pagoAnterior);
-
-            if (estancia.getPagos() == null) {
-                estancia.setPagos(new ArrayList<>());
+            if (pagoAnterior == null) {
+                pagoService.crearPago(request.getPago(), estancia);
             } else {
-                estancia.getPagos().clear();
+                pagoService.reemplazarPago(request.getPago(), pagoAnterior);
             }
-
-            if (pagoAnterior != null) {
-                estancia.getPagos().add(pagoAnterior);
-            }
-            estancia.getPagos().add(pago);
         }
 
         estanciaRepository.save(estancia);
@@ -194,7 +187,13 @@ public class EstanciaService {
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
 
+        logger.info("[eliminarEstancia] Actualizando estado de la estancia a CANCELADA");
         estancia.setEstado(EstadoEstancia.CANCELADA);
+
+        logger.info("[eliminarEstancia] Eliminando pagos asociados a la estancia, la cantidad de pagos es: {}", estancia.getPagos() != null ? estancia.getPagos().size() : 0);
+        pagoService.eliminarPagos(estancia.getId());
+
+        logger.info("[eliminarEstancia] Guardando cambios en la estancia eliminada");
         estanciaRepository.save(estancia);
         return null;
     }
@@ -227,14 +226,14 @@ public class EstanciaService {
         estancia.setEstado(EstadoEstancia.FINALIZADA);
         estancia.setSalidaReal(request.getFechaSalidaReal());
 
-        if(request.getPagoEstancia() != null) {
-            logger.info("[finalizarEstancia] Creando pago asociado a la estancia finalizada");
-            Pago pago = pagoService.crearPago(request.getPagoEstancia(), estancia);
-            if (estancia.getPagos() == null) {
-                estancia.setPagos(new ArrayList<>());
-            }
-            estancia.getPagos().add(pago);
-        }
+        logger.info("[finalizarEstancia] Creando pago asociado a la estancia finalizada");
+        pagoService.crearPago(request.getPagoEstancia(), estancia);
+
+        estancia.setNotas(estancia.getNotas() + " | Notas de salida: " + request.getNotasSalida());
+
+        estancia.setPrecioTotal(pagoService.sumarTotalPagosPorEstancia(estancia.getId()));
+
+        logger.info("[finalizarEstancia] Guardando cambios en la estancia finalizada");
         estanciaRepository.save(estancia);
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
@@ -303,15 +302,22 @@ public class EstanciaService {
 
 
     private EstadoEstancia determinarEstadoEstancia(LocalDateTime entrada, LocalDateTime salida) {
-        if(entrada.isBefore(LocalDateTime.now())  || entrada.isEqual(LocalDateTime.now()) && salida.isAfter(LocalDateTime.now())) {
+
+        LocalDateTime now = LocalDateTime.now();
+
+        if ((entrada.isBefore(now) || entrada.isEqual(now)) && salida.isAfter(now)) {
             return EstadoEstancia.ACTIVA;
         }
-        if(salida.isBefore(LocalDateTime.now())) {
+
+        if (salida.isBefore(now) || salida.isEqual(now)) {
             return EstadoEstancia.EXCEDIDA;
         }
 
-        throw new IllegalStateException("No se puede tener una estancia despues de la fecha actual, debe crearse una reserva");
+        throw new IllegalStateException(
+                "No se puede tener una estancia futura; debe crearse una reserva"
+        );
     }
+
 
 
 
