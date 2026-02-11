@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.hotel.models.enums.EstadoPago;
+import com.hotel.models.enums.TipoPago;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -14,7 +15,7 @@ import org.springframework.data.repository.query.Param;
 
 public interface PagoRepository extends JpaRepository<Pago, Long>, JpaSpecificationExecutor<Pago> {
 
-    Optional<Pago> findFirstByEstanciaIdOrderByFechaCreacionDesc(Long idEstancia);
+    Optional<Pago> findFirstByEstanciaIdAndTipoPagoOrderByFechaCreacionDesc(Long idEstancia, TipoPago tipoPago);
 
     List<Pago> findByEstanciaId(Long idEstancia);
 

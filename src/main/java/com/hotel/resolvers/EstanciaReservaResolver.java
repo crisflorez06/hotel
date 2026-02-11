@@ -31,7 +31,6 @@ public class EstanciaReservaResolver {
         }
         Estancia estancia = new Estancia();
         estancia.setCodigoFolio("EST-" + System.currentTimeMillis());
-        estancia.setEntradaReal(reserva.getEntradaEstimada());
         estancia.setSalidaEstimada(reserva.getSalidaEstimada());
         estancia.setModoOcupacion(reserva.getModoOcupacion());
         estancia.setEstado(EstadoEstancia.RESERVADA);

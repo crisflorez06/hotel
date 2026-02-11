@@ -16,6 +16,9 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+
+import static com.hotel.models.enums.EstadoEstancia.EXCEDIDA;
 
 @Component
 public class DisponibilidadService {
@@ -44,26 +47,19 @@ public class DisponibilidadService {
 
         logger.info("[DisponibilidadService.verificarDisponiblidad] Habitaciones con reserva encontradas: {}", habitacionesConReserva.size());
         if(!habitacionesConReserva.isEmpty()) {
-            return construirMensajeHabitacionesConReserva(habitacionesConReserva);
+            return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        //si existe una estancia activa o excedida, verificar si se solapa con la reserva
-        if (!tieneDisponiblidadEstancia(codigo, tipoUnidad)){
+        if(estancia != null) {
+            logger.info("[DisponibilidadService.verificarDisponiblidad] si la estancia no es nula, se omite la verificación de disponibilidad de habitaciones para estancia con codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
+            return "";
+        }
 
-            Long habitacionId = habitaciones.getFirst().getId();
-            Estancia estanciaDb = estanciaRepository.findActivaOExcedidaPorHabitacionId(habitacionId).orElseThrow(
-                    () -> new IllegalArgumentException("No se encontró una estancia activa o excedida para la unidad con codigo: " + codigo)
-            );
-
-            if (estanciaDb.equals(estancia)){
-                logger.info("[DisponibilidadService.verificarDisponiblidad] La estancia con id: {} es la misma que se está verificando, se omite la verificación de solapamiento", estanciaDb.getId());
-                return "";
-            }
-
-            //debo solucionar para que en string me salga el codigo exacto de la habitacion o habitaciones que tienen la estancia
-            if(fechaIncioReserva.isBefore(estanciaDb.getSalidaEstimada()) || estanciaDb.getEstado().equals(EstadoEstancia.EXCEDIDA)) {
-                logger.info("[DisponibilidadService.verificarDisponiblidad] Existe una estancia activa o excedida que se solapa con la reserva para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-                return "existe una estancia para la habitacion con codigo: " + codigo;
+        if (!tieneDisponiblidadHabitaciones(habitaciones)){
+            logger.info("[DisponibilidadService.verificarDisponiblidad] No hay disponibilidad para estancia con codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
+            List<Habitacion> habitacionesConEstancia = existeEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva);
+            if(!habitacionesConEstancia.isEmpty()) {
+                return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
             }
         }
 
@@ -71,19 +67,17 @@ public class DisponibilidadService {
 
     }
 
-    private Boolean tieneDisponiblidadEstancia(String codigo, TipoUnidad tipoUnidad) {
-        logger.info("[DisponibilidadService.verificarDisponiblidad] Verificando disponibilidad para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
+    private Boolean tieneDisponiblidadHabitaciones(List<Habitacion> habitaciones) {
 
-        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-
+        logger.info("[DisponibilidadService.tieneDisponiblidadEstancia] Verificando estado operativo de las habitaciones para determinar disponibilidad de estancia");
         for (Habitacion habitacion : habitaciones) {
             if (!habitacion.getEstadoOperativo().equals(EstadoOperativo.DISPONIBLE)) {
-                logger.info("[DisponibilidadService.verificarDisponiblidad] Habitacion con codigo: {} no está disponible (estado: {})", habitacion.getCodigo(), habitacion.getEstadoOperativo());
+                logger.info("[DisponibilidadService.tieneDisponiblidadEstancia] Habitacion con codigo: {} no está disponible (estado: {})", habitacion.getCodigo(), habitacion.getEstadoOperativo());
                 return false;
             }
         }
 
-        logger.info("[DisponibilidadService.verificarDisponiblidad] Todas las habitaciones están disponibles para codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
+        logger.info("[DisponibilidadService.tieneDisponiblidadEstancia] Todas las habitaciones están disponibles para estancia");
         return true;
 
     }
@@ -107,7 +101,32 @@ public class DisponibilidadService {
         return habitacionesConReserva;
     }
 
-    private String construirMensajeHabitacionesConReserva(List<Habitacion> habitaciones) {
+    private List<Habitacion> existeEstanciaActivaOExcedidaPorHabitacion(
+            List<Habitacion> habitaciones,
+            LocalDateTime fechaInicioReserva
+    ) {
+        logger.info("[DisponibilidadService.existeEstanciaActivaOExcedidaPorHabitacion] Verificando estancias activas o excedidas para las habitaciones");
+
+        List<Habitacion> habitacionesConEstancia = new ArrayList<>();
+
+        for (Habitacion habitacion : habitaciones) {
+            estanciaRepository
+                    .findActivaOExcedidaPorHabitacionId(habitacion.getId())
+                    .ifPresent(estancia -> {
+
+                        if (fechaInicioReserva.isBefore(estancia.getSalidaEstimada()) || estancia.getEstado() == EXCEDIDA) {
+                            logger.info("[DisponibilidadService.verificarDisponibilidad] Existe una estancia activa/excedida que se solapa para codigo: {}", habitacion.getCodigo());
+                            habitacionesConEstancia.add(habitacion);
+                        }
+
+                    });
+        }
+
+        return habitacionesConEstancia;
+    }
+
+
+    private String construirMensajeHabitaciones(List<Habitacion> habitaciones, String tipo) {
         StringBuilder mensaje = new StringBuilder();
         for (Habitacion habitacion : habitaciones) {
             mensaje.append(habitacion.getCodigo()).append(", ");
@@ -115,8 +134,8 @@ public class DisponibilidadService {
 
         mensaje.setLength(mensaje.length() - 2); // Eliminar la última coma y espacio
 
-        logger.info("[DisponibilidadService.construirMensajeHabitacionesConReserva] Habitaciones con reservas: {}", mensaje.toString());
-        return "existe una reserva para las habitaciones con codigo: " + mensaje.toString();
+        logger.info("[DisponibilidadService.construirMensajeHabitaciones] Habitaciones con reservas: {}", mensaje.toString());
+        return "existe una " + tipo + " para las habitaciones con codigo: " + mensaje.toString();
     }
 
 }

@@ -79,11 +79,11 @@ public class PagoService {
         return pagoRepository.save(pagoNuevo);
     }
 
-    public Optional<Pago> buscarUltimoPagoPorEstancia(Long idEstancia) {
+    public Optional<Pago> buscarUltimoPagoPorEstanciaYTipo(Long idEstancia, TipoPago tipoPago) {
         if (idEstancia == null) {
             return Optional.empty();
         }
-        return pagoRepository.findFirstByEstanciaIdOrderByFechaCreacionDesc(idEstancia);
+        return pagoRepository.findFirstByEstanciaIdAndTipoPagoOrderByFechaCreacionDesc(idEstancia, tipoPago);
     }
 
     public Page<PagoDTO> buscarPagos(

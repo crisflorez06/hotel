@@ -1,13 +1,22 @@
-<header class="app-header">
-  <div class="app-header__brand">Hotel</div>
-  <nav class="app-header__nav">
-    <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
-    <a routerLink="/reserva" routerLinkActive="is-active">Reserva</a>
-    <a routerLink="/pagos" routerLinkActive="is-active">Pagos</a>
-    <a routerLink="/ajustes" routerLinkActive="is-active">Ajustes</a>
-  </nav>
-</header>
+<div class="app-loader" [class.app-loader--visible]="isLoading" aria-live="polite">
+  <div class="app-loader__panel" role="status" [attr.aria-busy]="isLoading">
+    <span class="app-loader__spinner" aria-hidden="true"></span>
+    <p>Cargando vista...</p>
+  </div>
+</div>
 
-<main class="app-main">
-  <router-outlet></router-outlet>
-</main>
+<div class="app-shell" [class.app-shell--loading]="isLoading">
+  <header class="app-header">
+    <div class="app-header__brand">Hotel</div>
+    <nav class="app-header__nav">
+      <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
+      <a routerLink="/reserva" routerLinkActive="is-active">Reserva</a>
+      <a routerLink="/pagos" routerLinkActive="is-active">Pagos</a>
+      <a routerLink="/ajustes" routerLinkActive="is-active">Ajustes</a>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <router-outlet></router-outlet>
+  </main>
+</div>

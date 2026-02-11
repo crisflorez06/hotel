@@ -4,6 +4,7 @@ import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.SalidaEstanciaDTO;
+import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
@@ -164,14 +165,8 @@ public class EstanciaService {
         estancia.setNotas(estancia.getNotas() + " | Notas editadas: " + request.getNotas());
 
         if(request.getPago() != null) {
-            logger.info("[editarEstancia] Creando nuevo o editando el pago asociado a la estancia editada");
-            Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstancia(estancia.getId()).orElse(null);
-
-            if (pagoAnterior == null) {
-                pagoService.crearPago(request.getPago(), estancia);
-            } else {
-                pagoService.reemplazarPago(request.getPago(), pagoAnterior);
-            }
+            logger.info("[editarEstancia] Modificando o creando pago asociado a la estancia editada");
+            modificarPagoEstancia(estancia, request.getPago());
         }
 
         estanciaRepository.save(estancia);
@@ -190,7 +185,7 @@ public class EstanciaService {
         logger.info("[eliminarEstancia] Actualizando estado de la estancia a CANCELADA");
         estancia.setEstado(EstadoEstancia.CANCELADA);
 
-        logger.info("[eliminarEstancia] Eliminando pagos asociados a la estancia, la cantidad de pagos es: {}", estancia.getPagos() != null ? estancia.getPagos().size() : 0);
+        logger.info("[eliminarEstancia] Eliminando pagos asociados a la estancia");
         pagoService.eliminarPagos(estancia.getId());
 
         logger.info("[eliminarEstancia] Guardando cambios en la estancia eliminada");
@@ -237,6 +232,17 @@ public class EstanciaService {
         estanciaRepository.save(estancia);
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
+    }
+
+    private void modificarPagoEstancia(Estancia estancia, PagoNuevoRequestDTO request) {
+        logger.info("[modificarPagoEstancia] Creando nuevo o editando el pago asociado a la estancia editada");
+        Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstanciaYTipo(estancia.getId(), TipoPago.ESTANCIA).orElse(null);
+
+        if (pagoAnterior == null) {
+            pagoService.crearPago(request, estancia);
+        } else {
+            pagoService.reemplazarPago(request, pagoAnterior);
+        }
     }
 
 
