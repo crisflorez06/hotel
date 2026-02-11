@@ -4,8 +4,8 @@
     <header class="reserva-nueva__header">
       <div>
         <p class="reserva-nueva__eyebrow">Recepción · Reservas</p>
-        <h1>Nueva reserva</h1>
-        <p>Registro de reservas.</p>
+        <h1>{{ esEdicion ? 'Editar reserva' : 'Nueva reserva' }}</h1>
+        <p>{{ esEdicion ? 'Actualizacion de la reserva.' : 'Registro de reservas.' }}</p>
       </div>
       <button type="button" class="btn-secundario" (click)="volver()">Volver</button>
     </header>
@@ -23,6 +23,7 @@
             <div class="campo">
               <label>Tipo de unidad *</label>
               <select
+                *ngIf="!esEdicion; else tipoUnidadBloqueado"
                 [(ngModel)]="tipoUnidad"
                 name="tipoUnidad"
                 required
@@ -31,11 +32,19 @@
                 <option [ngValue]="''">Selecciona una opcion</option>
                 <option *ngFor="let tipo of tiposUnidad" [ngValue]="tipo.value">{{ tipo.label }}</option>
               </select>
+              <ng-template #tipoUnidadBloqueado>
+                <input type="text" [value]="tipoUnidad || '-'" disabled />
+              </ng-template>
             </div>
 
             <div class="campo">
               <label>Codigo *</label>
-              <select [(ngModel)]="codigo" name="codigo" [disabled]="!tipoUnidad || cargandoCodigos">
+              <select
+                *ngIf="!esEdicion; else codigoBloqueado"
+                [(ngModel)]="codigo"
+                name="codigo"
+                [disabled]="!tipoUnidad || cargandoCodigos"
+              >
                 <option [ngValue]="''">
                   {{ cargandoCodigos ? 'Cargando codigos...' : 'Selecciona una opcion' }}
                 </option>
@@ -43,6 +52,9 @@
                   {{ item }}
                 </option>
               </select>
+              <ng-template #codigoBloqueado>
+                <input type="text" [value]="codigo || '-'" disabled />
+              </ng-template>
               <small class="ayuda" *ngIf="!cargandoCodigos && codigosError">{{ codigosError }}</small>
             </div>
 
@@ -213,7 +225,9 @@
         <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
 
         <div class="reserva-nueva__actions">
-          <button type="submit" [disabled]="guardando">Guardar reserva</button>
+          <button type="submit" [disabled]="guardando">
+            {{ guardando ? 'Guardando...' : esEdicion ? 'Guardar cambios' : 'Guardar reserva' }}
+          </button>
         </div>
       </form>
 

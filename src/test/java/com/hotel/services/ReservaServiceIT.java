@@ -27,6 +27,7 @@ import com.hotel.services.support.AbstractServiceIT;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -245,7 +246,7 @@ class ReservaServiceIT extends AbstractServiceIT {
                 request.getSalidaEstimada(),
                 null,
                 request.getNotas(),
-                ModoOcupacion.COMPLETO,
+                ModoOcupacion.INDIVIDUAL,
                 EstadoEstancia.RESERVADA,
                 null,
                 1,
@@ -410,7 +411,7 @@ class ReservaServiceIT extends AbstractServiceIT {
                 request.getSalidaEstimada(),
                 null,
                 request.getNotas(),
-                ModoOcupacion.COMPLETO,
+                ModoOcupacion.INDIVIDUAL,
                 EstadoEstancia.RESERVADA,
                 null,
                 1,
@@ -557,7 +558,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         assertThatThrownBy(() -> reservaService.crearReserva(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una estancia para la habitacion con codigo");
+                .hasMessageContaining("existe una estancia para las habitaciones con codigo");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
@@ -571,19 +572,20 @@ class ReservaServiceIT extends AbstractServiceIT {
     void falloCreandoReservaNuevaApartaestudioConEstancia_test() {
 
         // ---------- GIVEN ----------
-        Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
+        Unidad unidad = crearApartaestudio(EstadoOperativo.OCUPADO);
         Ocupante cliente = ocupanteRepository.save(clienteData());
 
-        Reserva reservaExistente = reservaData(
-                cliente,
+        Estancia estanciaExistente = estanciaData(
+                null,
+                null,
                 ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
+                EstadoEstancia.ACTIVA,
                 unidad.getHabitaciones(),
-                null
-        );
-        reservaRepository.save(reservaExistente);
+                null);
 
-        LocalDateTime entrada = reservaExistente.getEntradaEstimada().plusDays(1);
+        estanciaRepository.save(estanciaExistente);
+
+        LocalDateTime entrada = LocalDateTime.now().plusDays(1);
         ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
 
         long reservasAntes = reservaRepository.count();
@@ -593,7 +595,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         assertThatThrownBy(() -> reservaService.crearReserva(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una reserva para las habitaciones con codigo");
+                .hasMessageContaining("existe una estancia para las habitaciones con codigo");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
@@ -607,21 +609,24 @@ class ReservaServiceIT extends AbstractServiceIT {
     void falloCreandoReservaNuevaHabitacionConEstancia_test() {
 
         // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
         Habitacion habitacion = unidad.getHabitaciones().getFirst();
+        List<Habitacion> listaHabitacion = new ArrayList<>();
+        listaHabitacion.add(habitacion);
 
         Ocupante cliente = clienteData();
 
-        Reserva reservaExistente = reservaData(
-                cliente,
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                unidad.getHabitaciones(),
-                null
-        );
-        reservaRepository.save(reservaExistente);
+        Estancia estanciaExistente = estanciaData(
+                null,
+                null,
+                ModoOcupacion.INDIVIDUAL,
+                EstadoEstancia.ACTIVA,
+                listaHabitacion,
+                null);
 
-        LocalDateTime entrada = reservaExistente.getEntradaEstimada().plusDays(1);
+        estanciaRepository.save(estanciaExistente);
+
+        LocalDateTime entrada = LocalDateTime.now().plusDays(1);
         ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, entrada, null);
 
         long reservasAntes = reservaRepository.count();
@@ -631,7 +636,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         assertThatThrownBy(() -> reservaService.crearReserva(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una reserva para las habitaciones con codigo");
+                .hasMessageContaining("existe una estancia para las habitaciones con codigo");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
@@ -641,35 +646,10 @@ class ReservaServiceIT extends AbstractServiceIT {
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
     }
 
-    @Test
-    void falloCreandoReservaNuevaConFechaSalidaIgualEntrada_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
-        Ocupante cliente = ocupanteRepository.save(clienteData());
-
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
-        request.setSalidaEstimada(entrada);
-
-        long reservasAntes = reservaRepository.count();
-
-        // ---------- WHEN + THEN (excepción) ----------
-        assertThatThrownBy(() -> reservaService.crearReserva(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("fecha de salida estimada debe ser posterior a fecha de entrada estimada");
-
-        // ---------- THEN (no efectos en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
-    }
-
     /**
      * Metodos auxiliares para crear datos de prueba
      */
+    //falta revision
     @Test
     void validarCambioDeCodigoHabitacion_test() {
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);

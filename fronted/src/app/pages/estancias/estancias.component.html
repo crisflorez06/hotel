@@ -1,0 +1,270 @@
+<section class="estancia-tabla">
+  <header class="estancia-tabla__header">
+    <div>
+      <h1>Estancias</h1>
+      <p>Consulta y filtra estancias por estado, ocupacion, cliente, unidad y fechas.</p>
+    </div>
+  </header>
+
+  <section class="estancia-tabla__filtros">
+    <div class="estancia-tabla__filtros-head">
+      <h2>Filtros de busqueda</h2>
+      <p>La busqueda se aplica automaticamente al cambiar cualquier filtro.</p>
+    </div>
+
+    <div class="estancia-tabla__filtros-grid">
+      <div class="campo">
+        <label for="codigoEstancia">Codigo estancia</label>
+        <input
+          id="codigoEstancia"
+          type="text"
+          [(ngModel)]="filtros.codigoEstancia"
+          (ngModelChange)="onFiltroCambio()"
+          name="codigoEstancia"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="codigoUnidad">Codigo unidad</label>
+        <input
+          id="codigoUnidad"
+          type="text"
+          [(ngModel)]="filtros.codigoUnidad"
+          (ngModelChange)="onFiltroCambio()"
+          name="codigoUnidad"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="nombreCliente">Nombre cliente</label>
+        <input
+          id="nombreCliente"
+          type="text"
+          [(ngModel)]="filtros.nombreCliente"
+          (ngModelChange)="onFiltroCambio()"
+          name="nombreCliente"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="numeroDocumentoCliente">Documento cliente</label>
+        <input
+          id="numeroDocumentoCliente"
+          type="text"
+          [(ngModel)]="filtros.numeroDocumentoCliente"
+          (ngModelChange)="onFiltroCambio()"
+          name="numeroDocumentoCliente"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="tipoUnidad">Tipo de unidad</label>
+        <select
+          id="tipoUnidad"
+          name="tipoUnidad"
+          [(ngModel)]="filtros.tipoUnidad"
+          (ngModelChange)="aplicarFiltros()"
+        >
+          <option *ngFor="let item of tiposUnidadDisponibles" [ngValue]="item.value">{{ item.label }}</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="modoOcupacion">Modo de ocupacion</label>
+        <select
+          id="modoOcupacion"
+          name="modoOcupacion"
+          [(ngModel)]="filtros.modoOcupacion"
+          (ngModelChange)="aplicarFiltros()"
+        >
+          <option *ngFor="let item of modosOcupacionDisponibles" [ngValue]="item.value">{{ item.label }}</option>
+        </select>
+      </div>
+    </div>
+
+    <details class="estancia-tabla__filtros-avanzados">
+      <summary>Mas filtros</summary>
+
+      <div class="estancia-tabla__filtros-avanzados-grid">
+        <div class="campo campo--full">
+          <label>Estados</label>
+          <div class="checks">
+            <label class="check" *ngFor="let estado of estadosEstanciaDisponibles">
+              <input
+                type="checkbox"
+                [checked]="estaEstadoSeleccionado(estado)"
+                (change)="toggleEstado(estado, $any($event.target).checked)"
+              />
+              <span>{{ formatearEtiqueta(estado) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="campo">
+          <label for="tieneReservaAsociada">Reserva asociada</label>
+          <select
+            id="tieneReservaAsociada"
+            [(ngModel)]="filtros.tieneReservaAsociada"
+            (ngModelChange)="aplicarFiltros()"
+          >
+            <option *ngFor="let opcion of reservaAsociadaOpciones" [ngValue]="opcion.value">
+              {{ opcion.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="rango-fecha">
+          <div class="campo">
+            <label for="entradaDesde">Entrada desde</label>
+            <input
+              id="entradaDesde"
+              type="datetime-local"
+              [(ngModel)]="filtros.entradaDesde"
+              (ngModelChange)="onFiltroCambio()"
+              name="entradaDesde"
+            />
+          </div>
+          <div class="campo">
+            <label for="entradaHasta">Entrada hasta</label>
+            <input
+              id="entradaHasta"
+              type="datetime-local"
+              [(ngModel)]="filtros.entradaHasta"
+              (ngModelChange)="onFiltroCambio()"
+              name="entradaHasta"
+            />
+          </div>
+        </div>
+
+        <div class="rango-fecha">
+          <div class="campo">
+            <label for="salidaEstimadaDesde">Salida estimada desde</label>
+            <input
+              id="salidaEstimadaDesde"
+              type="datetime-local"
+              [(ngModel)]="filtros.salidaEstimadaDesde"
+              (ngModelChange)="onFiltroCambio()"
+              name="salidaEstimadaDesde"
+            />
+          </div>
+          <div class="campo">
+            <label for="salidaEstimadaHasta">Salida estimada hasta</label>
+            <input
+              id="salidaEstimadaHasta"
+              type="datetime-local"
+              [(ngModel)]="filtros.salidaEstimadaHasta"
+              (ngModelChange)="onFiltroCambio()"
+              name="salidaEstimadaHasta"
+            />
+          </div>
+        </div>
+
+        <div class="rango-fecha">
+          <div class="campo">
+            <label for="salidaRealDesde">Salida real desde</label>
+            <input
+              id="salidaRealDesde"
+              type="datetime-local"
+              [(ngModel)]="filtros.salidaRealDesde"
+              (ngModelChange)="onFiltroCambio()"
+              name="salidaRealDesde"
+            />
+          </div>
+          <div class="campo">
+            <label for="salidaRealHasta">Salida real hasta</label>
+            <input
+              id="salidaRealHasta"
+              type="datetime-local"
+              [(ngModel)]="filtros.salidaRealHasta"
+              (ngModelChange)="onFiltroCambio()"
+              name="salidaRealHasta"
+            />
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="estancia-tabla__filtros-actions">
+      <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">Limpiar</button>
+    </div>
+  </section>
+
+  <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+
+  <section class="estancia-tabla__contenido">
+    <div class="estancia-tabla__estado" *ngIf="cargando">Cargando estancias...</div>
+
+    <div class="tabla-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>Codigo estancia</th>
+            <th>Codigo unidad</th>
+            <th>Tipo unidad</th>
+            <th>Cliente</th>
+            <th>Documento</th>
+            <th>Estado</th>
+            <th>Modo ocupacion</th>
+            <th>Entrada real</th>
+            <th>Salida estimada</th>
+            <th>Salida real</th>
+            <th>Reserva asociada</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let estancia of estancias; trackBy: trackByEstanciaId">
+            <td>{{ estancia.codigoEstancia }}</td>
+            <td>{{ estancia.codigoUnidad }}</td>
+            <td>{{ formatearEtiqueta(estancia.tipoUnidad) }}</td>
+            <td>{{ estancia.nombreCliente }}</td>
+            <td>{{ estancia.numeroDocumentoCliente }}</td>
+            <td>
+              <span class="chip chip--{{ estancia.estadoEstancia.toLowerCase() }}">
+                {{ formatearEtiqueta(estancia.estadoEstancia) }}
+              </span>
+            </td>
+            <td>{{ formatearEtiqueta(estancia.modoOcupacion) }}</td>
+            <td>{{ formatearFecha(estancia.entradaReal) }}</td>
+            <td>{{ formatearFecha(estancia.salidaEstimada) }}</td>
+            <td>{{ formatearFecha(estancia.salidaReal) }}</td>
+            <td>{{ estancia.tieneReservaAsociada ? 'Si' : 'No' }}</td>
+          </tr>
+
+          <tr *ngIf="!estancias.length">
+            <td colspan="11" class="tabla-vacia">No hay estancias con los filtros actuales.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="estancia-tabla__paginador" *ngIf="!cargando">
+      <div class="estancia-tabla__paginador-info">
+        <span>Total: {{ totalElements }}</span>
+        <span *ngIf="totalElements > 0">Mostrando {{ indiceInicio }}-{{ indiceFin }}</span>
+      </div>
+
+      <div class="estancia-tabla__paginador-size">
+        <label for="pageSize">Tamano pagina</label>
+        <select id="pageSize" [ngModel]="size" (ngModelChange)="cambiarPageSize($event)">
+          <option *ngFor="let option of pageSizeOptions" [ngValue]="option">{{ option }}</option>
+        </select>
+      </div>
+
+      <div class="estancia-tabla__paginador-actions">
+        <button type="button" class="btn" (click)="irPaginaAnterior()" [disabled]="page === 0 || cargando">
+          Anterior
+        </button>
+        <span>Pagina {{ page + 1 }} de {{ totalPages || 1 }}</span>
+        <button
+          type="button"
+          class="btn"
+          (click)="irPaginaSiguiente()"
+          [disabled]="page + 1 >= totalPages || cargando"
+        >
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  </section>
+</section>

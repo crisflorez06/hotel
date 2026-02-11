@@ -22,6 +22,22 @@ import { ReservaNuevoRequest } from '../../models/reserva.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { PagoNuevoRequest } from '../../models/pago.model';
 
+interface ReservaEditState {
+  editMode?: boolean;
+  returnTo?: string;
+  reserva?: {
+    id?: number;
+    codigo?: string;
+    tipoUnidad?: TipoUnidad;
+    idOcupante?: number;
+    nombreCliente?: string;
+    numeroPersonas?: number;
+    canalReserva?: CanalReserva;
+    entradaEstimada?: string;
+    salidaEstimada?: string;
+  };
+}
+
 @Component({
   selector: 'app-reserva-nueva',
   standalone: true,
@@ -30,6 +46,10 @@ import { PagoNuevoRequest } from '../../models/pago.model';
   styleUrl: './reserva-nueva.component.css',
 })
 export class ReservaNuevaComponent implements OnInit {
+  esEdicion = false;
+  reservaEditandoId: number | null = null;
+  rutaRetorno = '/calendario';
+
   codigo = '';
   tipoUnidad: TipoUnidad | '' = '';
   codigosDisponibles: string[] = [];
@@ -115,6 +135,12 @@ export class ReservaNuevaComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    const state = (history.state ?? {}) as ReservaEditState;
+    if (state.editMode && state.reserva?.id) {
+      this.cargarModoEdicion(state);
+      return;
+    }
+
     this.codigo = this.route.snapshot.queryParamMap.get('codigo') ?? '';
     this.tipoUnidad = (this.route.snapshot.queryParamMap.get('tipo') as TipoUnidad) ?? '';
     if (this.tipoUnidad) {
@@ -123,6 +149,10 @@ export class ReservaNuevaComponent implements OnInit {
   }
 
   onTipoUnidadChange(tipo: TipoUnidad | ''): void {
+    if (this.esEdicion) {
+      return;
+    }
+
     this.tipoUnidad = tipo;
     this.codigo = '';
     this.codigosDisponibles = [];
@@ -173,15 +203,22 @@ export class ReservaNuevaComponent implements OnInit {
       pago: this.conPago ? this.buildPago() : null,
     };
 
-    this.reservaService.crearReserva(request).subscribe({
+    const request$ =
+      this.esEdicion && this.reservaEditandoId !== null
+        ? this.reservaService.editarReserva(this.reservaEditandoId, request)
+        : this.reservaService.crearReserva(request);
+
+    request$.subscribe({
       next: () => {
         this.guardando = false;
-        this.exito = 'Reserva registrada con exito.';
-        this.mostrarToastExito('Reserva registrada con exito.', true);
+        this.exito = this.esEdicion ? 'Reserva actualizada con exito.' : 'Reserva registrada con exito.';
+        this.mostrarToastExito(this.exito, true);
       },
       error: () => {
         this.guardando = false;
-        this.error = 'No fue posible registrar la reserva.';
+        this.error = this.esEdicion
+          ? 'No fue posible actualizar la reserva.'
+          : 'No fue posible registrar la reserva.';
       },
     });
   }
@@ -323,7 +360,7 @@ export class ReservaNuevaComponent implements OnInit {
   }
 
   volver(): void {
-    this.router.navigate(['/reserva']);
+    this.router.navigate([this.rutaRetorno]);
   }
 
   private cargarCodigosDisponibles(tipo: TipoUnidad): void {
@@ -377,9 +414,46 @@ export class ReservaNuevaComponent implements OnInit {
     setTimeout(() => {
       this.mostrarToast = false;
       if (navegar) {
-        this.router.navigate(['/reserva']);
+        this.router.navigate([this.rutaRetorno]);
       }
     }, 1500);
+  }
+
+  private cargarModoEdicion(state: ReservaEditState): void {
+    const reserva = state.reserva;
+    if (!reserva?.id || !reserva.codigo || !reserva.tipoUnidad) {
+      return;
+    }
+
+    this.esEdicion = true;
+    this.reservaEditandoId = reserva.id;
+    this.rutaRetorno = state.returnTo || '/reservas';
+    this.codigo = reserva.codigo;
+    this.tipoUnidad = reserva.tipoUnidad;
+    this.idOcupante = reserva.idOcupante ?? null;
+    this.numeroPersonas = reserva.numeroPersonas ?? null;
+    this.canalReserva = reserva.canalReserva ?? 'MOSTRADOR';
+    this.entradaEstimada = this.formatearFechaFlatpickr(reserva.entradaEstimada);
+    this.salidaEstimada = this.formatearFechaFlatpickr(reserva.salidaEstimada);
+
+    if (reserva.nombreCliente) {
+      const [nombres, ...resto] = reserva.nombreCliente.trim().split(' ');
+      this.clienteCreado = {
+        id: reserva.idOcupante ?? 0,
+        nombres: nombres || reserva.nombreCliente,
+        apellidos: resto.join(' '),
+        tipoOcupante: 'CLIENTE',
+      };
+    }
+  }
+
+  private formatearFechaFlatpickr(fecha?: string): string {
+    if (!fecha) {
+      return '';
+    }
+
+    const normalizada = fecha.replace('T', ' ').slice(0, 16);
+    return normalizada;
   }
 
   private normalizarOpcional(valor?: string): string | undefined {

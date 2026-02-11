@@ -5,6 +5,7 @@ export interface ReservaCalendarioDTO {
   id: number;
   idCliente: number | null;
   idPagoReserva?: number | null;
+  codigoReserva?: string | null;
   inicio: string;
   fin: string;
   estado: EstadoReserva;
@@ -12,5 +13,6 @@ export interface ReservaCalendarioDTO {
   tipoUnidad: TipoUnidad | null;
   numeroPersonas: number | null;
   nombreCliente: string | null;
+  totalAnticipo?: number | null;
   pagosReserva?: PagoDTO[];
 }

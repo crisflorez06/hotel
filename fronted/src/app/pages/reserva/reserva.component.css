@@ -145,6 +145,28 @@
   border-color: rgba(15, 76, 69, 0.5);
 }
 
+.campo--checks {
+  gap: 0.55rem;
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.85rem;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+  color: var(--reserva-ink);
+}
+
+.check input {
+  accent-color: var(--reserva-forest-strong);
+}
+
 .reserva__acciones {
   display: grid;
   grid-auto-flow: row;
@@ -204,24 +226,14 @@
   border: 1px solid var(--reserva-border);
 }
 
-.reserva__tag--confirmada {
+.reserva__tag--reserva {
   background: rgba(31, 122, 85, 0.14);
   color: var(--reserva-success);
 }
 
-.reserva__tag--pendiente {
-  background: rgba(176, 108, 26, 0.14);
-  color: var(--reserva-warning);
-}
-
-.reserva__tag--completada {
+.reserva__tag--estancia {
   background: rgba(47, 91, 138, 0.14);
   color: var(--reserva-info);
-}
-
-.reserva__tag--cancelada {
-  background: rgba(162, 59, 47, 0.14);
-  color: var(--reserva-danger);
 }
 
 .reserva__calendario {
@@ -307,58 +319,17 @@
   line-height: 1;
   padding: 0.15rem;
   text-transform: uppercase;
+  cursor: default;
 }
 
-.reserva__calendario .fc .reserva-circulo--slot-0 {
+.reserva__calendario .fc .reserva-circulo--reserva {
   background: #0f4c45;
+  cursor: pointer;
 }
 
-.reserva__calendario .fc .reserva-circulo--slot-1 {
-  background: #2f6b5d;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-2 {
-  background: #b07a3b;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-3 {
-  background: #9a3f33;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-4 {
-  background: #3b5a7d;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-5 {
-  background: #1f7a55;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-6 {
-  background: #c17c2b;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-7 {
-  background: #2b6f7a;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-8 {
-  background: #5f8f3e;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-9 {
-  background: #7a3a53;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-10 {
-  background: #2f4c75;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-11 {
-  background: #2e7a4e;
-}
-
-.reserva__calendario .fc .reserva-circulo--slot-12 {
-  background: #0b5a52;
+.reserva__calendario .fc .reserva-circulo--estancia {
+  background: #2f5b8a;
+  cursor: pointer;
 }
 
 .reserva__calendario .fc .reserva-circulo--confirmada {
@@ -480,6 +451,27 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+.reserva-modal__acciones {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.reserva-modal__btn-ingreso {
+  border: 1px solid var(--reserva-forest);
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--reserva-forest);
+  color: var(--reserva-ivory);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.reserva-modal__btn-ingreso:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(34, 28, 20, 0.18);
+}
+
 .reserva-modal__label {
   display: block;
   font-size: 12px;
@@ -514,6 +506,26 @@
 }
 
 .reserva-modal__estado--cancelada {
+  background: rgba(162, 59, 47, 0.18);
+  color: var(--reserva-danger);
+}
+
+.reserva-modal__estado--activa {
+  background: rgba(31, 122, 85, 0.16);
+  color: var(--reserva-success);
+}
+
+.reserva-modal__estado--reservada {
+  background: rgba(176, 108, 26, 0.18);
+  color: var(--reserva-warning);
+}
+
+.reserva-modal__estado--finalizada {
+  background: rgba(47, 91, 138, 0.18);
+  color: var(--reserva-info);
+}
+
+.reserva-modal__estado--excedida {
   background: rgba(162, 59, 47, 0.18);
   color: var(--reserva-danger);
 }

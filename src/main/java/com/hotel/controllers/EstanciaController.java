@@ -4,9 +4,17 @@ import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.dtos.estancia.SalidaEstanciaDTO;
+import com.hotel.dtos.estancia.EstanciaTablaDTO;
+import com.hotel.models.enums.EstadoEstancia;
+import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.EstanciaService;
+import java.time.LocalDateTime;
+import java.util.List;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -57,5 +65,42 @@ public class EstanciaController {
             @RequestParam("codigo") String codigo,
             @RequestParam("tipoUnidad") TipoUnidad tipoUnidad) {
         return ResponseEntity.ok(estanciaService.obtenerEstancia(codigo, tipoUnidad));
+    }
+
+    @GetMapping("/tabla")
+    public Page<EstanciaTablaDTO> buscarEstanciasTabla(
+            @RequestParam(required = false) List<EstadoEstancia> estados,
+            @RequestParam(required = false) TipoUnidad tipoUnidad,
+            @RequestParam(required = false) ModoOcupacion modoOcupacion,
+            @RequestParam(required = false) String codigoEstancia,
+            @RequestParam(required = false) String codigoUnidad,
+            @RequestParam(required = false) String nombreCliente,
+            @RequestParam(required = false) String numeroDocumentoCliente,
+            @RequestParam(required = false) Long idCliente,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime entradaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime entradaHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaEstimadaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaEstimadaHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaRealDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaRealHasta,
+            @RequestParam(required = false) Boolean tieneReservaAsociada,
+            Pageable pageable) {
+        return estanciaService.buscarEstanciasTabla(
+                estados,
+                tipoUnidad,
+                modoOcupacion,
+                codigoEstancia,
+                codigoUnidad,
+                nombreCliente,
+                numeroDocumentoCliente,
+                idCliente,
+                entradaDesde,
+                entradaHasta,
+                salidaEstimadaDesde,
+                salidaEstimadaHasta,
+                salidaRealDesde,
+                salidaRealHasta,
+                tieneReservaAsociada,
+                pageable);
     }
 }

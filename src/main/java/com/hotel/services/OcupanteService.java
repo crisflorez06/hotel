@@ -80,7 +80,14 @@ public class OcupanteService {
             ocupantes.add(cliente);
         }
 
+        if (idsAcompanantes == null || idsAcompanantes.isEmpty()) {
+            return ocupantes;
+        }
+
         for(Long idAcompanante : idsAcompanantes) {
+            if (idAcompanante == null) {
+                continue;
+            }
             Ocupante acompanante = buscarPorId(idAcompanante);
             TipoOcupante tipoOcupanteAcompanante = acompanante.getTipoOcupante();
 

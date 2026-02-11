@@ -14,7 +14,20 @@ import {
 
 import { ReservaService } from '../../services/reserva.service';
 import { ReservaCalendarioDTO } from '../../models/reserva-calendario.model';
-import { EstadoReserva, TipoUnidad } from '../../models/enums';
+import { EstanciaCalendarioDTO, ReservaCalendarioResumenDTO } from '../../models/detalle-calendario.model';
+import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../../models/enums';
+
+type TipoRegistroCalendario = 'reserva' | 'estancia';
+
+interface RegistroCalendarioDia {
+  id: number;
+  tipo: TipoRegistroCalendario;
+  inicio: string;
+  fin: string;
+  codigoUnidad: string | null;
+  numeroPersonas: number | null;
+  estado: string;
+}
 
 @Component({
   selector: 'app-reserva',
@@ -26,7 +39,9 @@ import { EstadoReserva, TipoUnidad } from '../../models/enums';
 })
 export class ReservaComponent implements OnInit {
   reservas: ReservaCalendarioDTO[] = [];
+  estancias: EstanciaCalendarioDTO[] = [];
   reservaSeleccionada: ReservaCalendarioDTO | null = null;
+  estanciaSeleccionada: EstanciaCalendarioDTO | null = null;
   cargando = false;
   error = '';
   modalBusquedaAbierta = false;
@@ -35,11 +50,15 @@ export class ReservaComponent implements OnInit {
   busquedaCargando = false;
   busquedaError = '';
   busquedaHecha = false;
+
   private readonly maxUnidadesPorDia = 13;
-  private reservasPorDia = new Map<string, Map<string, ReservaCalendarioDTO>>();
+  private registrosPorDia = new Map<string, Map<string, RegistroCalendarioDia>>();
+  private filtroCodigoTimeout: ReturnType<typeof setTimeout> | null = null;
 
   filtroTipoUnidad: TipoUnidad | '' = '';
   filtroCodigo = '';
+  filtroEstadosReserva: EstadoReserva[] = [];
+  filtroEstadosEstancia: EstadoEstancia[] = [];
 
   mesActivo = this.formatearMes(new Date());
   eventos: EventInput[] = [];
@@ -49,6 +68,15 @@ export class ReservaComponent implements OnInit {
     { label: 'Unidad', value: 'APARTAMENTO' as TipoUnidad },
     { label: 'Apartaestudio', value: 'APARTAESTUDIO' as TipoUnidad },
     { label: 'Habitacion', value: 'HABITACION' as TipoUnidad },
+  ];
+
+  readonly estadosReserva: EstadoReserva[] = ['CONFIRMADA', 'CANCELADA', 'COMPLETADA', 'EXPIRADA'];
+  readonly estadosEstancia: EstadoEstancia[] = [
+    'ACTIVA',
+    'RESERVADA',
+    'FINALIZADA',
+    'EXCEDIDA',
+    'CANCELADA',
   ];
 
   calendarioOpciones: CalendarOptions = {
@@ -74,7 +102,7 @@ export class ReservaComponent implements OnInit {
 
   constructor(
     private readonly reservaService: ReservaService,
-    private readonly router: Router
+    private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
@@ -94,10 +122,45 @@ export class ReservaComponent implements OnInit {
     this.cargarReservasMes(this.mesActivo);
   }
 
+  onFiltroCodigoChange(): void {
+    if (this.filtroCodigoTimeout) {
+      clearTimeout(this.filtroCodigoTimeout);
+    }
+
+    this.filtroCodigoTimeout = setTimeout(() => {
+      this.aplicarFiltros();
+      this.filtroCodigoTimeout = null;
+    }, 350);
+  }
+
   limpiarFiltros(): void {
     this.filtroTipoUnidad = '';
     this.filtroCodigo = '';
+    this.filtroEstadosReserva = [];
+    this.filtroEstadosEstancia = [];
     this.cargarReservasMes(this.mesActivo);
+  }
+
+  toggleEstadoReserva(estado: EstadoReserva, checked: boolean): void {
+    this.filtroEstadosReserva = checked
+      ? Array.from(new Set([...this.filtroEstadosReserva, estado]))
+      : this.filtroEstadosReserva.filter((item) => item !== estado);
+    this.aplicarFiltros();
+  }
+
+  toggleEstadoEstancia(estado: EstadoEstancia, checked: boolean): void {
+    this.filtroEstadosEstancia = checked
+      ? Array.from(new Set([...this.filtroEstadosEstancia, estado]))
+      : this.filtroEstadosEstancia.filter((item) => item !== estado);
+    this.aplicarFiltros();
+  }
+
+  estaEstadoReservaSeleccionado(estado: EstadoReserva): boolean {
+    return this.filtroEstadosReserva.includes(estado);
+  }
+
+  estaEstadoEstanciaSeleccionado(estado: EstadoEstancia): boolean {
+    return this.filtroEstadosEstancia.includes(estado);
   }
 
   private cargarReservasMes(mes: string): void {
@@ -106,28 +169,59 @@ export class ReservaComponent implements OnInit {
 
     const tipoUnidad = this.filtroTipoUnidad || undefined;
     const codigoUnidad = this.filtroCodigo.trim() || undefined;
+    const estadosReserva = this.filtroEstadosReserva.length ? this.filtroEstadosReserva : undefined;
+    const estadosEstancia = this.filtroEstadosEstancia.length ? this.filtroEstadosEstancia : undefined;
 
-    this.reservaService.obtenerReservasCalendario(mes, tipoUnidad, codigoUnidad).subscribe({
-      next: (reservas) => {
-        this.reservas = reservas;
-        this.reservasPorDia = this.construirMapaDias(reservas);
-        this.eventos = this.construirEventos(reservas);
-        this.calendarioOpciones = { ...this.calendarioOpciones };
-        this.cargando = false;
-      },
-      error: () => {
-        this.error = 'No fue posible cargar las reservas del calendario.';
-        this.reservas = [];
-        this.reservasPorDia.clear();
-        this.eventos = [];
-        this.calendarioOpciones = { ...this.calendarioOpciones };
-        this.cargando = false;
-      },
-    });
+    this.reservaService
+      .obtenerCalendario(mes, tipoUnidad, codigoUnidad, estadosReserva, estadosEstancia)
+      .subscribe({
+        next: (detalle) => {
+          const reservas = this.mapearReservasCalendario(detalle.reservas ?? []);
+          this.reservas = reservas;
+          this.estancias = detalle.estancias ?? [];
+          this.reservaSeleccionada = null;
+          this.estanciaSeleccionada = null;
+          this.registrosPorDia = this.construirMapaDias(reservas, this.estancias);
+          this.eventos = this.construirEventos(reservas, this.estancias);
+          this.calendarioOpciones = { ...this.calendarioOpciones };
+          this.cargando = false;
+        },
+        error: () => {
+          this.error = 'No fue posible cargar las reservas del calendario.';
+          this.reservas = [];
+          this.estancias = [];
+          this.reservaSeleccionada = null;
+          this.estanciaSeleccionada = null;
+          this.registrosPorDia.clear();
+          this.eventos = [];
+          this.calendarioOpciones = { ...this.calendarioOpciones };
+          this.cargando = false;
+        },
+      });
   }
 
-  private construirEventos(reservas: ReservaCalendarioDTO[]): EventInput[] {
-    return reservas.reduce<EventInput[]>((eventos, reserva) => {
+  private mapearReservasCalendario(reservas: ReservaCalendarioResumenDTO[]): ReservaCalendarioDTO[] {
+    return reservas.map((reserva) => ({
+      id: reserva.id,
+      idCliente: reserva.idCliente,
+      codigoReserva: reserva.codigoReserva,
+      inicio: reserva.inicio,
+      fin: reserva.fin,
+      estado: reserva.estadoReserva,
+      codigoUnidad: reserva.codigoUnidad,
+      tipoUnidad: reserva.tipoUnidad,
+      numeroPersonas: reserva.numeroPersonas,
+      nombreCliente: reserva.nombreCliente,
+      totalAnticipo: reserva.totalAnticipo,
+      idPagoReserva: null,
+    }));
+  }
+
+  private construirEventos(
+    reservas: ReservaCalendarioDTO[],
+    estancias: EstanciaCalendarioDTO[],
+  ): EventInput[] {
+    const eventosReserva = reservas.reduce<EventInput[]>((eventos, reserva) => {
       const inicio = this.parsearFechaLocal(reserva.inicio);
       const fin = this.parsearFechaLocal(reserva.fin);
       if (!inicio || !fin) {
@@ -149,12 +243,35 @@ export class ReservaComponent implements OnInit {
 
       return eventos;
     }, []);
+
+    const eventosEstancia = estancias.reduce<EventInput[]>((eventos, estancia) => {
+      const inicio = this.parsearFechaLocal(estancia.inicio);
+      const fin = this.parsearFechaLocal(estancia.fin);
+      if (!inicio || !fin) {
+        return eventos;
+      }
+
+      const finInclusivo = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate() + 1);
+
+      eventos.push({
+        id: `estancia-${estancia.id}`,
+        title: `${estancia.codigoUnidad ?? 'Unidad'} (${estancia.numeroPersonas ?? 0})`,
+        start: inicio,
+        end: finInclusivo,
+        allDay: true,
+      });
+
+      return eventos;
+    }, []);
+
+    return [...eventosReserva, ...eventosEstancia];
   }
 
   private construirMapaDias(
     reservas: ReservaCalendarioDTO[],
-  ): Map<string, Map<string, ReservaCalendarioDTO>> {
-    const mapa = new Map<string, Map<string, ReservaCalendarioDTO>>();
+    estancias: EstanciaCalendarioDTO[],
+  ): Map<string, Map<string, RegistroCalendarioDia>> {
+    const mapa = new Map<string, Map<string, RegistroCalendarioDia>>();
 
     reservas.forEach((reserva) => {
       const inicio = this.parsearFechaLocal(reserva.inicio);
@@ -165,18 +282,61 @@ export class ReservaComponent implements OnInit {
 
       const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
       const fechaFinal = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
-      const claveUnidad = reserva.codigoUnidad ?? `ID-${reserva.id}`;
+      const claveRegistro = `reserva-${reserva.codigoUnidad ?? `ID-${reserva.id}`}-${reserva.id}`;
 
       while (fechaActual <= fechaFinal) {
         const clave = this.formatearDia(fechaActual);
         let mapaDia = mapa.get(clave);
         if (!mapaDia) {
-          mapaDia = new Map<string, ReservaCalendarioDTO>();
+          mapaDia = new Map<string, RegistroCalendarioDia>();
           mapa.set(clave, mapaDia);
         }
 
-        if (!mapaDia.has(claveUnidad)) {
-          mapaDia.set(claveUnidad, reserva);
+        if (!mapaDia.has(claveRegistro)) {
+          mapaDia.set(claveRegistro, {
+            id: reserva.id,
+            tipo: 'reserva',
+            inicio: reserva.inicio,
+            fin: reserva.fin,
+            codigoUnidad: reserva.codigoUnidad,
+            numeroPersonas: reserva.numeroPersonas,
+            estado: reserva.estado,
+          });
+        }
+
+        fechaActual.setDate(fechaActual.getDate() + 1);
+      }
+    });
+
+    estancias.forEach((estancia) => {
+      const inicio = this.parsearFechaLocal(estancia.inicio);
+      const fin = this.parsearFechaLocal(estancia.fin);
+      if (!inicio || !fin) {
+        return;
+      }
+
+      const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+      const fechaFinal = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
+      const claveRegistro = `estancia-${estancia.codigoUnidad ?? `ID-${estancia.id}`}-${estancia.id}`;
+
+      while (fechaActual <= fechaFinal) {
+        const clave = this.formatearDia(fechaActual);
+        let mapaDia = mapa.get(clave);
+        if (!mapaDia) {
+          mapaDia = new Map<string, RegistroCalendarioDia>();
+          mapa.set(clave, mapaDia);
+        }
+
+        if (!mapaDia.has(claveRegistro)) {
+          mapaDia.set(claveRegistro, {
+            id: estancia.id,
+            tipo: 'estancia',
+            inicio: estancia.inicio,
+            fin: estancia.fin,
+            codigoUnidad: estancia.codigoUnidad,
+            numeroPersonas: estancia.numeroPersonas,
+            estado: estancia.estadoEstancia,
+          });
         }
 
         fechaActual.setDate(fechaActual.getDate() + 1);
@@ -188,22 +348,26 @@ export class ReservaComponent implements OnInit {
 
   private renderizarContenidoDia(arg: DayCellContentArg): { html: string } {
     const clave = this.formatearDia(arg.date);
-    const mapaDia = this.reservasPorDia.get(clave);
-    const reservasDia = mapaDia ? Array.from(mapaDia.entries()) : [];
-    reservasDia.sort((a, b) => a[0].localeCompare(b[0]));
+    const mapaDia = this.registrosPorDia.get(clave);
+    const registrosDia = mapaDia ? Array.from(mapaDia.entries()) : [];
+    registrosDia.sort((a, b) => a[0].localeCompare(b[0]));
 
-    const ocupadas = reservasDia.slice(0, this.maxUnidadesPorDia);
+    const ocupadas = registrosDia.slice(0, this.maxUnidadesPorDia);
 
     const circulosOcupados = ocupadas
-      .map(([codigo, reserva]) => {
-        const slot = this.obtenerSlotCodigo(codigo);
-        const estadoClase = reserva.estado.toLowerCase();
-        const etiqueta = reserva.codigoUnidad ?? `Unidad ${reserva.id}`;
+      .map(([, registro]) => {
+        const estadoClase = registro.estado.toLowerCase();
+        const etiqueta = registro.codigoUnidad ?? `Unidad ${registro.id}`;
+        const tipoClase = `reserva-circulo--${registro.tipo}`;
+        const tipoLabel = registro.tipo === 'reserva' ? 'Reserva' : 'Estancia';
         const etiquetaEscapada = this.escaparHtml(etiqueta);
         const titulo = this.escaparHtml(
-          `${etiqueta} · ${this.formatearEtiqueta(reserva.estado)}`,
+          `${tipoLabel} · ${etiqueta} · ${this.formatearEtiqueta(registro.estado)}`,
         );
-        return `<span class="reserva-circulo reserva-circulo--slot-${slot} reserva-circulo--${estadoClase}" data-reserva-id="${reserva.id}" title="${titulo}" aria-label="${titulo}">${etiquetaEscapada}</span>`;
+        const dataReservaId = registro.tipo === 'reserva' ? ` data-reserva-id="${registro.id}"` : '';
+        const dataEstanciaId =
+          registro.tipo === 'estancia' ? ` data-estancia-id="${registro.id}"` : '';
+        return `<span class="reserva-circulo ${tipoClase} reserva-circulo--${estadoClase}"${dataReservaId}${dataEstanciaId} title="${titulo}" aria-label="${titulo}">${etiquetaEscapada}</span>`;
       })
       .join('');
 
@@ -245,14 +409,6 @@ export class ReservaComponent implements OnInit {
       .replace(/'/g, '&#39;');
   }
 
-  private obtenerSlotCodigo(codigo: string): number {
-    let hash = 0;
-    for (let i = 0; i < codigo.length; i += 1) {
-      hash = (hash * 31 + codigo.charCodeAt(i)) % this.maxUnidadesPorDia;
-    }
-    return hash;
-  }
-
   private parsearFechaLocal(valor: string | null | undefined): Date | null {
     if (!valor) {
       return null;
@@ -286,24 +442,46 @@ export class ReservaComponent implements OnInit {
     event.preventDefault();
     event.stopPropagation();
 
-    const idTexto = circulo.dataset['reservaId'];
-    const id = idTexto ? Number.parseInt(idTexto, 10) : Number.NaN;
-    if (!Number.isFinite(id)) {
+    const idReservaTexto = circulo.dataset['reservaId'];
+    const idEstanciaTexto = circulo.dataset['estanciaId'];
+
+    if (idReservaTexto) {
+      const idReserva = Number.parseInt(idReservaTexto, 10);
+      if (!Number.isFinite(idReserva)) {
+        return;
+      }
+      const reserva = this.reservas.find((item) => item.id === idReserva);
+      if (reserva) {
+        this.abrirDetalle(reserva);
+      }
       return;
     }
 
-    const reserva = this.reservas.find((item) => item.id === id);
-    if (reserva) {
-      this.abrirDetalle(reserva);
+    if (idEstanciaTexto) {
+      const idEstancia = Number.parseInt(idEstanciaTexto, 10);
+      if (!Number.isFinite(idEstancia)) {
+        return;
+      }
+      const estancia = this.estancias.find((item) => item.id === idEstancia);
+      if (estancia) {
+        this.abrirDetalleEstancia(estancia);
+      }
     }
   };
 
   abrirDetalle(reserva: ReservaCalendarioDTO): void {
     this.reservaSeleccionada = reserva;
+    this.estanciaSeleccionada = null;
+  }
+
+  abrirDetalleEstancia(estancia: EstanciaCalendarioDTO): void {
+    this.estanciaSeleccionada = estancia;
+    this.reservaSeleccionada = null;
   }
 
   cerrarDetalle(): void {
     this.reservaSeleccionada = null;
+    this.estanciaSeleccionada = null;
   }
 
   mantenerModal(event: MouseEvent): void {
@@ -356,7 +534,7 @@ export class ReservaComponent implements OnInit {
   }
 
   darIngreso(reserva: ReservaCalendarioDTO): void {
-    console.log('reserva', reserva);
+    this.cerrarDetalle();
     this.cerrarBusqueda();
     this.router.navigate(['/estancias/nueva'], {
       state: {

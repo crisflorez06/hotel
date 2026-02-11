@@ -2,7 +2,7 @@
   <header class="reserva__header">
     <div>
       <h1>Reserva</h1>
-      <p>Calendario de reservas por unidad.</p>
+      <p>Calendario de reservas y estancias por unidad.</p>
     </div>
     <div class="reserva__header-acciones">
       <button type="button" class="reserva__crear" [routerLink]="['/reservas/nueva']">
@@ -19,7 +19,7 @@
     <aside class="reserva__filtros">
       <div class="campo">
         <label>Tipo de unidad</label>
-        <select [(ngModel)]="filtroTipoUnidad" name="filtroTipoUnidad">
+        <select [(ngModel)]="filtroTipoUnidad" name="filtroTipoUnidad" (ngModelChange)="aplicarFiltros()">
           <option *ngFor="let tipo of tiposUnidad" [ngValue]="tipo.value">
             {{ tipo.label }}
           </option>
@@ -28,23 +28,52 @@
 
       <div class="campo">
         <label>Codigo de unidad</label>
-        <input type="text" [(ngModel)]="filtroCodigo" name="filtroCodigo" placeholder="Ej: 101" />
+        <input
+          type="text"
+          [(ngModel)]="filtroCodigo"
+          name="filtroCodigo"
+          placeholder="Ej: 101"
+          (ngModelChange)="onFiltroCodigoChange()"
+        />
+      </div>
+
+      <div class="campo campo--checks">
+        <label>Estados de reserva</label>
+        <div class="checks">
+          <label *ngFor="let estado of estadosReserva" class="check">
+            <input
+              type="checkbox"
+              [checked]="estaEstadoReservaSeleccionado(estado)"
+              (change)="toggleEstadoReserva(estado, $any($event.target).checked)"
+            />
+            <span>{{ formatearEtiqueta(estado) }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="campo campo--checks">
+        <label>Estados de estancia</label>
+        <div class="checks">
+          <label *ngFor="let estado of estadosEstancia" class="check">
+            <input
+              type="checkbox"
+              [checked]="estaEstadoEstanciaSeleccionado(estado)"
+              (change)="toggleEstadoEstancia(estado, $any($event.target).checked)"
+            />
+            <span>{{ formatearEtiqueta(estado) }}</span>
+          </label>
+        </div>
       </div>
 
       <div class="reserva__acciones">
-        <button type="button" (click)="aplicarFiltros()" [disabled]="cargando">
-          Aplicar
-        </button>
         <button type="button" class="btn-secundario" (click)="limpiarFiltros()" [disabled]="cargando">
           Limpiar
         </button>
       </div>
 
       <div class="reserva__leyenda">
-        <span class="reserva__tag reserva__tag--confirmada">Confirmada</span>
-        <span class="reserva__tag reserva__tag--pendiente">Pendiente</span>
-        <span class="reserva__tag reserva__tag--completada">Completada</span>
-        <span class="reserva__tag reserva__tag--cancelada">Cancelada</span>
+        <span class="reserva__tag reserva__tag--reserva">Reserva</span>
+        <span class="reserva__tag reserva__tag--estancia">Estancia</span>
       </div>
 
       <p class="estado estado--error" *ngIf="error">{{ error }}</p>
@@ -68,16 +97,8 @@
 
       <div class="reserva-modal__grid">
         <div>
-          <span class="reserva-modal__label">Codigo</span>
-          <strong>{{ reserva.codigoUnidad || 'Unidad ' + reserva.id }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Tipo de unidad</span>
-          <strong>{{ formatearEtiqueta(reserva.tipoUnidad) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Cliente</span>
-          <strong>{{ reserva.nombreCliente || '-' }}</strong>
+          <span class="reserva-modal__label">Codigo de reserva</span>
+          <strong>{{ reserva.codigoReserva || 'Reserva ' + reserva.id }}</strong>
         </div>
         <div>
           <span class="reserva-modal__label">Estado</span>
@@ -86,7 +107,19 @@
           </span>
         </div>
         <div>
-          <span class="reserva-modal__label">Personas</span>
+          <span class="reserva-modal__label">Tipo de unidad</span>
+          <strong>{{ formatearEtiqueta(reserva.tipoUnidad) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Codigo de unidad</span>
+          <strong>{{ reserva.codigoUnidad || '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Cliente</span>
+          <strong>{{ reserva.nombreCliente || '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Total personas</span>
           <strong>{{ reserva.numeroPersonas ?? '-' }}</strong>
         </div>
         <div>
@@ -96,6 +129,70 @@
         <div>
           <span class="reserva-modal__label">Fin</span>
           <strong>{{ formatearFecha(reserva.fin) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Total pagado</span>
+          <strong>{{ (reserva.totalAnticipo ?? 0) | currency: 'COP' : 'symbol' : '1.0-0' }}</strong>
+        </div>
+      </div>
+
+      <div class="reserva-modal__acciones">
+        <button type="button" class="reserva-modal__btn-ingreso" (click)="darIngreso(reserva)">
+          Dar ingreso
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="estanciaSeleccionada as estancia">
+    <div class="modal__backdrop" (click)="cerrarDetalle()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header">
+        <div>
+          <h2>Detalle de estancia</h2>
+          <p>Informacion general de la estancia seleccionada.</p>
+        </div>
+        <button type="button" class="modal__cerrar" (click)="cerrarDetalle()">Cerrar</button>
+      </header>
+
+      <div class="reserva-modal__grid">
+        <div>
+          <span class="reserva-modal__label">Codigo de estancia</span>
+          <strong>{{ estancia.codigoEstancia || 'Estancia ' + estancia.id }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Estado</span>
+          <span class="reserva-modal__estado reserva-modal__estado--{{ estancia.estadoEstancia.toLowerCase() }}">
+            {{ formatearEtiqueta(estancia.estadoEstancia) }}
+          </span>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Tipo de unidad</span>
+          <strong>{{ formatearEtiqueta(estancia.tipoUnidad) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Codigo de unidad</span>
+          <strong>{{ estancia.codigoUnidad || '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Cliente</span>
+          <strong>{{ estancia.nombreCliente || '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Total personas</span>
+          <strong>{{ estancia.numeroPersonas ?? '-' }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Inicio</span>
+          <strong>{{ formatearFecha(estancia.inicio) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Fin</span>
+          <strong>{{ formatearFecha(estancia.fin) }}</strong>
+        </div>
+        <div>
+          <span class="reserva-modal__label">Total pagado</span>
+          <strong>{{ (estancia.totalPagado ?? 0) | currency: 'COP' : 'symbol' : '1.0-0' }}</strong>
         </div>
       </div>
     </div>
@@ -154,13 +251,6 @@
                 (click)="verMasReserva(reserva)"
               >
                 Ver mas
-              </button>
-              <button
-                type="button"
-                class="reserva-busqueda__btn reserva-busqueda__btn--primary"
-                (click)="darIngreso(reserva)"
-              >
-                Dar ingreso
               </button>
             </div>
           </article>

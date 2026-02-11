@@ -4,10 +4,11 @@ import com.hotel.models.Estancia;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface EstanciaRepository extends JpaRepository<Estancia, Long> {
+public interface EstanciaRepository extends JpaRepository<Estancia, Long>, JpaSpecificationExecutor<Estancia> {
 
     Optional<Estancia> findByReserva_Id(Long reservaId);
 

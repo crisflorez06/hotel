@@ -1,0 +1,359 @@
+.reserva-tabla {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --surface-soft: #f8fafc;
+  --ink: #111827;
+  --ink-soft: #4b5563;
+  --border: #d1d5db;
+  --primary: #0f766e;
+  --primary-dark: #115e59;
+  --error: #b91c1c;
+  --success: #166534;
+  --warning: #92400e;
+  --danger: #991b1b;
+
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.25rem;
+  background: radial-gradient(circle at top right, #dbeafe 0%, var(--bg) 45%);
+  min-height: calc(100vh - 5rem);
+  color: var(--ink);
+}
+
+.reserva-tabla__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.reserva-tabla__header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.reserva-tabla__header p {
+  margin: 0.35rem 0 0;
+  color: var(--ink-soft);
+}
+
+.reserva-tabla__header-actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.9rem;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: #9ca3af;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn--primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.btn--small {
+  padding: 0.35rem 0.55rem;
+  font-size: 0.8rem;
+  border-radius: 0.5rem;
+}
+
+.btn--danger {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: #ef4444;
+}
+
+.reserva-tabla__filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  padding: 1rem;
+}
+
+.reserva-tabla__filtros-head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.reserva-tabla__filtros-head p {
+  margin: 0.2rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+}
+
+.reserva-tabla__filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.reserva-tabla__filtros-avanzados {
+  border: 1px dashed #cbd5e1;
+  border-radius: 0.7rem;
+  background: #f8fafc;
+}
+
+.reserva-tabla__filtros-avanzados summary {
+  cursor: pointer;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.reserva-tabla__filtros-avanzados-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.rango-fecha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.campo label {
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.campo input,
+.campo select {
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.45rem 0.55rem;
+  background: var(--surface-soft);
+}
+
+.campo--full {
+  grid-column: 1 / -1;
+}
+
+.checks {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--ink);
+  font-size: 0.82rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #dbe3ec;
+  border-radius: 999px;
+  background: #fff;
+}
+
+.reserva-tabla__filtros-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.estado {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.estado--error {
+  color: var(--error);
+}
+
+.estado--exito {
+  color: var(--success);
+}
+
+.reserva-tabla__contenido {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  overflow: hidden;
+}
+
+.reserva-tabla__estado {
+  padding: 1rem;
+  color: var(--ink-soft);
+}
+
+.tabla-wrapper {
+  overflow: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1200px;
+}
+
+thead th {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid #e5e7eb;
+  padding: 0.55rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.83rem;
+}
+
+thead th:last-child,
+tbody td:last-child {
+  border-right: none;
+}
+
+thead th button {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+tbody td {
+  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid #f1f5f9;
+  padding: 0.55rem;
+  font-size: 0.84rem;
+}
+
+.tabla-vacia {
+  text-align: center;
+  color: var(--ink-soft);
+  padding: 1.1rem;
+}
+
+.tabla-acciones {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.tabla-acciones__bloqueado {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #92400e;
+  background: #ffedd5;
+  border: 1px solid #fdba74;
+  border-radius: 999px;
+  padding: 0.12rem 0.45rem;
+}
+
+.chip {
+  border-radius: 999px;
+  padding: 0.2rem 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.chip--confirmada,
+.chip--completada {
+  background: #dcfce7;
+  color: var(--success);
+}
+
+.chip--pendiente,
+.chip--expirada {
+  background: #fef3c7;
+  color: var(--warning);
+}
+
+.chip--cancelada {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
+.reserva-tabla__paginador {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.reserva-tabla__paginador-info,
+.reserva-tabla__paginador-actions,
+.reserva-tabla__paginador-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.reserva-tabla__paginador-size select {
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.45rem;
+}
+
+@media (max-width: 1080px) {
+  .reserva-tabla__filtros-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reserva-tabla__filtros-avanzados-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .reserva-tabla__paginador {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 680px) {
+  .reserva-tabla {
+    padding: 0.75rem;
+  }
+
+  .reserva-tabla__header {
+    flex-direction: column;
+  }
+
+  .reserva-tabla__filtros-grid,
+  .rango-fecha {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+}

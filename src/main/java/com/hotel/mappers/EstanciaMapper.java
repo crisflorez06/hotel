@@ -1,10 +1,14 @@
 package com.hotel.mappers;
 
+import com.hotel.dtos.estancia.EstanciaCalendarioDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.models.Estancia;
+import com.hotel.models.Ocupante;
+import com.hotel.models.Pago;
 import com.hotel.models.enums.EstadoEstancia;
+import com.hotel.models.enums.TipoOcupante;
 
 import java.time.LocalDateTime;
 
@@ -39,17 +43,39 @@ public class EstanciaMapper {
         return dto;
     }
 
-    public static void activarToEntity(ActivarEstanciaDTO request, Estancia entity) {
+    public static EstanciaCalendarioDTO entityToCalendarioDTO(Estancia estancia) {
+        EstanciaCalendarioDTO dto = new EstanciaCalendarioDTO();
 
-        if (!request.getEntradaReal().equals(entity.getEntradaReal())) {
-            entity.setEntradaReal(request.getEntradaReal());
+        dto.setId(estancia.getId());
+        dto.setInicio(estancia.getEntradaReal());
+        if(estancia.getSalidaReal() != null) {
+            dto.setFin(estancia.getSalidaReal());
+        } else {
+            dto.setFin(estancia.getSalidaEstimada());
         }
-        if (!request.getSalidaEstimada().equals(entity.getSalidaEstimada())) {
-            entity.setSalidaEstimada(request.getSalidaEstimada());
+        dto.setCodigoEstancia(estancia.getCodigoFolio());
+        dto.setNumeroPersonas(estancia.getOcupantes().size());
+        dto.setNombreCliente(estancia.getOcupantes().stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst()
+                .map(ocupante -> ocupante.getNombres() + " " + ocupante.getApellidos())
+                .orElse("Cliente sin nombre"));
+
+        dto.setIdCliente(estancia.getOcupantes().stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst()
+                .map(Ocupante::getId)
+                .orElse(null));
+
+        if (estancia.getPagos() != null) {
+            dto.setTotalPagado(estancia.getPagos().stream()
+                    .filter(pago -> pago.getTipoPago() == com.hotel.models.enums.TipoPago.ESTANCIA)
+                    .map(Pago::getMonto)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add));
         }
+        dto.setEstadoEstancia(estancia.getEstado());
 
-        entity.setEstado(EstadoEstancia.ACTIVA);
-
+        return dto;
     }
 
     private static String generateCodigoEstancia() {

@@ -19,6 +19,12 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'estancias',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./pages/estancias/estancias.component').then((m) => m.EstanciasComponent),
+  },
+  {
     path: 'estancias/nueva',
     loadComponent: () =>
       import('./pages/estancia-nueva/estancia-nueva.component').then(
@@ -33,9 +39,15 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'reserva',
+    path: 'calendario',
     loadComponent: () =>
       import('./pages/reserva/reserva.component').then((m) => m.ReservaComponent),
+  },
+  {
+    path: 'reservas',
+    pathMatch: 'full',
+    loadComponent: () =>
+      import('./pages/reservas/reservas.component').then((m) => m.ReservasComponent),
   },
   {
     path: 'pagos',

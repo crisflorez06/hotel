@@ -4,12 +4,14 @@ package com.hotel.mappers;
 import com.hotel.dtos.reserva.ReservaCalendarioDTO;
 import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
 import com.hotel.mappers.PagoMapper;
+import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.models.enums.TipoPago;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -40,18 +42,23 @@ public class ReservaMapper {
         ReservaCalendarioDTO dto = new ReservaCalendarioDTO();
 
         dto.setId(reserva.getId());
-        dto.setInicio(reserva.getEntradaEstimada());
+        if(reserva.getEstancia() != null && reserva.getEstancia().getEntradaReal() != null) {
+            dto.setInicio(reserva.getEstancia().getEntradaReal());
+        } else {
+            dto.setInicio(reserva.getEntradaEstimada());
+        }
         dto.setFin(reserva.getSalidaEstimada());
-        dto.setEstado(reserva.getEstado());
+        dto.setCodigoReserva(reserva.getCodigo());
+        dto.setEstadoReserva(reserva.getEstado());
         dto.setNumeroPersonas(reserva.getNumeroPersonas());
         dto.setNombreCliente(reserva.getCliente().getNombres() + " " + reserva.getCliente().getApellidos());
         dto.setIdCliente(reserva.getCliente().getId());
 
         if (reserva.getEstancia() != null && reserva.getEstancia().getPagos() != null) {
-            dto.setPagosReserva(reserva.getEstancia().getPagos().stream()
+            dto.setTotalAnticipo(reserva.getEstancia().getPagos().stream()
                     .filter(pago -> pago.getTipoPago() == TipoPago.RESERVA)
-                    .map(PagoMapper::entityToDTO)
-                    .toList());
+                    .map(Pago::getMonto)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
         }
         return dto;
     }

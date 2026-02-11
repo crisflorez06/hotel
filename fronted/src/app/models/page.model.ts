@@ -6,4 +6,6 @@ export interface PageResponse<T> {
   number: number;
   first: boolean;
   last: boolean;
+  numberOfElements?: number;
+  empty?: boolean;
 }

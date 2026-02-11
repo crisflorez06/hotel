@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 
 import { environment } from '../../environments/environment';
 import {
@@ -10,6 +10,8 @@ import {
 } from '../models/estancia.model';
 import { EstanciaDTO } from '../models/estancia-detalle.model';
 import { TipoUnidad } from '../models/enums';
+import { PageResponse } from '../models/page.model';
+import { EstanciaTablaFiltros, EstanciaTablaItem } from '../models/estancia-tabla.model';
 
 @Injectable({
   providedIn: 'root',
@@ -45,5 +47,52 @@ export class EstanciaService {
         tipoUnidad,
       },
     });
+  }
+
+  obtenerTabla(filtros: EstanciaTablaFiltros, page: number, size: number, sort: string[]) {
+    let params = new HttpParams()
+      .set('page', `${page}`)
+      .set('size', `${size}`);
+
+    filtros.estados.forEach((estado) => {
+      params = params.append('estados', estado);
+    });
+
+    params = this.setParamIfValue(params, 'modoOcupacion', filtros.modoOcupacion);
+    params = this.setParamIfValue(params, 'tipoUnidad', filtros.tipoUnidad);
+    params = this.setParamIfValue(params, 'codigoEstancia', filtros.codigoEstancia);
+    params = this.setParamIfValue(params, 'codigoUnidad', filtros.codigoUnidad);
+    params = this.setParamIfValue(params, 'nombreCliente', filtros.nombreCliente);
+    params = this.setParamIfValue(params, 'numeroDocumentoCliente', filtros.numeroDocumentoCliente);
+    params = this.setParamIfValue(params, 'entradaDesde', filtros.entradaDesde);
+    params = this.setParamIfValue(params, 'entradaHasta', filtros.entradaHasta);
+    params = this.setParamIfValue(params, 'salidaEstimadaDesde', filtros.salidaEstimadaDesde);
+    params = this.setParamIfValue(params, 'salidaEstimadaHasta', filtros.salidaEstimadaHasta);
+    params = this.setParamIfValue(params, 'salidaRealDesde', filtros.salidaRealDesde);
+    params = this.setParamIfValue(params, 'salidaRealHasta', filtros.salidaRealHasta);
+
+    if (filtros.tieneReservaAsociada === 'SI') {
+      params = params.set('tieneReservaAsociada', 'true');
+    }
+    if (filtros.tieneReservaAsociada === 'NO') {
+      params = params.set('tieneReservaAsociada', 'false');
+    }
+
+    sort.forEach((orden) => {
+      params = params.append('sort', orden);
+    });
+
+    return this.http.get<PageResponse<EstanciaTablaItem>>(`${this.baseUrl}/tabla`, {
+      params,
+    });
+  }
+
+  private setParamIfValue(params: HttpParams, key: string, value?: string): HttpParams {
+    const valueTrimmed = value?.trim();
+    if (!valueTrimmed) {
+      return params;
+    }
+
+    return params.set(key, valueTrimmed);
   }
 }

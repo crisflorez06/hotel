@@ -2555,7 +2555,6 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2);
     }
 
-
     @Test
     void falloEditandoEstanciaApartamentoConReserva_test() {
 

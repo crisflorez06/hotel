@@ -34,6 +34,23 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
            from Reserva r
            join r.habitaciones h
            where h.id = :habitacionId
+             and r.id <> :reservaId
+             and r.entradaEstimada <= :hasta
+             and r.salidaEstimada >= :desde
+             and r.estado in :estados
+           """)
+    boolean existsReservaByHabitacionAndRangoAndIdNot(
+            @Param("habitacionId") Long habitacionId,
+            @Param("reservaId") Long reservaId,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta,
+            @Param("estados") List<EstadoReserva> estados);
+
+    @Query("""
+           select count(r) > 0
+           from Reserva r
+           join r.habitaciones h
+           where h.id = :habitacionId
              and r.entradaEstimada <= :momento
              and r.salidaEstimada > :momento
              and r.estado in :estados

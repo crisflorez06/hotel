@@ -4,10 +4,12 @@ import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.SalidaEstanciaDTO;
+import com.hotel.dtos.estancia.EstanciaTablaDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
+import com.hotel.models.Ocupante;
 import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.*;
@@ -15,8 +17,13 @@ import com.hotel.repositories.EstanciaRepository;
 import com.hotel.resolvers.AlojamientoResolver;
 import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
+import com.hotel.specifications.EstanciaSpecification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -146,14 +153,21 @@ public class EstanciaService {
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
 
+        if (!(estancia.getEstado() == EstadoEstancia.ACTIVA || estancia.getEstado() == EstadoEstancia.EXCEDIDA)) {
+            throw new IllegalStateException("Solo se pueden editar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
+        }
+
+        logger.info("[editarEstancia] validando fechas de entrada y salida de la estancia");
+        validarFechasEstancia(request.getEntradaReal(), request.getSalidaEstimada());
+
+        logger.info("[editarEstancia] Verificando que no cambio el codigo, ya que no se permite cambiar la unidad asignada a una estancia");
+        validarCambioDeCodigo(request.getCodigo(), request.getTipoUnidad(), estancia);
+
         logger.info("[editarEstancia] verificando entrada y salida de la estancia");
         String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(estancia, codigo, tipoUnidad, entradaReal, salidaEstimada);
         if(!existeDisponibilidad.isEmpty()) {
             throw new IllegalStateException("No se puede editar la estancia: " + existeDisponibilidad);
         }
-
-        logger.info("[editarEstancia] Verificando que no cambio el codigo, ya que no se permite cambiar la unidad asignada a una estancia");
-        validarCambioDeCodigo(request.getCodigo(), request.getTipoUnidad(), estancia);
 
         estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
         estancia.setEntradaReal(entradaReal);
@@ -206,6 +220,54 @@ public class EstanciaService {
         logger.info("[obtenerEstanciaPorUnidad] Mapeando estancia a DTO");
         return EstanciaMapper.entityToDTO(estancia);
 
+    }
+
+    public Page<EstanciaTablaDTO> buscarEstanciasTabla(
+            List<EstadoEstancia> estados,
+            TipoUnidad tipoUnidad,
+            ModoOcupacion modoOcupacion,
+            String codigoEstancia,
+            String codigoUnidad,
+            String nombreCliente,
+            String numeroDocumentoCliente,
+            Long idCliente,
+            LocalDateTime entradaDesde,
+            LocalDateTime entradaHasta,
+            LocalDateTime salidaEstimadaDesde,
+            LocalDateTime salidaEstimadaHasta,
+            LocalDateTime salidaRealDesde,
+            LocalDateTime salidaRealHasta,
+            Boolean tieneReservaAsociada,
+            Pageable pageable) {
+        Pageable pageableConOrden = pageable;
+        if (pageable.getSort().isUnsorted()) {
+            pageableConOrden = PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "entradaReal"));
+        }
+
+        Page<Estancia> estancias = estanciaRepository.findAll(
+                EstanciaSpecification.byTablaFilters(
+                        estados,
+                        tipoUnidad,
+                        modoOcupacion,
+                        codigoEstancia,
+                        codigoUnidad,
+                        nombreCliente,
+                        numeroDocumentoCliente,
+                        idCliente,
+                        entradaDesde,
+                        entradaHasta,
+                        salidaEstimadaDesde,
+                        salidaEstimadaHasta,
+                        salidaRealDesde,
+                        salidaRealHasta,
+                        tieneReservaAsociada),
+                pageableConOrden
+        );
+
+        return estancias.map(this::mapearEstanciaTablaDTO);
     }
 
     //verificar reglas de negocio para finalizar estancia
@@ -322,6 +384,43 @@ public class EstanciaService {
         throw new IllegalStateException(
                 "No se puede tener una estancia futura; debe crearse una reserva"
         );
+    }
+
+    private EstanciaTablaDTO mapearEstanciaTablaDTO(Estancia estancia) {
+        EstanciaTablaDTO dto = new EstanciaTablaDTO();
+        dto.setId(estancia.getId());
+        dto.setCodigoEstancia(estancia.getCodigoFolio());
+        dto.setEstadoEstancia(estancia.getEstado());
+        dto.setModoOcupacion(estancia.getModoOcupacion());
+        dto.setEntradaReal(estancia.getEntradaReal());
+        dto.setSalidaEstimada(estancia.getSalidaEstimada());
+        dto.setSalidaReal(estancia.getSalidaReal());
+        dto.setTieneReservaAsociada(estancia.getReserva() != null);
+        dto.setIdReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getId() : null);
+
+        if (estancia.getOcupantes() != null) {
+            Ocupante cliente = estancia.getOcupantes().stream()
+                    .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                    .findFirst()
+                    .orElse(null);
+            if (cliente != null) {
+                dto.setIdCliente(cliente.getId());
+                dto.setNumeroDocumentoCliente(cliente.getNumeroDocumento());
+                dto.setNombreCliente(String.format("%s %s", cliente.getNombres(), cliente.getApellidos()).trim());
+            }
+        }
+
+        if (estancia.getHabitaciones() != null && !estancia.getHabitaciones().isEmpty()) {
+            if (estancia.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
+                dto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getCodigo());
+                dto.setTipoUnidad(TipoUnidad.HABITACION);
+            } else if (estancia.getHabitaciones().getFirst().getUnidad() != null) {
+                dto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getCodigo());
+                dto.setTipoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getTipo());
+            }
+        }
+
+        return dto;
     }
 
 

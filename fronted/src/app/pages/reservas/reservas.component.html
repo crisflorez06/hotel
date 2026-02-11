@@ -1,0 +1,314 @@
+<section class="reserva-tabla">
+  <header class="reserva-tabla__header">
+    <div>
+      <h1>Reservas</h1>
+      <p>Consulta y filtra reservas por estado, canal, cliente, unidad y fechas.</p>
+    </div>
+    <div class="reserva-tabla__header-actions">
+      <button type="button" class="btn btn--primary" [routerLink]="['/reservas/nueva']">
+        Crear reserva
+      </button>
+    </div>
+  </header>
+
+  <section class="reserva-tabla__filtros">
+    <div class="reserva-tabla__filtros-head">
+      <h2>Filtros de busqueda</h2>
+      <p>Usa los campos principales y abre "Mas filtros" solo cuando lo necesites.</p>
+    </div>
+
+    <div class="reserva-tabla__filtros-grid">
+      <div class="campo">
+        <label for="codigoReserva">Codigo reserva</label>
+        <input
+          id="codigoReserva"
+          type="text"
+          [(ngModel)]="filtros.codigoReserva"
+          (ngModelChange)="onFiltroCambio()"
+          name="codigoReserva"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="codigoUnidad">Codigo unidad</label>
+        <input
+          id="codigoUnidad"
+          type="text"
+          [(ngModel)]="filtros.codigoUnidad"
+          (ngModelChange)="onFiltroCambio()"
+          name="codigoUnidad"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="nombreCliente">Nombre cliente</label>
+        <input
+          id="nombreCliente"
+          type="text"
+          [(ngModel)]="filtros.nombreCliente"
+          (ngModelChange)="onFiltroCambio()"
+          name="nombreCliente"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="numeroDocumentoCliente">Documento cliente</label>
+        <input
+          id="numeroDocumentoCliente"
+          type="text"
+          [(ngModel)]="filtros.numeroDocumentoCliente"
+          (ngModelChange)="onFiltroCambio()"
+          name="numeroDocumentoCliente"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="tipoUnidad">Tipo de unidad</label>
+        <select
+          id="tipoUnidad"
+          name="tipoUnidad"
+          [(ngModel)]="filtros.tipoUnidad"
+          (ngModelChange)="aplicarFiltros()"
+        >
+          <option *ngFor="let item of tiposUnidadDisponibles" [ngValue]="item.value">{{ item.label }}</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="modoOcupacion">Modo de ocupacion</label>
+        <select
+          id="modoOcupacion"
+          name="modoOcupacion"
+          [(ngModel)]="filtros.modoOcupacion"
+          (ngModelChange)="aplicarFiltros()"
+        >
+          <option *ngFor="let item of modosOcupacionDisponibles" [ngValue]="item.value">{{ item.label }}</option>
+        </select>
+      </div>
+    </div>
+
+    <details class="reserva-tabla__filtros-avanzados">
+      <summary>Mas filtros</summary>
+
+      <div class="reserva-tabla__filtros-avanzados-grid">
+        <div class="campo campo--full">
+          <label>Estados</label>
+          <div class="checks">
+            <label class="check" *ngFor="let estado of estadosReservaDisponibles">
+              <input
+                type="checkbox"
+                [checked]="estaEstadoSeleccionado(estado)"
+                (change)="toggleEstado(estado, $any($event.target).checked)"
+              />
+              <span>{{ formatearEtiqueta(estado) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="campo campo--full">
+          <label>Canales</label>
+          <div class="checks">
+            <label class="check" *ngFor="let canal of canalesDisponibles">
+              <input
+                type="checkbox"
+                [checked]="estaCanalSeleccionado(canal)"
+                (change)="toggleCanal(canal, $any($event.target).checked)"
+              />
+              <span>{{ formatearEtiqueta(canal) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="rango-fecha">
+          <div class="campo">
+            <label for="fechaCreacionDesde">Creacion desde</label>
+            <input
+              id="fechaCreacionDesde"
+              type="datetime-local"
+              [(ngModel)]="filtros.fechaCreacionDesde"
+              (ngModelChange)="onFiltroCambio()"
+              name="fechaCreacionDesde"
+            />
+          </div>
+          <div class="campo">
+            <label for="fechaCreacionHasta">Creacion hasta</label>
+            <input
+              id="fechaCreacionHasta"
+              type="datetime-local"
+              [(ngModel)]="filtros.fechaCreacionHasta"
+              (ngModelChange)="onFiltroCambio()"
+              name="fechaCreacionHasta"
+            />
+          </div>
+        </div>
+
+        <div class="rango-fecha">
+          <div class="campo">
+            <label for="entradaDesde">Entrada desde</label>
+            <input
+              id="entradaDesde"
+              type="datetime-local"
+              [(ngModel)]="filtros.entradaDesde"
+              (ngModelChange)="onFiltroCambio()"
+              name="entradaDesde"
+            />
+          </div>
+          <div class="campo">
+            <label for="entradaHasta">Entrada hasta</label>
+            <input
+              id="entradaHasta"
+              type="datetime-local"
+              [(ngModel)]="filtros.entradaHasta"
+              (ngModelChange)="onFiltroCambio()"
+              name="entradaHasta"
+            />
+          </div>
+        </div>
+
+        <div class="rango-fecha">
+          <div class="campo">
+            <label for="salidaDesde">Salida desde</label>
+            <input
+              id="salidaDesde"
+              type="datetime-local"
+              [(ngModel)]="filtros.salidaDesde"
+              (ngModelChange)="onFiltroCambio()"
+              name="salidaDesde"
+            />
+          </div>
+          <div class="campo">
+            <label for="salidaHasta">Salida hasta</label>
+            <input
+              id="salidaHasta"
+              type="datetime-local"
+              [(ngModel)]="filtros.salidaHasta"
+              (ngModelChange)="onFiltroCambio()"
+              name="salidaHasta"
+            />
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="reserva-tabla__filtros-actions">
+      <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">
+        Limpiar
+      </button>
+    </div>
+  </section>
+
+  <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+  <p class="estado estado--error" *ngIf="accionError">{{ accionError }}</p>
+  <p class="estado estado--exito" *ngIf="accionExito">{{ accionExito }}</p>
+
+  <section class="reserva-tabla__contenido">
+    <div class="reserva-tabla__estado" *ngIf="cargando">Cargando reservas...</div>
+
+    <div class="tabla-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>Codigo reserva</th>
+            <th>Codigo unidad</th>
+            <th>Tipo unidad</th>
+            <th>Cliente</th>
+            <th>Documento</th>
+            <th>Canal</th>
+            <th>Modo ocupacion</th>
+            <th>Estado</th>
+            <th>Creacion</th>
+            <th>Entrada</th>
+            <th>Salida</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          <tr *ngFor="let reserva of reservas; trackBy: trackByReservaId">
+            <td>{{ reserva.codigoReserva }}</td>
+            <td>{{ reserva.codigoUnidad }}</td>
+            <td>{{ formatearEtiqueta(reserva.tipoUnidad) }}</td>
+            <td>{{ reserva.nombreCliente }}</td>
+            <td>{{ reserva.numeroDocumentoCliente }}</td>
+            <td>{{ formatearEtiqueta(reserva.canalReserva) }}</td>
+            <td>{{ formatearEtiqueta(reserva.modoOcupacion) }}</td>
+            <td>
+              <span class="chip chip--{{ reserva.estadoReserva.toLowerCase() }}">
+                {{ formatearEtiqueta(reserva.estadoReserva) }}
+              </span>
+            </td>
+            <td>{{ formatearFecha(reserva.fechaCreacion) }}</td>
+            <td>{{ formatearFecha(reserva.entradaEstimada) }}</td>
+            <td>{{ formatearFecha(reserva.salidaEstimada) }}</td>
+            <td>
+              <div class="tabla-acciones">
+                <button
+                  type="button"
+                  class="btn btn--small"
+                  (click)="editarReserva(reserva)"
+                  [attr.title]="
+                    puedeGestionarReserva(reserva)
+                      ? 'Editar reserva'
+                      : 'No disponible para reservas completadas o canceladas'
+                  "
+                  [disabled]="!puedeGestionarReserva(reserva) || eliminandoReservaId === reserva.id"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn--danger btn--small"
+                  (click)="eliminarReserva(reserva)"
+                  [attr.title]="
+                    puedeGestionarReserva(reserva)
+                      ? 'Eliminar reserva'
+                      : 'No disponible para reservas completadas o canceladas'
+                  "
+                  [disabled]="!puedeGestionarReserva(reserva) || eliminandoReservaId === reserva.id"
+                >
+                  {{ eliminandoReservaId === reserva.id ? 'Eliminando...' : 'Eliminar' }}
+                </button>
+                <span class="tabla-acciones__bloqueado" *ngIf="!puedeGestionarReserva(reserva)">
+                  Bloqueado: cancelada/completada
+                </span>
+              </div>
+            </td>
+          </tr>
+
+          <tr *ngIf="!reservas.length">
+            <td colspan="12" class="tabla-vacia">No hay reservas con los filtros actuales.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="reserva-tabla__paginador" *ngIf="!cargando">
+      <div class="reserva-tabla__paginador-info">
+        <span>Total: {{ totalElements }}</span>
+        <span *ngIf="totalElements > 0">Mostrando {{ indiceInicio }}-{{ indiceFin }}</span>
+      </div>
+
+      <div class="reserva-tabla__paginador-size">
+        <label for="pageSize">Tamano pagina</label>
+        <select id="pageSize" [ngModel]="size" (ngModelChange)="cambiarPageSize($event)">
+          <option *ngFor="let option of pageSizeOptions" [ngValue]="option">{{ option }}</option>
+        </select>
+      </div>
+
+      <div class="reserva-tabla__paginador-actions">
+        <button type="button" class="btn" (click)="irPaginaAnterior()" [disabled]="page === 0 || cargando">
+          Anterior
+        </button>
+        <span>Pagina {{ page + 1 }} de {{ totalPages || 1 }}</span>
+        <button
+          type="button"
+          class="btn"
+          (click)="irPaginaSiguiente()"
+          [disabled]="page + 1 >= totalPages || cargando"
+        >
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  </section>
+</section>
