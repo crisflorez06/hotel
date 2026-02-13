@@ -31,11 +31,7 @@ public class PagoMapper {
         dto.setEstado(pago.getEstado());
         dto.setMedioPago(pago.getMedioPago());
         dto.setMonto(pago.getMonto());
-        TipoPago tipoPago = pago.getTipoPago();
-        if (tipoPago == null) {
-            tipoPago = pago.getEstancia() != null ? TipoPago.ESTANCIA : TipoPago.RESERVA;
-        }
-        dto.setTipoPago(tipoPago);
+        dto.setTipoPago(pago.getTipoPago());
 
         return dto;
     }

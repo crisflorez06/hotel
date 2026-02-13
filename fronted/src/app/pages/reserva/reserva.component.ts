@@ -16,6 +16,7 @@ import { ReservaService } from '../../services/reserva.service';
 import { ReservaCalendarioDTO } from '../../models/reserva-calendario.model';
 import { EstanciaCalendarioDTO, ReservaCalendarioResumenDTO } from '../../models/detalle-calendario.model';
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../../models/enums';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 type TipoRegistroCalendario = 'reserva' | 'estancia';
 
@@ -186,8 +187,11 @@ export class ReservaComponent implements OnInit {
           this.calendarioOpciones = { ...this.calendarioOpciones };
           this.cargando = false;
         },
-        error: () => {
-          this.error = 'No fue posible cargar las reservas del calendario.';
+        error: (errorResponse: unknown) => {
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible cargar las reservas del calendario.'
+          );
           this.reservas = [];
           this.estancias = [];
           this.reservaSeleccionada = null;
@@ -519,8 +523,11 @@ export class ReservaComponent implements OnInit {
         this.busquedaCargando = false;
         this.busquedaHecha = true;
       },
-      error: () => {
-        this.busquedaError = 'No fue posible buscar reservas con ese documento.';
+      error: (errorResponse: unknown) => {
+        this.busquedaError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible buscar reservas con ese documento.'
+        );
         this.busquedaReservas = [];
         this.busquedaCargando = false;
         this.busquedaHecha = true;

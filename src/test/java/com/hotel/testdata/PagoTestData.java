@@ -25,7 +25,7 @@ public final class PagoTestData {
         Pago pago = new Pago();
 
         pago.setTipoPago(tipoPago);
-        if(tipoPago == TipoPago.RESERVA){
+        if(tipoPago == TipoPago.ANTICIPO_RESERVA){
             pago.setMonto(BigDecimal.valueOf(500.00));
         } else {
             pago.setMonto(BigDecimal.valueOf(1000.00));

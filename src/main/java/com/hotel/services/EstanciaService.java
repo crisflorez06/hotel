@@ -298,7 +298,7 @@ public class EstanciaService {
 
     private void modificarPagoEstancia(Estancia estancia, PagoNuevoRequestDTO request) {
         logger.info("[modificarPagoEstancia] Creando nuevo o editando el pago asociado a la estancia editada");
-        Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstanciaYTipo(estancia.getId(), TipoPago.ESTANCIA).orElse(null);
+        Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstanciaYTipo(estancia.getId(), TipoPago.ANTICIPO_ESTANCIA).orElse(null);
 
         if (pagoAnterior == null) {
             pagoService.crearPago(request, estancia);
@@ -397,6 +397,7 @@ public class EstanciaService {
         dto.setSalidaReal(estancia.getSalidaReal());
         dto.setTieneReservaAsociada(estancia.getReserva() != null);
         dto.setIdReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getId() : null);
+        dto.setCodigoReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null);
 
         if (estancia.getOcupantes() != null) {
             Ocupante cliente = estancia.getOcupantes().stream()

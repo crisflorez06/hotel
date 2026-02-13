@@ -3,6 +3,8 @@ import { EstadoEstancia, ModoOcupacion, TipoUnidad } from './enums';
 export interface EstanciaTablaItem {
   id: number;
   codigoEstancia: string;
+  codigoReservaAsociada?: string | null;
+  totalPagoEstancia?: number | null;
   codigoUnidad: string;
   tipoUnidad: TipoUnidad;
   nombreCliente: string;

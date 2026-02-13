@@ -152,7 +152,9 @@ public final class AssertionsHelper {
             int totalEstadosPago1,
             EstadoPago estadoPago2,
             int totalEstadosPago2,
-            int totalTipoPagoEstancia
+            int totalTipoPagoEstanciaFinalizada,
+            int totalTipoPagoEstanciaAnticipada,
+            int totalTipoPagoReserva
 
     ) {
         Long estado1 = pagos.stream()
@@ -181,11 +183,23 @@ public final class AssertionsHelper {
 
         assertThat(nulo).isEqualByComparingTo(BigDecimal.valueOf(montoNulo));
 
-        Long tipoPagoEstancia = pagos.stream()
-                .filter(p -> p.getTipoPago() == TipoPago.ESTANCIA)
+        Long tipoPagoEstanciaCompletada = pagos.stream()
+                .filter(p -> p.getTipoPago() == TipoPago.ESTANCIA_COMPLETADA)
                 .count();
 
-        assertThat(tipoPagoEstancia).isEqualTo(totalTipoPagoEstancia);
+        assertThat(tipoPagoEstanciaCompletada).isEqualTo(totalTipoPagoEstanciaFinalizada);
+
+        Long tipoPagoEstanciaAnticipada = pagos.stream()
+                .filter(p -> p.getTipoPago() == TipoPago.ANTICIPO_ESTANCIA)
+                .count();
+
+        assertThat(tipoPagoEstanciaAnticipada).isEqualTo(totalTipoPagoEstanciaAnticipada);
+
+        Long tipoPagoReserva = pagos.stream()
+                .filter(p -> p.getTipoPago() == TipoPago.ANTICIPO_RESERVA)
+                .count();
+
+        assertThat(tipoPagoReserva).isEqualTo(totalTipoPagoReserva);
 
     }
 }

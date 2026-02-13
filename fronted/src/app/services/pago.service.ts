@@ -18,11 +18,18 @@ export interface CalcularPagoRequest {
 export interface BuscarPagosParams {
   page?: number;
   size?: number;
+  sort?: string[];
   estados?: EstadoPago[];
   mediosPago?: MedioPago[];
   tipoPago?: TipoPago;
+  codigoEstancia?: string;
   fechaDesde?: string;
   fechaHasta?: string;
+  pageable?: {
+    page: number;
+    size: number;
+    sort?: string[];
+  };
 }
 
 @Injectable({
@@ -33,9 +40,19 @@ export class PagoService {
   private readonly baseUrl = `${environment.apiUrl}/pagos`;
 
   buscarPagos(params?: BuscarPagosParams) {
+    const page = params?.pageable?.page ?? params?.page ?? 0;
+    const size = params?.pageable?.size ?? params?.size ?? 10;
+    const sort = params?.pageable?.sort ?? params?.sort;
+
     let httpParams = new HttpParams()
-      .set('page', params?.page ?? 0)
-      .set('size', params?.size ?? 10);
+      .set('page', page)
+      .set('size', size);
+
+    if (sort?.length) {
+      sort.forEach((item) => {
+        httpParams = httpParams.append('sort', item);
+      });
+    }
 
     if (params?.estados?.length) {
       params.estados.forEach((estado) => {
@@ -51,6 +68,10 @@ export class PagoService {
 
     if (params?.tipoPago) {
       httpParams = httpParams.set('tipoPago', params.tipoPago);
+    }
+
+    if (params?.codigoEstancia) {
+      httpParams = httpParams.set('codigoEstancia', params.codigoEstancia);
     }
 
     if (params?.fechaDesde) {

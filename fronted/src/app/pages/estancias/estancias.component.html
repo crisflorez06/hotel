@@ -190,6 +190,27 @@
   </section>
 
   <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+  <p class="estado estado--error" *ngIf="accionError">{{ accionError }}</p>
+  <p class="estado estado--exito" *ngIf="accionExito">{{ accionExito }}</p>
+
+  <section class="estancia-tabla__acciones-seleccion">
+    <button
+      type="button"
+      class="btn btn--small"
+      (click)="editarEstanciaSeleccionada()"
+      [disabled]="!puedeGestionarEstanciaSeleccionada() || estaEliminandoEstanciaSeleccionada()"
+    >
+      Editar
+    </button>
+    <button
+      type="button"
+      class="btn btn--danger btn--small"
+      (click)="eliminarEstanciaSeleccionada()"
+      [disabled]="!puedeGestionarEstanciaSeleccionada() || estaEliminandoEstanciaSeleccionada()"
+    >
+      {{ estaEliminandoEstanciaSeleccionada() ? 'Eliminando...' : 'Eliminar' }}
+    </button>
+  </section>
 
   <section class="estancia-tabla__contenido">
     <div class="estancia-tabla__estado" *ngIf="cargando">Cargando estancias...</div>
@@ -198,6 +219,7 @@
       <table>
         <thead>
           <tr>
+            <th class="col-check"></th>
             <th>Codigo estancia</th>
             <th>Codigo unidad</th>
             <th>Tipo unidad</th>
@@ -205,6 +227,7 @@
             <th>Documento</th>
             <th>Estado</th>
             <th>Modo ocupacion</th>
+            <th>Pago</th>
             <th>Entrada real</th>
             <th>Salida estimada</th>
             <th>Salida real</th>
@@ -213,7 +236,20 @@
         </thead>
 
         <tbody>
-          <tr *ngFor="let estancia of estancias; trackBy: trackByEstanciaId">
+          <tr
+            *ngFor="let estancia of estancias; trackBy: trackByEstanciaId"
+            (click)="seleccionarEstancia(estancia)"
+            [class.tabla-fila--seleccionada]="esEstanciaSeleccionada(estancia)"
+          >
+            <td class="col-check">
+              <input
+                type="checkbox"
+                class="fila-check"
+                [checked]="esEstanciaSeleccionada(estancia)"
+                (click)="seleccionarEstancia(estancia); $event.stopPropagation()"
+                aria-label="Seleccionar estancia"
+              />
+            </td>
             <td>{{ estancia.codigoEstancia }}</td>
             <td>{{ estancia.codigoUnidad }}</td>
             <td>{{ formatearEtiqueta(estancia.tipoUnidad) }}</td>
@@ -225,14 +261,54 @@
               </span>
             </td>
             <td>{{ formatearEtiqueta(estancia.modoOcupacion) }}</td>
+            <td>
+              <div class="celda-accion">
+                <span>{{ formatearMontoPago(estancia.totalPagoEstancia) }}</span>
+                <button
+                  type="button"
+                  class="celda-accion__icon-btn"
+                  (click)="irAPagosPorEstancia(estancia); $event.stopPropagation()"
+                  aria-label="Ver pagos de la estancia"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
             <td>{{ formatearFecha(estancia.entradaReal) }}</td>
             <td>{{ formatearFecha(estancia.salidaEstimada) }}</td>
             <td>{{ formatearFecha(estancia.salidaReal) }}</td>
-            <td>{{ estancia.tieneReservaAsociada ? 'Si' : 'No' }}</td>
+            <td>
+              <div class="estancia-reserva">
+                <ng-container *ngIf="estancia.codigoReservaAsociada?.trim(); else sinReservaAsociada">
+                  <span>Si</span>
+                  <button
+                    type="button"
+                    class="celda-accion__icon-btn"
+                    (click)="irATablaReservas(estancia); $event.stopPropagation()"
+                    aria-label="Ver reserva asociada"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                </ng-container>
+                <ng-template #sinReservaAsociada>
+                  <span class="estancia-reserva__sin">No</span>
+                </ng-template>
+              </div>
+            </td>
           </tr>
 
           <tr *ngIf="!estancias.length">
-            <td colspan="11" class="tabla-vacia">No hay estancias con los filtros actuales.</td>
+            <td colspan="13" class="tabla-vacia">No hay estancias con los filtros actuales.</td>
           </tr>
         </tbody>
       </table>

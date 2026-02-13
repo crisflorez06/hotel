@@ -22,4 +22,5 @@ public class EstanciaTablaDTO {
     private LocalDateTime salidaReal;
     private Boolean tieneReservaAsociada;
     private Long idReservaAsociada;
+    private String codigoReservaAsociada;
 }

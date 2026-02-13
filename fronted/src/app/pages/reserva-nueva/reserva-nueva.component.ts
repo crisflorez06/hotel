@@ -21,6 +21,7 @@ import {
 import { ReservaNuevoRequest } from '../../models/reserva.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { PagoNuevoRequest } from '../../models/pago.model';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 interface ReservaEditState {
   editMode?: boolean;
@@ -121,7 +122,7 @@ export class ReservaNuevaComponent implements OnInit {
     'PLATAFORMA',
   ];
 
-  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO', 'REEMBOLSADO'];
+  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO'];
   tiposDocumento: TipoDocumento[] = ['CC', 'TI', 'CE', 'PA', 'NIT', 'RC'];
 
   constructor(
@@ -214,11 +215,14 @@ export class ReservaNuevaComponent implements OnInit {
         this.exito = this.esEdicion ? 'Reserva actualizada con exito.' : 'Reserva registrada con exito.';
         this.mostrarToastExito(this.exito, true);
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.guardando = false;
-        this.error = this.esEdicion
-          ? 'No fue posible actualizar la reserva.'
-          : 'No fue posible registrar la reserva.';
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          this.esEdicion
+            ? 'No fue posible actualizar la reserva.'
+            : 'No fue posible registrar la reserva.'
+        );
       },
     });
   }
@@ -257,8 +261,11 @@ export class ReservaNuevaComponent implements OnInit {
           this.monto = total;
           this.calculandoPago = false;
         },
-        error: () => {
-          this.calculoError = 'No fue posible calcular el pago.';
+        error: (errorResponse: unknown) => {
+          this.calculoError = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible calcular el pago.'
+          );
           this.calculandoPago = false;
         },
       });
@@ -320,9 +327,12 @@ export class ReservaNuevaComponent implements OnInit {
         this.limpiarClienteNuevo();
         this.mostrarToastExito(`Cliente creado: ${cliente.nombres} ${cliente.apellidos}.`);
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.creandoCliente = false;
-        this.clienteError = 'No fue posible crear el cliente.';
+        this.clienteError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible crear el cliente.'
+        );
       },
     });
   }
@@ -346,9 +356,12 @@ export class ReservaNuevaComponent implements OnInit {
           this.clienteBusquedaError = 'No se encontraron clientes.';
         }
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.buscandoCliente = false;
-        this.clienteBusquedaError = 'No fue posible buscar los clientes.';
+        this.clienteBusquedaError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible buscar los clientes.'
+        );
       },
     });
   }
@@ -385,9 +398,12 @@ export class ReservaNuevaComponent implements OnInit {
           this.codigosError = 'No se encontraron codigos disponibles.';
         }
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.cargandoCodigos = false;
-        this.codigosError = 'No fue posible cargar los codigos.';
+        this.codigosError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible cargar los codigos.'
+        );
       },
     });
   }
@@ -396,7 +412,7 @@ export class ReservaNuevaComponent implements OnInit {
     const monto = Number(this.monto ?? 0);
 
     return {
-      tipoPago: 'RESERVA',
+      tipoPago: 'ANTICIPO_RESERVA',
       monto,
       medioPago: this.medioPago,
       fecha: this.normalizarFechaHora(this.fechaPago),

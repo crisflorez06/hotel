@@ -8,6 +8,7 @@ import { EstadoPago, MedioPago, TipoPago, TipoUnidad } from '../../models/enums'
 import { SalidaEstanciaRequest } from '../../models/estancia.model';
 import { EstanciaService } from '../../services/estancia.service';
 import { PagoService } from '../../services/pago.service';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 @Component({
   selector: 'app-estancia-salida',
@@ -29,7 +30,7 @@ export class EstanciaSalidaComponent implements OnInit {
   notasSalida = '';
 
   conPago = false;
-  tipoPago: TipoPago = 'ESTANCIA';
+  tipoPago: TipoPago = 'ESTANCIA_COMPLETADA';
   monto: number | null = null;
   totalCalculado: number | null = null;
   calculandoPago = false;
@@ -51,7 +52,7 @@ export class EstanciaSalidaComponent implements OnInit {
     'TRANSFERENCIA_BANCARIA',
     'PLATAFORMA',
   ];
-  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO', 'REEMBOLSADO'];
+  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO'];
 
   constructor(
     private readonly router: Router,
@@ -150,9 +151,12 @@ export class EstanciaSalidaComponent implements OnInit {
         this.exito = 'Estancia finalizada con exito.';
         this.mostrarToastExito('Estancia finalizada con exito.', true);
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.guardando = false;
-        this.error = 'No fue posible finalizar la estancia.';
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible finalizar la estancia.'
+        );
       },
     });
   }
@@ -192,8 +196,11 @@ export class EstanciaSalidaComponent implements OnInit {
           this.monto = total;
           this.calculandoPago = false;
         },
-        error: () => {
-          this.calculoError = 'No fue posible calcular el pago.';
+        error: (errorResponse: unknown) => {
+          this.calculoError = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible calcular el pago.'
+          );
           this.calculandoPago = false;
         },
       });

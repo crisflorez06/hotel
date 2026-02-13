@@ -85,7 +85,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante cliente = clienteData();
 
         LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.RESERVA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
         ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, pagoRequest);
 
         // ---------- WHEN ----------
@@ -133,7 +133,9 @@ class ReservaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                0
+                0,
+                0,
+                1
         );
 
         assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
@@ -148,7 +150,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante cliente = clienteData();
 
         LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.RESERVA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
         ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, pagoRequest);
 
         // ---------- WHEN ----------
@@ -196,8 +198,9 @@ class ReservaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                0
-        );
+                0,
+                0,
+                1        );
 
         assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
     }
@@ -212,7 +215,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante cliente = clienteData();
 
         LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.RESERVA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
         ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, entrada, pagoRequest);
 
         // ---------- WHEN ----------
@@ -260,8 +263,9 @@ class ReservaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                0
-        );
+                0,
+                0,
+                1        );
 
         assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
     }

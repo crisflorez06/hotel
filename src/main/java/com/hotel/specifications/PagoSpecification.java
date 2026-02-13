@@ -4,6 +4,7 @@ import com.hotel.models.Pago;
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.MedioPago;
 import com.hotel.models.enums.TipoPago;
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ public class PagoSpecification {
             List<EstadoPago> estados,
             List<MedioPago> mediosPago,
             TipoPago tipoPago,
+            String codigoEstancia,
             LocalDateTime desde,
             LocalDateTime hasta) {
 
@@ -30,6 +32,11 @@ public class PagoSpecification {
             }
             if (tipoPago != null) {
                 predicates.add(criteriaBuilder.equal(root.get("tipoPago"), tipoPago));
+            }
+            if (codigoEstancia != null && !codigoEstancia.isBlank()) {
+                predicates.add(criteriaBuilder.like(
+                        criteriaBuilder.lower(root.join("estancia", JoinType.LEFT).get("codigoFolio")),
+                        "%" + codigoEstancia.toLowerCase() + "%"));
             }
             if (desde != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("fecha"), desde));

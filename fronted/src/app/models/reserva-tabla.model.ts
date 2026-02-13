@@ -3,6 +3,7 @@ import { CanalReserva, EstadoReserva, ModoOcupacion, TipoUnidad } from './enums'
 export interface ReservaTablaItem {
   id: number;
   codigoReserva: string;
+  codigoEstancia?: string | null;
   codigoUnidad: string;
   tipoUnidad: TipoUnidad;
   nombreCliente: string;
@@ -12,6 +13,8 @@ export interface ReservaTablaItem {
   canalReserva: CanalReserva;
   modoOcupacion: ModoOcupacion;
   estadoReserva: EstadoReserva;
+  totalPagoReserva: number | null;
+  cantidadPagosModificadosOEliminados: number;
   fechaCreacion: string;
   entradaEstimada: string;
   salidaEstimada: string;

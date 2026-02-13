@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 
 import { Temporada } from '../../models/enums';
 import { AjusteTemporadaService } from '../../services/ajuste-temporada.service';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 @Component({
   selector: 'app-ajustes',
@@ -48,8 +49,11 @@ export class AjustesComponent implements OnInit {
         this.exito = `La temporada ${this.temporadaSeleccionada.toLowerCase()} fue activada.`;
         this.guardando = false;
       },
-      error: () => {
-        this.error = 'No fue posible activar la temporada. Intenta nuevamente.';
+      error: (errorResponse: unknown) => {
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible activar la temporada. Intenta nuevamente.'
+        );
         this.guardando = false;
       },
     });
@@ -69,8 +73,11 @@ export class AjustesComponent implements OnInit {
         this.temporadaSeleccionada = temporada;
         this.cargandoActual = false;
       },
-      error: () => {
-        this.error = 'No fue posible cargar la temporada activa.';
+      error: (errorResponse: unknown) => {
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible cargar la temporada activa.'
+        );
         this.cargandoActual = false;
       },
     });

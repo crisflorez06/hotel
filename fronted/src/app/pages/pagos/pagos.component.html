@@ -1,111 +1,170 @@
-<section class="pagos">
-  <header class="pagos__header">
+<section class="pagos-tabla">
+  <header class="pagos-tabla__header">
     <div>
       <h1>Pagos</h1>
-      <p>Listado de pagos registrados en el sistema.</p>
-    </div>
-    <div class="pagos__meta">
-      <span>Total: {{ totalElementos }}</span>
+      <p>Consulta pagos por estado, medio, tipo y rango de fecha.</p>
     </div>
   </header>
 
-  <section class="pagos__filtros">
-    <div class="campo">
-      <label>Tipo de pago</label>
-      <select [(ngModel)]="filtroTipoPago" name="filtroTipoPago">
-        <option [ngValue]="''">Todos</option>
-        <option *ngFor="let tipo of tiposPago" [ngValue]="tipo">{{ tipo }}</option>
-      </select>
+  <section class="pagos-tabla__filtros">
+    <div class="pagos-tabla__filtros-head">
+      <h2>Filtros de busqueda</h2>
+      <p>La busqueda se aplica automaticamente al cambiar cualquier filtro.</p>
     </div>
 
-    <div class="campo">
-      <label>Fecha desde</label>
-      <input type="datetime-local" [(ngModel)]="filtroFechaDesde" name="filtroFechaDesde" />
-    </div>
+    <div class="pagos-tabla__filtros-grid">
+      <div class="campo">
+        <label for="filtroTipoPago">Tipo de pago</label>
+        <select
+          id="filtroTipoPago"
+          [(ngModel)]="filtroTipoPago"
+          (ngModelChange)="onFiltroCambio()"
+          name="filtroTipoPago"
+        >
+          <option [ngValue]="''">Todos</option>
+          <option *ngFor="let tipo of tiposPago" [ngValue]="tipo">{{ formatearEtiqueta(tipo) }}</option>
+        </select>
+      </div>
 
-    <div class="campo">
-      <label>Fecha hasta</label>
-      <input type="datetime-local" [(ngModel)]="filtroFechaHasta" name="filtroFechaHasta" />
-    </div>
+      <div class="campo">
+        <label for="filtroCodigoEstancia">Codigo estancia</label>
+        <input
+          id="filtroCodigoEstancia"
+          type="text"
+          [(ngModel)]="filtroCodigoEstancia"
+          (ngModelChange)="onFiltroCambio()"
+          name="filtroCodigoEstancia"
+          placeholder="Ej: EST-123456789"
+        />
+      </div>
 
-    <div class="campo campo--checks">
-      <label>Estados</label>
-      <div class="checks">
-        <label *ngFor="let estado of estadosPago" class="check">
+      <div class="rango-fecha">
+        <div class="campo">
+          <label for="filtroFechaDesde">Fecha desde</label>
           <input
-            type="checkbox"
-            [checked]="estaEstadoSeleccionado(estado)"
-            (change)="toggleEstado(estado, $any($event.target).checked)"
+            id="filtroFechaDesde"
+            type="datetime-local"
+            [(ngModel)]="filtroFechaDesde"
+            (ngModelChange)="onFiltroCambio()"
+            name="filtroFechaDesde"
           />
-          <span>{{ estado }}</span>
-        </label>
+        </div>
+        <div class="campo">
+          <label for="filtroFechaHasta">Fecha hasta</label>
+          <input
+            id="filtroFechaHasta"
+            type="datetime-local"
+            [(ngModel)]="filtroFechaHasta"
+            (ngModelChange)="onFiltroCambio()"
+            name="filtroFechaHasta"
+          />
+        </div>
       </div>
     </div>
 
-    <div class="campo campo--checks">
-      <label>Medios de pago</label>
-      <div class="checks">
-        <label *ngFor="let medio of mediosPago" class="check">
-          <input
-            type="checkbox"
-            [checked]="estaMedioSeleccionado(medio)"
-            (change)="toggleMedioPago(medio, $any($event.target).checked)"
-          />
-          <span>{{ medio }}</span>
-        </label>
-      </div>
-    </div>
+    <details class="pagos-tabla__filtros-avanzados">
+      <summary>Mas filtros</summary>
 
-    <div class="pagos__acciones">
-      <button type="button" (click)="aplicarFiltros()" [disabled]="cargando">Aplicar</button>
-      <button type="button" class="btn-secundario" (click)="limpiarFiltros()" [disabled]="cargando">
+      <div class="pagos-tabla__filtros-avanzados-grid">
+        <div class="campo campo--full">
+          <label>Estados</label>
+          <div class="checks">
+            <label *ngFor="let estado of estadosPago" class="check">
+              <input
+                type="checkbox"
+                [checked]="estaEstadoSeleccionado(estado)"
+                (change)="toggleEstado(estado, $any($event.target).checked)"
+              />
+              <span>{{ formatearEtiqueta(estado) }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="campo campo--full">
+          <label>Medios de pago</label>
+          <div class="checks">
+            <label *ngFor="let medio of mediosPago" class="check">
+              <input
+                type="checkbox"
+                [checked]="estaMedioSeleccionado(medio)"
+                (change)="toggleMedioPago(medio, $any($event.target).checked)"
+              />
+              <span>{{ formatearEtiqueta(medio) }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="pagos-tabla__filtros-actions">
+      <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">
         Limpiar
       </button>
     </div>
   </section>
 
-  <p class="estado" *ngIf="cargando">Cargando pagos...</p>
-  <p class="estado estado--error" *ngIf="!cargando && error">{{ error }}</p>
+  <p class="estado estado--error" *ngIf="error">{{ error }}</p>
 
-  <div class="pagos__tabla" *ngIf="!cargando && !error">
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Tipo</th>
-          <th>Monto</th>
-          <th>Medio</th>
-          <th>Estado</th>
-          <th>Fecha</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let pago of pagos">
-          <td>{{ pago.id }}</td>
-          <td>{{ obtenerTipoPago(pago) }}</td>
-          <td>{{ obtenerMonto(pago) ?? 0 | currency: 'COP' : 'symbol' : '1.0-0' }}</td>
-          <td>{{ pago.medioPago }}</td>
-          <td>{{ pago.estado }}</td>
-          <td>{{ formatearFecha(pago.fecha) }}</td>
-        </tr>
-        <tr *ngIf="!pagos.length">
-          <td colspan="6" class="pagos__vacio">No hay pagos para mostrar.</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <section class="pagos-tabla__contenido">
+    <div class="pagos-tabla__estado" *ngIf="cargando">Cargando pagos...</div>
 
-  <footer class="pagos__paginacion" *ngIf="!cargando && !error">
-    <button type="button" (click)="irPaginaAnterior()" [disabled]="paginaActual <= 0">
-      Anterior
-    </button>
-    <span>Pagina {{ paginaActual + 1 }} de {{ totalPaginas || 1 }}</span>
-    <button
-      type="button"
-      (click)="irPaginaSiguiente()"
-      [disabled]="totalPaginas === 0 || paginaActual >= totalPaginas - 1"
-    >
-      Siguiente
-    </button>
-  </footer>
+    <div class="tabla-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tipo</th>
+            <th>Monto</th>
+            <th>Medio</th>
+            <th>Estado</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let pago of pagos; trackBy: trackByPagoId">
+            <td>{{ pago.id }}</td>
+            <td>{{ formatearEtiqueta(obtenerTipoPago(pago)) }}</td>
+            <td>{{ obtenerMonto(pago) ?? 0 | currency: 'COP' : 'symbol' : '1.0-0' }}</td>
+            <td>{{ formatearEtiqueta(pago.medioPago) }}</td>
+            <td>
+              <span class="chip chip--{{ pago.estado.toLowerCase() }}">
+                {{ formatearEtiqueta(pago.estado) }}
+              </span>
+            </td>
+            <td>{{ formatearFecha(pago.fecha) }}</td>
+          </tr>
+          <tr *ngIf="!pagos.length">
+            <td colspan="6" class="tabla-vacia">No hay pagos con los filtros actuales.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="pagos-tabla__paginador" *ngIf="!cargando">
+      <div class="pagos-tabla__paginador-info">
+        <span>Total: {{ totalElementos }}</span>
+        <span *ngIf="totalElementos > 0">Mostrando {{ indiceInicio }}-{{ indiceFin }}</span>
+      </div>
+
+      <div class="pagos-tabla__paginador-actions">
+        <button
+          type="button"
+          class="btn"
+          (click)="irPaginaAnterior()"
+          [disabled]="paginaActual <= 0 || cargando"
+        >
+          Anterior
+        </button>
+        <span>Pagina {{ paginaActual + 1 }} de {{ totalPaginas || 1 }}</span>
+        <button
+          type="button"
+          class="btn"
+          (click)="irPaginaSiguiente()"
+          [disabled]="totalPaginas === 0 || paginaActual >= totalPaginas - 1 || cargando"
+        >
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  </section>
 </section>

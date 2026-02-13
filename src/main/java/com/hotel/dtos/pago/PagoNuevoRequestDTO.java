@@ -12,7 +12,6 @@ import java.time.LocalDateTime;
 @Data
 public class PagoNuevoRequestDTO {
 
-    @NotNull(message = "tipoPago es obligatorio")
     private TipoPago tipoPago;
 
     @NotNull(message = "monto es obligatorio")

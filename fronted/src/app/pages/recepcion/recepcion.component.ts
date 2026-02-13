@@ -8,6 +8,7 @@ import { UnidadDTO } from '../../models/unidad.model';
 import { HabitacionService } from '../../services/habitacion.service';
 import { UnidadService } from '../../services/unidad.service';
 import { EstadoOperativo, Piso, TipoUnidad } from '../../models/enums';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 @Component({
   selector: 'app-recepcion',
@@ -137,8 +138,11 @@ export class RecepcionComponent implements OnInit {
           this.unidades = this.mapearHabitaciones(habitaciones);
           this.cargando = false;
         },
-        error: () => {
-          this.error = 'No fue posible cargar las habitaciones.';
+        error: (errorResponse: unknown) => {
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible cargar las habitaciones.'
+          );
           this.cargando = false;
         },
       });
@@ -157,8 +161,11 @@ export class RecepcionComponent implements OnInit {
           this.unidades = unidades;
           this.cargando = false;
         },
-        error: () => {
-          this.error = 'No fue posible cargar las unidades.';
+        error: (errorResponse: unknown) => {
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible cargar las unidades.'
+          );
           this.cargando = false;
         },
       });

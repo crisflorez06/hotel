@@ -10,6 +10,7 @@ import { EstadoPago, MedioPago, TipoDocumento, TipoOcupante, TipoPago, TipoUnida
 import { EstanciaActivarRequest, EstanciaEditarRequest, EstanciaNuevoRequest } from '../../models/estancia.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { PagoService } from '../../services/pago.service';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 @Component({
   selector: 'app-estancia-nueva',
@@ -33,7 +34,7 @@ export class EstanciaNuevaComponent implements OnInit {
   notas = '';
 
   conPago = false;
-  tipoPago: TipoPago = 'ESTANCIA';
+  tipoPago: TipoPago = 'ANTICIPO_ESTANCIA';
   monto: number | null = null;
   totalCalculado: number | null = null;
   calculandoPago = false;
@@ -94,7 +95,7 @@ export class EstanciaNuevaComponent implements OnInit {
     'PLATAFORMA',
   ];
 
-  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO', 'REEMBOLSADO'];
+  estadosPago: EstadoPago[] = ['PENDIENTE', 'COMPLETADO', 'FALLIDO'];
   tiposDocumento: TipoDocumento[] = ['CC', 'TI', 'CE', 'PA', 'NIT', 'RC'];
   constructor(
     private readonly route: ActivatedRoute,
@@ -241,9 +242,12 @@ export class EstanciaNuevaComponent implements OnInit {
           this.exito = 'Estancia actualizada con exito.';
           this.mostrarToastExito('Estancia actualizada con exito.', true);
         },
-        error: () => {
+        error: (errorResponse: unknown) => {
           this.guardando = false;
-          this.error = 'No fue posible actualizar la estancia.';
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible actualizar la estancia.'
+          );
         },
       });
       return;
@@ -265,9 +269,12 @@ export class EstanciaNuevaComponent implements OnInit {
           this.exito = 'Estancia activada con exito.';
           this.mostrarToastExito('Estancia activada con exito.', true);
         },
-        error: () => {
+        error: (errorResponse: unknown) => {
           this.guardando = false;
-          this.error = 'No fue posible activar la estancia.';
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible activar la estancia.'
+          );
         },
       });
       return;
@@ -291,9 +298,12 @@ export class EstanciaNuevaComponent implements OnInit {
         this.exito = 'Estancia registrada con exito.';
         this.mostrarToastExito('Estancia registrada con exito.', true);
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.guardando = false;
-        this.error = 'No fue posible registrar la estancia.';
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible registrar la estancia.'
+        );
       },
     });
   }
@@ -334,8 +344,11 @@ export class EstanciaNuevaComponent implements OnInit {
           this.monto = total;
           this.calculandoPago = false;
         },
-        error: () => {
-          this.calculoError = 'No fue posible calcular el pago.';
+        error: (errorResponse: unknown) => {
+          this.calculoError = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible calcular el pago.'
+          );
           this.calculandoPago = false;
         },
       });
@@ -397,9 +410,12 @@ export class EstanciaNuevaComponent implements OnInit {
         this.limpiarClienteNuevo();
         this.mostrarToastExito(`Cliente creado: ${cliente.nombres} ${cliente.apellidos}.`);
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.creandoCliente = false;
-        this.clienteError = 'No fue posible crear el cliente.';
+        this.clienteError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible crear el cliente.'
+        );
       },
     });
   }
@@ -423,9 +439,12 @@ export class EstanciaNuevaComponent implements OnInit {
           this.clienteBusquedaError = 'No se encontraron clientes.';
         }
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.buscandoCliente = false;
-        this.clienteBusquedaError = 'No fue posible buscar los clientes.';
+        this.clienteBusquedaError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible buscar los clientes.'
+        );
       },
     });
   }
@@ -496,9 +515,12 @@ export class EstanciaNuevaComponent implements OnInit {
           `Acompanante creado: ${acompanante.nombres} ${acompanante.apellidos}.`
         );
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.creandoAcompanante = false;
-        this.acompananteError = 'No fue posible crear el acompanante.';
+        this.acompananteError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible crear el acompanante.'
+        );
       },
     });
   }
@@ -530,9 +552,12 @@ export class EstanciaNuevaComponent implements OnInit {
           this.acompananteBusquedaError = 'No se encontraron acompanantes.';
         }
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.buscandoAcompanante = false;
-        this.acompananteBusquedaError = 'No fue posible buscar los acompanantes.';
+        this.acompananteBusquedaError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible buscar los acompanantes.'
+        );
       },
     });
   }
@@ -609,8 +634,11 @@ export class EstanciaNuevaComponent implements OnInit {
         );
         this.idAcompanantes = '';
       },
-      error: () => {
-        this.error = 'No fue posible cargar la estancia para editar.';
+      error: (errorResponse: unknown) => {
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible cargar la estancia para editar.'
+        );
       },
     });
   }

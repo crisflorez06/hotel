@@ -11,6 +11,7 @@ import { UnidadService } from '../../services/unidad.service';
 import { EstanciaService } from '../../services/estancia.service';
 import { DetalleService } from '../../services/detalle.service';
 import { switchMap } from 'rxjs';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 @Component({
   selector: 'app-recepcion-panel',
@@ -104,8 +105,11 @@ export class RecepcionPanelComponent implements OnInit {
         }
           this.estanciaCargando = false;
         },
-        error: () => {
-          this.estanciaError = 'No hay estancia activa para esta unidad.';
+        error: (errorResponse: unknown) => {
+          this.estanciaError = extractBackendErrorMessage(
+            errorResponse,
+            'No hay estancia activa para esta unidad.'
+          );
           this.estanciaCargando = false;
         },
       });
@@ -129,9 +133,12 @@ export class RecepcionPanelComponent implements OnInit {
         this.estanciaDetalle = null;
         this.eliminandoEstancia = false;
       },
-      error: () => {
+      error: (errorResponse: unknown) => {
         this.eliminandoEstancia = false;
-        this.eliminarError = 'No fue posible eliminar la estancia.';
+        this.eliminarError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible eliminar la estancia.'
+        );
       },
     });
   }
@@ -175,7 +182,7 @@ export class RecepcionPanelComponent implements OnInit {
 
   private obtenerPagoEstanciaId(): number | null {
     const pagos = this.estanciaDetalle?.pagos ?? [];
-    const pagoEstancia = pagos.find((pago) => pago.tipoPago === 'ESTANCIA');
+    const pagoEstancia = pagos.find((pago) => pago.tipoPago === 'ESTANCIA_COMPLETADA');
     return pagoEstancia?.id ?? null;
   }
 
@@ -209,8 +216,11 @@ export class RecepcionPanelComponent implements OnInit {
           }
           this.cargando = false;
         },
-        error: () => {
-          this.error = 'No fue posible cargar la habitación.';
+        error: (errorResponse: unknown) => {
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible cargar la habitación.'
+          );
           this.cargando = false;
         },
       });
@@ -234,8 +244,11 @@ export class RecepcionPanelComponent implements OnInit {
           }
           this.cargando = false;
         },
-        error: () => {
-          this.error = 'No fue posible cargar la unidad.';
+        error: (errorResponse: unknown) => {
+          this.error = extractBackendErrorMessage(
+            errorResponse,
+            'No fue posible cargar la unidad.'
+          );
           this.cargando = false;
         },
       });

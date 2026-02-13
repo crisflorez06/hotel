@@ -65,7 +65,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Ocupante cliente = clienteData();
 
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, acompanantesData(),null, pagoRequest);
 
         // ---------- WHEN ----------
@@ -102,7 +102,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -116,7 +118,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Ocupante cliente = clienteData();
 
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, acompanantesData(),null, pagoRequest);
 
         // ---------- WHEN ----------
@@ -153,7 +155,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                0,
+                1,
+                0);
 
     }
 
@@ -169,7 +173,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Ocupante cliente = clienteData();
 
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, acompanantesData(),null, pagoRequest);
 
         // ---------- WHEN ----------
@@ -205,7 +209,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                0,
+                1,
+                0);
 
     }
 
@@ -671,7 +677,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         ActivarEstanciaDTO request = activarEstanciaRequestDTO(
                 reserva.getId(),
                 cliente,
@@ -717,7 +723,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                0,
+                1,
+                0);
 
     }
 
@@ -739,7 +747,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         ActivarEstanciaDTO request = activarEstanciaRequestDTO(
                 reserva.getId(),
                 cliente,
@@ -786,8 +794,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -813,7 +822,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         ActivarEstanciaDTO request = activarEstanciaRequestDTO(
                 reserva.getId(),
                 cliente,
@@ -860,8 +869,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -878,12 +888,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaReservada = estanciaRepository.save(
                 estanciaData(reserva, null, ModoOcupacion.COMPLETO, EstadoEstancia.RESERVADA, unidad.getHabitaciones(), null)
         );
-        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.ANTICIPO_RESERVA);
 
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         ActivarEstanciaDTO request = activarEstanciaRequestDTO(
                 reserva.getId(),
                 cliente,
@@ -929,6 +939,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
+                0,
+                1,
                 1);
 
     }
@@ -947,12 +959,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaReservada = estanciaRepository.save(
                 estanciaData(reserva, null, ModoOcupacion.COMPLETO, EstadoEstancia.RESERVADA, unidad.getHabitaciones(), null)
         );
-        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.ANTICIPO_RESERVA);
 
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         ActivarEstanciaDTO request = activarEstanciaRequestDTO(
                 reserva.getId(),
                 cliente,
@@ -998,8 +1010,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
+                0,
+                1,
                 1);
-
     }
 
     @Test
@@ -1021,12 +1034,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaReservada = estanciaRepository.save(
                 estanciaData(reserva, null, ModoOcupacion.INDIVIDUAL, EstadoEstancia.RESERVADA, listaHabitacion, null)
         );
-        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.ANTICIPO_RESERVA);
 
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         ActivarEstanciaDTO request = activarEstanciaRequestDTO(
                 reserva.getId(),
                 cliente,
@@ -1072,8 +1085,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
+                0,
+                1,
                 1);
-
     }
 
     @Test
@@ -1090,7 +1104,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaReservada = estanciaRepository.save(
                 estanciaData(reserva, null, ModoOcupacion.COMPLETO, EstadoEstancia.RESERVADA, unidad.getHabitaciones(), null)
         );
-        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.ANTICIPO_RESERVA);
 
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
@@ -1140,7 +1154,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                0);
+                0,
+                0,
+                1);
 
     }
 
@@ -1158,7 +1174,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaReservada = estanciaRepository.save(
                 estanciaData(reserva, null, ModoOcupacion.COMPLETO, EstadoEstancia.RESERVADA, unidad.getHabitaciones(), null)
         );
-        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.ANTICIPO_RESERVA);
 
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
@@ -1209,8 +1225,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                0);
-    }
+                0,
+                0,
+                1);    }
 
     @Test
     void exitoActivandoEstanciaHabitacionPagoReserva_test() {
@@ -1231,7 +1248,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaReservada = estanciaRepository.save(
                 estanciaData(reserva, null, ModoOcupacion.INDIVIDUAL, EstadoEstancia.RESERVADA, listaHabitacion, null)
         );
-        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estanciaReservada, TipoPago.ANTICIPO_RESERVA);
 
         reserva.setEstancia(estanciaReservada);
         reservaRepository.save(reserva);
@@ -1283,8 +1300,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                0);
-    }
+                0,
+                0,
+                1);    }
 
     @Test
     void exitoActivandoEstanciaApartamentoSinPagos_test() {
@@ -1659,7 +1677,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Ocupante clienteNuevo = crearOcupante();
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
 
         Estancia estanciaExistente = estanciaData(
                 null,
@@ -1719,7 +1737,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -1730,7 +1750,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = clienteData();
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
 
         Estancia estanciaExistente = estanciaData(
                 null,
@@ -1789,8 +1809,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -1803,7 +1824,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = clienteData();
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
 
         List<Habitacion> listaHabitacion = new ArrayList<>();
         listaHabitacion.add(habitacion);
@@ -1865,8 +1886,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-    }
+                0,
+                1,
+                0);    }
 
     @Test
     void exitoEditandoEstanciaApartamentoConCambioPagoEstancia_test() {
@@ -1886,9 +1908,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
@@ -1940,7 +1962,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 1,
-                2);
+                0,
+                2,
+                0);
     }
 
     @Test
@@ -1961,9 +1985,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
@@ -2015,8 +2039,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 1,
-                2);
-    }
+                0,
+                2,
+                0);    }
 
     @Test
     void exitoEditandoEstanciaHabitacionConCambioPagoEstancia_test() {
@@ -2039,9 +2064,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
@@ -2093,8 +2118,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 1,
-                2);
-    }
+                0,
+                2,
+                0);    }
 
     @Test
     void exitoEditandoEstanciaApartamentoConCambioPagoReserva_test() {
@@ -2114,9 +2140,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
@@ -2168,6 +2194,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
+                0,
+                1,
                 1);
     }
 
@@ -2189,9 +2217,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
@@ -2243,8 +2271,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-    }
+                0,
+                1,
+                1);    }
 
     @Test
     void exitoEditandoEstanciaHabitacionConCambioPagoReserva_test() {
@@ -2267,9 +2296,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
@@ -2321,8 +2350,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-    }
+                0,
+                1,
+                1);    }
 
     @Test
     void exitoEditandoEstanciaApartamentoConCambioPagoEstanciaYReserva_test() {
@@ -2342,10 +2372,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
@@ -2397,7 +2427,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 1,
-                2);
+                0,
+                2,
+                1);
     }
 
     @Test
@@ -2418,10 +2450,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
@@ -2473,8 +2505,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 1,
-                2);
-    }
+                0,
+                2,
+                1);    }
 
     @Test
     void exitoEditandoEstanciaHabitacionConCambioPagoEstanciaYReserva_test() {
@@ -2497,10 +2530,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
         EstanciaRequestDTO request = estanciaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
@@ -2552,8 +2585,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 1,
-                2);
-    }
+                0,
+                2,
+                1);    }
 
     @Test
     void falloEditandoEstanciaApartamentoConReserva_test() {
@@ -2983,7 +3017,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3007,7 +3041,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 1,
-                1);
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -3033,7 +3069,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3057,7 +3093,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 1,
-                0);
+                0,
+                0,
+                1);
     }
 
     @Test
@@ -3083,8 +3121,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3108,6 +3146,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 2,
+                0,
+                1,
                 1);
     }
 
@@ -3126,7 +3166,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3151,7 +3191,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 1,
-                1);
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -3177,7 +3219,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3201,8 +3243,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 1,
-                0);
-    }
+                0,
+                0,
+                1);    }
 
     @Test
     void exitoEliminandoEstanciaApartaestudioConPagoReservaYEstancia_test() {
@@ -3227,8 +3270,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3252,8 +3295,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 2,
-                1);
-    }
+                0,
+                1,
+                1);    }
 
     @Test
     void exitoEliminandoEstanciaHabitacionConPagoEstancia_test() {
@@ -3274,7 +3318,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3298,8 +3342,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 1,
-                1);
-    }
+                0,
+                1,
+                0);    }
 
     @Test
     void exitoEliminandoEstanciaHabitacionConPagoReserva_test() {
@@ -3329,7 +3374,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3353,8 +3398,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 1,
-                0);
-    }
+                0,
+                0,
+                1);    }
 
     @Test
     void exitoEliminandoEstanciaHabitacionConPagoReservaYEstancia_test() {
@@ -3384,8 +3430,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
         Void result = estanciaService.eliminarEstancia(estancia.getId());
@@ -3409,6 +3455,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 EstadoPago.ELIMINADO,
                 2,
+                0,
+                1,
                 1);
     }
 
@@ -3435,7 +3483,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         entityManager.flush();
         entityManager.clear();
@@ -3469,7 +3517,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                0,
+                1,
+                0);
     }
 
     @Test
@@ -3491,7 +3541,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         entityManager.flush();
         entityManager.clear();
@@ -3525,8 +3575,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-    }
+                0,
+                1,
+                0);    }
 
     @Test
     void exitoObteniendoEstanciaHabitacion_test() {
@@ -3551,7 +3602,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
         entityManager.flush();
         entityManager.clear();
@@ -3585,8 +3636,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-    }
+                0,
+                1,
+                0);    }
 
     /**
      * finalizarEstancia(SalidaEstanciaDTO request)
@@ -3608,7 +3660,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -3647,7 +3699,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                1,
+                0,
+                0);
     }
 
     @Test
@@ -3666,7 +3720,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -3705,7 +3759,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
+                1,
+                0,
+                0);
     }
 
     @Test
@@ -3728,7 +3784,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -3767,8 +3823,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 EstadoPago.MODIFICADO,
                 0,
-                1);
-    }
+                1,
+                0,
+                0);    }
 
     @Test
     void exitoFinalizandoEstanciaApartamentoConPago_test() {
@@ -3785,9 +3842,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -3827,7 +3884,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
-                2);
+                1,
+                1,
+                0);
     }
 
     @Test
@@ -3845,9 +3904,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -3886,8 +3945,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
-                2);
-    }
+                1,
+                1,
+                0);    }
 
     @Test
     void exitoFinalizandoEstanciaHabitacionConPago_test() {
@@ -3908,9 +3968,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null
         );
         Estancia estancia = estanciaRepository.save(estanciaExistente);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -3949,8 +4009,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 2,
                 EstadoPago.MODIFICADO,
                 0,
-                2);
-    }
+                1,
+                1,
+                0);    }
 
     @Test
     void exitoFinalizandoEstanciaApartamentoPagoReservaYEstancia_test() {
@@ -3975,10 +4036,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -4019,7 +4080,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 EstadoPago.MODIFICADO,
                 0,
-                2);
+                1,
+                1,
+                1);
     }
 
     @Test
@@ -4045,10 +4108,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -4088,8 +4151,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 EstadoPago.MODIFICADO,
                 0,
-                2);
-    }
+                1,
+                1,
+                1);    }
 
     @Test
     void exitoFinalizandoEstanciaHabitacionPagoReservaYEstancia_test() {
@@ -4119,10 +4183,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         reserva.setEstancia(estancia);
         reservaRepository.save(reserva);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.RESERVA);
-        crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
 
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA);
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
 
         SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
 
@@ -4162,8 +4226,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 EstadoPago.MODIFICADO,
                 0,
-                2);
-    }
+                1,
+                1,
+                1);    }
 
     /**
      * Metodos auxiliares para crear datos de prueba

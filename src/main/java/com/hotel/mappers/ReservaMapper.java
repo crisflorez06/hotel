@@ -56,7 +56,7 @@ public class ReservaMapper {
 
         if (reserva.getEstancia() != null && reserva.getEstancia().getPagos() != null) {
             dto.setTotalAnticipo(reserva.getEstancia().getPagos().stream()
-                    .filter(pago -> pago.getTipoPago() == TipoPago.RESERVA)
+                    .filter(pago -> pago.getTipoPago() == TipoPago.ANTICIPO_RESERVA)
                     .map(Pago::getMonto)
                     .reduce(BigDecimal.ZERO, BigDecimal::add));
         }

@@ -165,6 +165,21 @@
   color: var(--error);
 }
 
+.estado--exito {
+  color: var(--success);
+}
+
+.estancia-tabla__acciones-seleccion {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  padding: 0.75rem 1rem;
+}
+
 .estancia-tabla__contenido {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -210,10 +225,109 @@ tbody td {
   font-size: 0.84rem;
 }
 
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr.tabla-fila--seleccionada {
+  background: rgba(15, 118, 110, 0.1);
+}
+
 .tabla-vacia {
   text-align: center;
   color: var(--ink-soft);
   padding: 1.1rem;
+}
+
+.col-check {
+  width: 40px;
+  text-align: center;
+}
+
+.fila-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+.celda-accion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.celda-accion__icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.celda-accion__icon-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.celda-accion__icon-btn:hover {
+  color: var(--primary-dark);
+}
+
+.celda-accion__icon-btn:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.btn--danger {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #991b1b;
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: #ef4444;
+}
+
+.estancia-pago__monto-btn {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  width: fit-content;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.estancia-pago__monto-btn:hover {
+  color: var(--primary-dark);
+}
+
+.estancia-pago__monto-btn:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.estancia-reserva {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.estancia-reserva__sin {
+  color: var(--ink-soft);
 }
 
 .chip {

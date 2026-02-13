@@ -8,6 +8,7 @@ import com.hotel.models.Estancia;
 import com.hotel.models.Ocupante;
 import com.hotel.models.Pago;
 import com.hotel.models.enums.EstadoEstancia;
+import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoOcupante;
 
 import java.time.LocalDateTime;
@@ -69,7 +70,8 @@ public class EstanciaMapper {
 
         if (estancia.getPagos() != null) {
             dto.setTotalPagado(estancia.getPagos().stream()
-                    .filter(pago -> pago.getTipoPago() == com.hotel.models.enums.TipoPago.ESTANCIA)
+                    .filter(pago -> pago.getTipoPago() == TipoPago.ANTICIPO_ESTANCIA
+                            || pago.getTipoPago() == TipoPago.ESTANCIA_COMPLETADA)
                     .map(Pago::getMonto)
                     .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add));
         }

@@ -32,9 +32,8 @@ public class Pago {
     @Column(name = "tipo_pago", nullable = false, length = 20)
     private TipoPago tipoPago;
 
-    // Puede ser null si el pago aun no se asocia a una ESTANCIA
-    @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "id_estancia", nullable = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_estancia")
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Estancia estancia;

@@ -8,6 +8,7 @@ import com.hotel.mappers.ReservaMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.EstadoEstancia;
+import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoPago;
@@ -17,6 +18,7 @@ import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.ReservaSpecification;
 import jakarta.persistence.EntityNotFoundException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import org.slf4j.Logger;
@@ -260,7 +262,7 @@ public class ReservaService {
 
     private void modificarPagoReserva(Estancia estancia, PagoNuevoRequestDTO request) {
         logger.info("[modificarPagoReserva] Creando nuevo o editando pago de la reserva");
-        Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstanciaYTipo(estancia.getId(), TipoPago.RESERVA).orElse(null);
+        Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstanciaYTipo(estancia.getId(), TipoPago.ANTICIPO_RESERVA).orElse(null);
 
         if (pagoAnterior == null) {
             pagoService.crearPago(request, estancia);
@@ -330,8 +332,11 @@ public class ReservaService {
 
     private ReservaTablaDTO mapearReservaTablaDTO(Reserva reserva) {
         ReservaTablaDTO dto = new ReservaTablaDTO();
+        boolean estanciaAsociada = reserva.getEstancia() != null
+                && reserva.getEstancia().getEstado() != EstadoEstancia.RESERVADA;
         dto.setId(reserva.getId());
         dto.setCodigoReserva(reserva.getCodigo());
+        dto.setCodigoEstancia(estanciaAsociada ? reserva.getEstancia().getCodigoFolio() : null);
         dto.setFechaCreacion(reserva.getFechaCreacion());
         dto.setEntradaEstimada(reserva.getEntradaEstimada());
         dto.setSalidaEstimada(reserva.getSalidaEstimada());
@@ -339,7 +344,9 @@ public class ReservaService {
         dto.setCanalReserva(reserva.getCanalReserva());
         dto.setModoOcupacion(reserva.getModoOcupacion());
         dto.setEstadoReserva(reserva.getEstado());
-        dto.setTieneEstanciaAsociada(reserva.getEstancia() != null);
+        dto.setTieneEstanciaAsociada(estanciaAsociada);
+        dto.setTotalPagoReserva(BigDecimal.ZERO);
+        dto.setCantidadPagosModificadosOEliminados(0);
 
         if (reserva.getCliente() != null) {
             dto.setIdCliente(reserva.getCliente().getId());
@@ -358,6 +365,19 @@ public class ReservaService {
                 dto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getCodigo());
                 dto.setTipoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getTipo());
             }
+        }
+
+        if (reserva.getEstancia() != null && reserva.getEstancia().getPagos() != null) {
+            dto.setTotalPagoReserva(reserva.getEstancia().getPagos().stream()
+                    .filter(pago -> pago.getTipoPago() == TipoPago.ANTICIPO_RESERVA)
+                    .filter(pago -> pago.getEstado() == EstadoPago.COMPLETADO)
+                    .map(Pago::getMonto)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
+
+            int cantidadPagosModificadosOEliminados = (int) reserva.getEstancia().getPagos().stream()
+                    .filter(pago -> pago.getEstado() == EstadoPago.MODIFICADO || pago.getEstado() == EstadoPago.ELIMINADO)
+                    .count();
+            dto.setCantidadPagosModificadosOEliminados(cantidadPagosModificadosOEliminados);
         }
 
         return dto;

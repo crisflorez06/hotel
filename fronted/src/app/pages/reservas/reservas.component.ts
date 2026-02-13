@@ -1,12 +1,14 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Subscription } from 'rxjs';
 
 import { PageResponse } from '../../models/page.model';
 import { CanalReserva, EstadoReserva, ModoOcupacion, TipoUnidad } from '../../models/enums';
 import { ReservaTablaFiltros, ReservaTablaItem } from '../../models/reserva-tabla.model';
 import { ReservaService } from '../../services/reserva.service';
+import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
 @Component({
   selector: 'app-reservas',
@@ -63,16 +65,26 @@ export class ReservasComponent implements OnInit, OnDestroy {
   totalPages = 0;
 
   eliminandoReservaId: number | null = null;
+  reservaSeleccionadaId: number | null = null;
 
   private filtroCambioTimeout: ReturnType<typeof setTimeout> | null = null;
+  private queryParamsSub: Subscription | null = null;
 
   constructor(
     private readonly reservaService: ReservaService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly route: ActivatedRoute
   ) {}
 
   ngOnInit(): void {
-    this.cargarReservas();
+    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+      const codigoReserva = (params.get('codigoReserva') ?? '').trim();
+      if (codigoReserva !== this.filtros.codigoReserva) {
+        this.filtros.codigoReserva = codigoReserva;
+      }
+      this.page = 0;
+      this.cargarReservas();
+    });
   }
 
   ngOnDestroy(): void {
@@ -80,6 +92,8 @@ export class ReservasComponent implements OnInit, OnDestroy {
       clearTimeout(this.filtroCambioTimeout);
       this.filtroCambioTimeout = null;
     }
+    this.queryParamsSub?.unsubscribe();
+    this.queryParamsSub = null;
   }
 
   aplicarFiltros(): void {
@@ -158,6 +172,43 @@ export class ReservasComponent implements OnInit, OnDestroy {
     return reserva.id;
   }
 
+  seleccionarReserva(reserva: ReservaTablaItem): void {
+    this.reservaSeleccionadaId =
+      this.reservaSeleccionadaId === reserva.id ? null : reserva.id;
+  }
+
+  esReservaSeleccionada(reserva: ReservaTablaItem): boolean {
+    return this.reservaSeleccionadaId === reserva.id;
+  }
+
+  editarReservaSeleccionada(): void {
+    const reserva = this.obtenerReservaSeleccionada();
+    if (!reserva) {
+      return;
+    }
+
+    this.editarReserva(reserva);
+  }
+
+  eliminarReservaSeleccionada(): void {
+    const reserva = this.obtenerReservaSeleccionada();
+    if (!reserva) {
+      return;
+    }
+
+    this.eliminarReserva(reserva);
+  }
+
+  puedeGestionarReservaSeleccionada(): boolean {
+    const reserva = this.obtenerReservaSeleccionada();
+    return !!reserva && this.puedeGestionarReserva(reserva);
+  }
+
+  estaEliminandoReservaSeleccionada(): boolean {
+    const reserva = this.obtenerReservaSeleccionada();
+    return !!reserva && this.eliminandoReservaId === reserva.id;
+  }
+
   formatearEtiqueta(valor: string | null | undefined): string {
     return (valor ?? '')
       .toLowerCase()
@@ -179,6 +230,52 @@ export class ReservasComponent implements OnInit, OnDestroy {
       dateStyle: 'medium',
       timeStyle: 'short',
     }).format(date);
+  }
+
+  formatearMontoPago(monto: number | null | undefined): string {
+    const valor = monto ?? 0;
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      maximumFractionDigits: 0,
+    }).format(valor);
+  }
+
+  tienePagosModificados(reserva: ReservaTablaItem): boolean {
+    return (reserva.cantidadPagosModificadosOEliminados ?? 0) > 0;
+  }
+
+  irAPagosAnticipoReserva(reserva: ReservaTablaItem): void {
+    const codigoEstancia = reserva.codigoEstancia?.trim() ?? '';
+    if (!codigoEstancia) {
+      this.accionError = 'La reserva no tiene codigo de estancia asociado para consultar pagos.';
+      this.accionExito = '';
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
+    this.router.navigate(['/pagos'], {
+      queryParams: {
+        codigoEstancia,
+        tipoPago: 'ANTICIPO_RESERVA',
+      },
+    });
+  }
+
+  irATablaEstancias(reserva: ReservaTablaItem): void {
+    const codigoEstancia = reserva.codigoEstancia?.trim() ?? '';
+    if (!codigoEstancia) {
+      this.accionError = 'La reserva no tiene codigo de estancia asociado.';
+      this.accionExito = '';
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
+    this.router.navigate(['/estancias'], {
+      queryParams: { codigoEstancia },
+    });
   }
 
   get indiceInicio(): number {
@@ -245,10 +342,10 @@ export class ReservasComponent implements OnInit, OnDestroy {
         this.accionExito = 'Reserva cancelada correctamente.';
         this.cargarReservas();
       },
-      error: (errorResponse) => {
+      error: (errorResponse: unknown) => {
         this.eliminandoReservaId = null;
-        this.accionError = this.mapearErrorAccion(
-          errorResponse?.error?.message,
+        this.accionError = extractBackendErrorMessage(
+          errorResponse,
           'No fue posible eliminar la reserva.'
         );
         this.accionExito = '';
@@ -275,15 +372,27 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.reservaService.obtenerTabla(filtros, this.page, this.size, sort).subscribe({
       next: (response: PageResponse<ReservaTablaItem>) => {
         this.reservas = response.content;
+        if (this.reservaSeleccionadaId !== null) {
+          const reservaSigueDisponible = this.reservas.some(
+            (reserva) => reserva.id === this.reservaSeleccionadaId
+          );
+          if (!reservaSigueDisponible) {
+            this.reservaSeleccionadaId = null;
+          }
+        }
         this.totalElements = response.totalElements;
         this.totalPages = response.totalPages;
         this.page = response.number ?? this.page;
         this.size = response.size;
         this.cargando = false;
       },
-      error: () => {
-        this.error = 'No fue posible cargar la tabla de reservas.';
+      error: (errorResponse: unknown) => {
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible cargar la tabla de reservas.'
+        );
         this.reservas = [];
+        this.reservaSeleccionadaId = null;
         this.totalElements = 0;
         this.totalPages = 0;
         this.cargando = false;
@@ -319,12 +428,12 @@ export class ReservasComponent implements OnInit, OnDestroy {
     return valor.length === 16 ? `${valor}:00` : valor;
   }
 
-  private mapearErrorAccion(errorBackend: string | undefined, mensajeDefault: string): string {
-    const mensaje = (errorBackend ?? '').trim();
-    if (!mensaje) {
-      return mensajeDefault;
+  obtenerReservaSeleccionada(): ReservaTablaItem | null {
+    if (this.reservaSeleccionadaId === null) {
+      return null;
     }
 
-    return mensaje;
+    return this.reservas.find((reserva) => reserva.id === this.reservaSeleccionadaId) ?? null;
   }
+
 }

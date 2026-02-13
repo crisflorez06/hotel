@@ -1,6 +1,6 @@
 export type TipoUnidad = 'APARTAMENTO' | 'APARTAESTUDIO' | 'HABITACION';
 
-export type TipoPago = 'RESERVA' | 'ESTANCIA';
+export type TipoPago = 'ANTICIPO_RESERVA' | 'ANTICIPO_ESTANCIA' | 'ESTANCIA_COMPLETADA';
 
 export type MedioPago =
   | 'EFECTIVO'
@@ -9,7 +9,7 @@ export type MedioPago =
   | 'TRANSFERENCIA_BANCARIA'
   | 'PLATAFORMA';
 
-export type EstadoPago = 'PENDIENTE' | 'COMPLETADO' | 'FALLIDO' | 'REEMBOLSADO';
+export type EstadoPago = 'PENDIENTE' | 'COMPLETADO' | 'FALLIDO' | 'ELIMINADO' | 'MODIFICADO';
 
 export type EstadoOperativo = 'DISPONIBLE' | 'OCUPADO' | 'RESERVADO' | 'PARCIALMENTE';
 

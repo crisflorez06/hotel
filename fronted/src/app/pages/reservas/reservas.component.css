@@ -202,6 +202,23 @@
   color: var(--success);
 }
 
+.reserva-tabla__acciones-seleccion {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.85rem;
+  padding: 0.75rem 1rem;
+}
+
+.reserva-tabla__acciones-botones {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .reserva-tabla__contenido {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -221,7 +238,7 @@
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1200px;
+  min-width: 1320px;
 }
 
 thead th {
@@ -256,6 +273,26 @@ tbody td {
   font-size: 0.84rem;
 }
 
+tbody tr {
+  cursor: pointer;
+}
+
+tbody tr.tabla-fila--seleccionada {
+  background: rgba(15, 118, 110, 0.1);
+}
+
+.col-check {
+  width: 40px;
+  text-align: center;
+}
+
+.fila-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
 .tabla-vacia {
   text-align: center;
   color: var(--ink-soft);
@@ -277,6 +314,68 @@ tbody td {
   border: 1px solid #fdba74;
   border-radius: 999px;
   padding: 0.12rem 0.45rem;
+}
+
+.pago-reserva {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.reserva-estancia {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.celda-accion {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.celda-accion__icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.celda-accion__icon-btn svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.celda-accion__icon-btn:hover {
+  color: var(--primary-dark);
+}
+
+.celda-accion__icon-btn:focus-visible {
+  outline: 2px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.reserva-estancia__sin {
+  color: var(--ink-soft);
+}
+
+.pago-reserva__alerta {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  font-size: 0.72rem;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  padding: 0.08rem 0.45rem;
 }
 
 .chip {

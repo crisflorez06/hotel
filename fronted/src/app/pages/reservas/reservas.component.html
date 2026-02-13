@@ -201,6 +201,27 @@
   <p class="estado estado--error" *ngIf="accionError">{{ accionError }}</p>
   <p class="estado estado--exito" *ngIf="accionExito">{{ accionExito }}</p>
 
+  <section class="reserva-tabla__acciones-seleccion">
+    <div class="reserva-tabla__acciones-botones">
+      <button
+        type="button"
+        class="btn btn--small"
+        (click)="editarReservaSeleccionada()"
+        [disabled]="!puedeGestionarReservaSeleccionada() || estaEliminandoReservaSeleccionada()"
+      >
+        Editar
+      </button>
+      <button
+        type="button"
+        class="btn btn--danger btn--small"
+        (click)="eliminarReservaSeleccionada()"
+        [disabled]="!puedeGestionarReservaSeleccionada() || estaEliminandoReservaSeleccionada()"
+      >
+        {{ estaEliminandoReservaSeleccionada() ? 'Eliminando...' : 'Eliminar' }}
+      </button>
+    </div>
+  </section>
+
   <section class="reserva-tabla__contenido">
     <div class="reserva-tabla__estado" *ngIf="cargando">Cargando reservas...</div>
 
@@ -208,6 +229,7 @@
       <table>
         <thead>
           <tr>
+            <th class="col-check"></th>
             <th>Codigo reserva</th>
             <th>Codigo unidad</th>
             <th>Tipo unidad</th>
@@ -215,16 +237,30 @@
             <th>Documento</th>
             <th>Canal</th>
             <th>Modo ocupacion</th>
+            <th>Estancia</th>
+            <th>Pago</th>
             <th>Estado</th>
             <th>Creacion</th>
             <th>Entrada</th>
             <th>Salida</th>
-            <th>Acciones</th>
           </tr>
         </thead>
 
         <tbody>
-          <tr *ngFor="let reserva of reservas; trackBy: trackByReservaId">
+          <tr
+            *ngFor="let reserva of reservas; trackBy: trackByReservaId"
+            (click)="seleccionarReserva(reserva)"
+            [class.tabla-fila--seleccionada]="esReservaSeleccionada(reserva)"
+          >
+            <td class="col-check">
+              <input
+                type="checkbox"
+                class="fila-check"
+                [checked]="esReservaSeleccionada(reserva)"
+                (click)="seleccionarReserva(reserva); $event.stopPropagation()"
+                aria-label="Seleccionar reserva"
+              />
+            </td>
             <td>{{ reserva.codigoReserva }}</td>
             <td>{{ reserva.codigoUnidad }}</td>
             <td>{{ formatearEtiqueta(reserva.tipoUnidad) }}</td>
@@ -233,6 +269,52 @@
             <td>{{ formatearEtiqueta(reserva.canalReserva) }}</td>
             <td>{{ formatearEtiqueta(reserva.modoOcupacion) }}</td>
             <td>
+              <div class="reserva-estancia">
+                <ng-container *ngIf="reserva.codigoEstancia?.trim() as codigoEstancia; else sinEstancia">
+                  <span>Si</span>
+                  <button
+                    type="button"
+                    class="celda-accion__icon-btn"
+                    (click)="irATablaEstancias(reserva); $event.stopPropagation()"
+                    aria-label="Ver estancia asociada"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                </ng-container>
+                <ng-template #sinEstancia>
+                  <span class="reserva-estancia__sin">No</span>
+                </ng-template>
+              </div>
+            </td>
+            <td>
+              <div class="pago-reserva">
+                <div class="celda-accion">
+                  <span>{{ formatearMontoPago(reserva.totalPagoReserva) }}</span>
+                  <button
+                    type="button"
+                    class="celda-accion__icon-btn"
+                    (click)="irAPagosAnticipoReserva(reserva); $event.stopPropagation()"
+                    aria-label="Ver pagos de la reserva"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <span class="pago-reserva__alerta" *ngIf="tienePagosModificados(reserva)">
+                  Pago modificado/eliminado
+                </span>
+              </div>
+            </td>
+            <td>
               <span class="chip chip--{{ reserva.estadoReserva.toLowerCase() }}">
                 {{ formatearEtiqueta(reserva.estadoReserva) }}
               </span>
@@ -240,43 +322,10 @@
             <td>{{ formatearFecha(reserva.fechaCreacion) }}</td>
             <td>{{ formatearFecha(reserva.entradaEstimada) }}</td>
             <td>{{ formatearFecha(reserva.salidaEstimada) }}</td>
-            <td>
-              <div class="tabla-acciones">
-                <button
-                  type="button"
-                  class="btn btn--small"
-                  (click)="editarReserva(reserva)"
-                  [attr.title]="
-                    puedeGestionarReserva(reserva)
-                      ? 'Editar reserva'
-                      : 'No disponible para reservas completadas o canceladas'
-                  "
-                  [disabled]="!puedeGestionarReserva(reserva) || eliminandoReservaId === reserva.id"
-                >
-                  Editar
-                </button>
-                <button
-                  type="button"
-                  class="btn btn--danger btn--small"
-                  (click)="eliminarReserva(reserva)"
-                  [attr.title]="
-                    puedeGestionarReserva(reserva)
-                      ? 'Eliminar reserva'
-                      : 'No disponible para reservas completadas o canceladas'
-                  "
-                  [disabled]="!puedeGestionarReserva(reserva) || eliminandoReservaId === reserva.id"
-                >
-                  {{ eliminandoReservaId === reserva.id ? 'Eliminando...' : 'Eliminar' }}
-                </button>
-                <span class="tabla-acciones__bloqueado" *ngIf="!puedeGestionarReserva(reserva)">
-                  Bloqueado: cancelada/completada
-                </span>
-              </div>
-            </td>
           </tr>
 
           <tr *ngIf="!reservas.length">
-            <td colspan="12" class="tabla-vacia">No hay reservas con los filtros actuales.</td>
+            <td colspan="14" class="tabla-vacia">No hay reservas con los filtros actuales.</td>
           </tr>
         </tbody>
       </table>

@@ -1,6 +1,7 @@
 package com.hotel.models.enums;
 
 public enum TipoPago {
-    RESERVA,
-    ESTANCIA
+    ANTICIPO_RESERVA,
+    ANTICIPO_ESTANCIA,
+    ESTANCIA_COMPLETADA
 }

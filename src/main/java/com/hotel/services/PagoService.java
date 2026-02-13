@@ -90,13 +90,14 @@ public class PagoService {
             List<EstadoPago> estados,
             List<MedioPago> mediosPago,
             TipoPago tipoPago,
+            String codigoEstancia,
             LocalDateTime fechaDesde,
             LocalDateTime fechaHasta,
             Pageable pageable) {
         logger.info("[buscarPagos] Buscando pagos con filtros aplicados");
 
         Page<Pago> pagos = pagoRepository.findAll(
-                PagoSpecification.byFilters(estados, mediosPago, tipoPago, fechaDesde, fechaHasta),
+                PagoSpecification.byFilters(estados, mediosPago, tipoPago, codigoEstancia, fechaDesde, fechaHasta),
                 pageable
         );
 
