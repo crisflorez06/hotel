@@ -1,0 +1,218 @@
+<section class="clientes-tabla">
+  <header class="clientes-tabla__header">
+    <div>
+      <h1>Clientes</h1>
+      <p>Consulta clientes por nombre, documento y datos de contacto.</p>
+    </div>
+  </header>
+
+  <section class="clientes-tabla__filtros">
+    <div class="clientes-tabla__filtros-head">
+      <h2>Filtros de busqueda</h2>
+      <p>Configura los filtros y luego haz clic en "Aplicar filtros".</p>
+    </div>
+
+    <div class="clientes-tabla__filtros-grid">
+      <div class="campo">
+        <label for="nombre">Nombre</label>
+        <input id="nombre" type="text" [(ngModel)]="filtros.nombre" />
+      </div>
+
+      <div class="campo">
+        <label for="apellido">Apellido</label>
+        <input
+          id="apellido"
+          type="text"
+          [(ngModel)]="filtros.apellido"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="tipoDocumento">Tipo documento</label>
+        <select
+          id="tipoDocumento"
+          [(ngModel)]="filtros.tipoDocumento"
+        >
+          <option *ngFor="let tipo of tiposDocumentoDisponibles" [ngValue]="tipo.value">{{ tipo.label }}</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="numeroDocumento">Numero documento</label>
+        <input
+          id="numeroDocumento"
+          type="text"
+          [(ngModel)]="filtros.numeroDocumento"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="telefono">Telefono</label>
+        <input id="telefono" type="text" [(ngModel)]="filtros.telefono" />
+      </div>
+
+      <div class="campo">
+        <label for="email">Email</label>
+        <input id="email" type="text" [(ngModel)]="filtros.email" />
+      </div>
+    </div>
+
+    <div class="clientes-tabla__filtros-actions">
+      <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
+        Aplicar filtros
+      </button>
+      <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">Limpiar</button>
+    </div>
+  </section>
+
+  <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+
+  <section class="clientes-tabla__contenido">
+    <div class="clientes-tabla__estado" *ngIf="cargando">Cargando clientes...</div>
+
+    <div class="tabla-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombres</th>
+            <th>Apellidos</th>
+            <th>Tipo<br />doc.</th>
+            <th>Documento</th>
+            <th>Telefono</th>
+            <th>Email</th>
+            <th>Tipo<br />ocupante</th>
+            <th>#<br />Reservas</th>
+            <th>#<br />Estancias</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let cliente of clientes; trackBy: trackByCliente">
+            <td>{{ cliente.nombres || '-' }}</td>
+            <td>{{ cliente.apellidos || '-' }}</td>
+            <td>{{ cliente.tipoDocumento || '-' }}</td>
+            <td>{{ cliente.numeroDocumento || '-' }}</td>
+            <td>{{ cliente.telefono || '-' }}</td>
+            <td>{{ cliente.email || '-' }}</td>
+            <td>
+              <span class="chip chip--tipo-ocupante">{{ formatearEtiqueta(cliente.tipoOcupante) }}</span>
+            </td>
+            <td>
+              <div class="contador-accion">
+                <span>{{ cliente.reservas.length }}</span>
+                <button
+                  type="button"
+                  class="icono-ojo-btn"
+                  (click)="abrirModalReservas(cliente)"
+                  [disabled]="cliente.reservas.length === 0"
+                  aria-label="Ver reservas"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+            <td>
+              <div class="contador-accion">
+                <span>{{ cliente.estancias.length }}</span>
+                <button
+                  type="button"
+                  class="icono-ojo-btn"
+                  (click)="abrirModalEstancias(cliente)"
+                  [disabled]="cliente.estancias.length === 0"
+                  aria-label="Ver estancias"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!clientes.length">
+            <td colspan="9" class="tabla-vacia">No hay clientes con los filtros actuales.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="clientes-tabla__paginador" *ngIf="!cargando">
+      <div class="clientes-tabla__paginador-info">
+        <span>Total: {{ totalElements }}</span>
+        <span *ngIf="totalElements > 0">Mostrando {{ indiceInicio }}-{{ indiceFin }}</span>
+      </div>
+
+      <div class="clientes-tabla__paginador-size">
+        <label for="pageSize">Tamano pagina</label>
+        <select id="pageSize" [ngModel]="size" (ngModelChange)="cambiarPageSize($event)">
+          <option *ngFor="let option of pageSizeOptions" [ngValue]="option">{{ option }}</option>
+        </select>
+      </div>
+
+      <div class="clientes-tabla__paginador-actions">
+        <button type="button" class="btn" (click)="irPaginaAnterior()" [disabled]="page === 0 || cargando">
+          Anterior
+        </button>
+        <span>Pagina {{ page + 1 }} de {{ totalPages || 1 }}</span>
+        <button
+          type="button"
+          class="btn"
+          (click)="irPaginaSiguiente()"
+          [disabled]="page + 1 >= totalPages || cargando"
+        >
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <div class="clientes-modal-backdrop" *ngIf="modalAbierto" (click)="cerrarModal()">
+    <div
+      class="clientes-modal"
+      role="dialog"
+      aria-modal="true"
+      [attr.aria-label]="modalTitulo"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="clientes-modal__header">
+        <h3>{{ modalTitulo }}</h3>
+        <button type="button" class="btn btn--small" (click)="cerrarModal()">Cerrar</button>
+      </header>
+
+      <div class="clientes-modal__body">
+        <table *ngIf="modalItems.length > 0; else modalVacio">
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Estado</th>
+              <th>Ver<br />mas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of modalItems">
+              <td>{{ item.codigo }}</td>
+              <td>
+                <span class="chip">{{ formatearEtiqueta(item.estado) }}</span>
+              </td>
+              <td>
+                <button type="button" class="btn btn--small" (click)="verMas(item.codigo)">
+                  Ver mas
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <ng-template #modalVacio>
+          <p class="tabla-vacia">No hay registros para mostrar.</p>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+</section>

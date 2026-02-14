@@ -6,14 +6,14 @@ import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.mappers.PagoMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Pago;
+import com.hotel.models.Reserva;
+import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.MedioPago;
 import com.hotel.models.enums.TipoPago;
-import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.PagoRepository;
 import com.hotel.resolvers.PagoResolver;
 import com.hotel.specifications.PagoSpecification;
-import jakarta.persistence.EntityNotFoundException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -86,22 +86,24 @@ public class PagoService {
         return pagoRepository.findFirstByEstanciaIdAndTipoPagoOrderByFechaCreacionDesc(idEstancia, tipoPago);
     }
 
+    @Transactional(readOnly = true)
     public Page<PagoDTO> buscarPagos(
             List<EstadoPago> estados,
             List<MedioPago> mediosPago,
             TipoPago tipoPago,
             String codigoEstancia,
+            String codigoReserva,
             LocalDateTime fechaDesde,
             LocalDateTime fechaHasta,
             Pageable pageable) {
         logger.info("[buscarPagos] Buscando pagos con filtros aplicados");
 
         Page<Pago> pagos = pagoRepository.findAll(
-                PagoSpecification.byFilters(estados, mediosPago, tipoPago, codigoEstancia, fechaDesde, fechaHasta),
+                PagoSpecification.byFilters(estados, mediosPago, tipoPago, codigoEstancia, codigoReserva, fechaDesde, fechaHasta),
                 pageable
         );
 
-        return pagos.map(PagoMapper::entityToDTO);
+        return pagos.map(this::mapearPagoDTOConCodigo);
     }
 
     public Double obtenerEstimacionPago(CalcularPagoDTO request) {
@@ -127,6 +129,40 @@ public class PagoService {
                 idEstancia,
                 List.of(EstadoPago.PENDIENTE, EstadoPago.COMPLETADO)
         );
+    }
+
+    private PagoDTO mapearPagoDTOConCodigo(Pago pago) {
+        PagoDTO dto = PagoMapper.entityToDTO(pago);
+        Estancia estancia = pago.getEstancia();
+        if (estancia == null) {
+            return dto;
+        }
+
+        Reserva reserva = estancia.getReserva();
+        boolean estanciaActivada = estaEstanciaActivada(estancia);
+
+        if (pago.getTipoPago() == TipoPago.ANTICIPO_RESERVA) {
+            if (reserva != null) {
+                dto.setCodigoReserva(reserva.getCodigo());
+            }
+            if (estanciaActivada) {
+                dto.setCodigoEstancia(estancia.getCodigoFolio());
+            }
+            return dto;
+        }
+
+        if (pago.getTipoPago() == TipoPago.ANTICIPO_ESTANCIA
+                || pago.getTipoPago() == TipoPago.ESTANCIA_COMPLETADA) {
+            dto.setCodigoEstancia(estancia.getCodigoFolio());
+            return dto;
+        }
+
+        dto.setCodigoEstancia(estancia.getCodigoFolio());
+        return dto;
+    }
+
+    private boolean estaEstanciaActivada(Estancia estancia) {
+        return estancia.getEstado() != null && estancia.getEstado() != EstadoEstancia.RESERVADA;
     }
 
 

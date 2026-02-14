@@ -71,6 +71,8 @@ public class ReservaSpecification {
             LocalDateTime entradaHasta,
             LocalDateTime salidaDesde,
             LocalDateTime salidaHasta,
+            LocalDateTime rangoGeneralDesde,
+            LocalDateTime rangoGeneralHasta,
             Boolean tieneEstanciaAsociada) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -124,6 +126,29 @@ public class ReservaSpecification {
             }
             if (salidaHasta != null) {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("salidaEstimada"), salidaHasta));
+            }
+            if (rangoGeneralDesde != null || rangoGeneralHasta != null) {
+                Predicate entradaEnRango;
+                Predicate salidaEnRango;
+
+                if (rangoGeneralDesde != null && rangoGeneralHasta != null) {
+                    entradaEnRango = criteriaBuilder.between(
+                            root.get("entradaEstimada"),
+                            rangoGeneralDesde,
+                            rangoGeneralHasta);
+                    salidaEnRango = criteriaBuilder.between(
+                            root.get("salidaEstimada"),
+                            rangoGeneralDesde,
+                            rangoGeneralHasta);
+                } else if (rangoGeneralDesde != null) {
+                    entradaEnRango = criteriaBuilder.greaterThanOrEqualTo(root.get("entradaEstimada"), rangoGeneralDesde);
+                    salidaEnRango = criteriaBuilder.greaterThanOrEqualTo(root.get("salidaEstimada"), rangoGeneralDesde);
+                } else {
+                    entradaEnRango = criteriaBuilder.lessThanOrEqualTo(root.get("entradaEstimada"), rangoGeneralHasta);
+                    salidaEnRango = criteriaBuilder.lessThanOrEqualTo(root.get("salidaEstimada"), rangoGeneralHasta);
+                }
+
+                predicates.add(criteriaBuilder.or(entradaEnRango, salidaEnRango));
             }
 
             if (tieneEstanciaAsociada != null) {

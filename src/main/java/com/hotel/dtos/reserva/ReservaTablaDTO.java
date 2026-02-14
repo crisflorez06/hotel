@@ -3,6 +3,7 @@ package com.hotel.dtos.reserva;
 import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
+import com.hotel.models.enums.TipoDocumento;
 import com.hotel.models.enums.TipoUnidad;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ public class ReservaTablaDTO {
     private TipoUnidad tipoUnidad;
     private String nombreCliente;
     private Long idCliente;
+    private TipoDocumento tipoDocumentoCliente;
     private String numeroDocumentoCliente;
     private Integer numeroPersonas;
     private CanalReserva canalReserva;

@@ -44,6 +44,7 @@ public class EstanciaService {
     private final UnidadHabitacionResolver unidadHabitacionResolver;
     private final DisponibilidadService disponibilidadService;
     private final EstanciaReservaResolver ERService;
+    private final CodigoUnicoService codigoUnicoService;
 
 
     public EstanciaService(EstanciaRepository estanciaRepository,
@@ -52,7 +53,8 @@ public class EstanciaService {
                            AlojamientoResolver alojamientoResolver,
                            UnidadHabitacionResolver unidadHabitacionResolver,
                            DisponibilidadService disponibilidadService,
-                           EstanciaReservaResolver ERService) {
+                           EstanciaReservaResolver ERService,
+                           CodigoUnicoService codigoUnicoService) {
         this.ERService = ERService;
         this.disponibilidadService = disponibilidadService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
@@ -60,6 +62,7 @@ public class EstanciaService {
         this.estanciaRepository = estanciaRepository;
         this.ocupanteService = ocupanteService;
         this.pagoService = pagoService;
+        this.codigoUnicoService = codigoUnicoService;
     }
 
     @Transactional
@@ -74,6 +77,7 @@ public class EstanciaService {
 
         logger.info("[crearEstanciaNueva] Mapeando datos del request a la entidad Estancia");
         Estancia estancia = EstanciaMapper.requestToEntity(request);
+        estancia.setCodigoFolio(codigoUnicoService.generarCodigoEstancia());
 
         logger.info("[crearEstanciaNueva] Determinando ocupantes de la estancia");
         estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
@@ -406,6 +410,7 @@ public class EstanciaService {
                     .orElse(null);
             if (cliente != null) {
                 dto.setIdCliente(cliente.getId());
+                dto.setTipoDocumentoCliente(cliente.getTipoDocumento());
                 dto.setNumeroDocumentoCliente(cliente.getNumeroDocumento());
                 dto.setNombreCliente(String.format("%s %s", cliente.getNombres(), cliente.getApellidos()).trim());
             }

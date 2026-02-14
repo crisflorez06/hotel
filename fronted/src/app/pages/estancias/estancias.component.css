@@ -257,6 +257,22 @@ tbody tr.tabla-fila--seleccionada {
   gap: 0.4rem;
 }
 
+.cliente-info {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.cliente-info__nombre {
+  line-height: 1.2;
+}
+
+.cliente-info__documento {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
 .celda-accion__icon-btn {
   border: none;
   background: transparent;

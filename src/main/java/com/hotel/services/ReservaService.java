@@ -43,19 +43,22 @@ public class ReservaService {
     private final UnidadHabitacionResolver unidadHabitacionResolver;
     private final DisponibilidadService disponibilidadService;
     private final EstanciaReservaResolver estanciaReservaResolver;
+    private final CodigoUnicoService codigoUnicoService;
 
     public ReservaService(ReservaRepository reservaRepository,
                           OcupanteService ocupanteService,
                           PagoService pagoService,
                           UnidadHabitacionResolver unidadHabitacionResolver,
                           DisponibilidadService disponibilidadService,
-                          EstanciaReservaResolver estanciaReservaResolver) {
+                          EstanciaReservaResolver estanciaReservaResolver,
+                          CodigoUnicoService codigoUnicoService) {
         this.estanciaReservaResolver = estanciaReservaResolver;
         this.pagoService = pagoService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
         this.ocupanteService = ocupanteService;
         this.reservaRepository = reservaRepository;
         this.disponibilidadService = disponibilidadService;
+        this.codigoUnicoService = codigoUnicoService;
     }
 
     public Reserva buscarPorId(Long id) {
@@ -86,6 +89,7 @@ public class ReservaService {
 
         logger.info("[crearReserva] Creando reserva para el ocupante con ID: {}", request.getIdOcupante());
         Reserva reserva = ReservaMapper.requestNuevoToEntity(request);
+        reserva.setCodigo(codigoUnicoService.generarCodigoReserva());
 
         logger.info("[crearReserva] Buscando ocupante para asignar a la reserva");
         reserva.setCliente(ocupanteService.buscarPorId(request.getIdOcupante()));
@@ -210,6 +214,8 @@ public class ReservaService {
             LocalDateTime entradaHasta,
             LocalDateTime salidaDesde,
             LocalDateTime salidaHasta,
+            LocalDateTime rangoGeneralDesde,
+            LocalDateTime rangoGeneralHasta,
             Boolean tieneEstanciaAsociada,
             Pageable pageable) {
         Pageable pageableConOrden = pageable;
@@ -237,6 +243,8 @@ public class ReservaService {
                         entradaHasta,
                         salidaDesde,
                         salidaHasta,
+                        rangoGeneralDesde,
+                        rangoGeneralHasta,
                         tieneEstanciaAsociada),
                 pageableConOrden
         );
@@ -350,6 +358,7 @@ public class ReservaService {
 
         if (reserva.getCliente() != null) {
             dto.setIdCliente(reserva.getCliente().getId());
+            dto.setTipoDocumentoCliente(reserva.getCliente().getTipoDocumento());
             dto.setNumeroDocumentoCliente(reserva.getCliente().getNumeroDocumento());
             dto.setNombreCliente(
                     String.format("%s %s",

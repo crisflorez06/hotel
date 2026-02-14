@@ -78,6 +78,8 @@ public class ReservaController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime entradaHasta,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime rangoGeneralDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime rangoGeneralHasta,
             @RequestParam(required = false) Boolean tieneEstanciaAsociada,
             Pageable pageable) {
         return reservaService.buscarReservasTabla(
@@ -96,6 +98,8 @@ public class ReservaController {
                 entradaHasta,
                 salidaDesde,
                 salidaHasta,
+                rangoGeneralDesde,
+                rangoGeneralHasta,
                 tieneEstanciaAsociada,
                 pageable);
     }

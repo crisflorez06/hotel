@@ -34,10 +34,11 @@ public class PagoController {
             @RequestParam(required = false) List<MedioPago> mediosPago,
             @RequestParam(required = false) TipoPago tipoPago,
             @RequestParam(required = false) String codigoEstancia,
+            @RequestParam(required = false) String codigoReserva,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaHasta,
             Pageable pageable) {
-        return pagoService.buscarPagos(estados, mediosPago, tipoPago, codigoEstancia, fechaDesde, fechaHasta, pageable);
+        return pagoService.buscarPagos(estados, mediosPago, tipoPago, codigoEstancia, codigoReserva, fechaDesde, fechaHasta, pageable);
     }
 
     @PostMapping("/total")

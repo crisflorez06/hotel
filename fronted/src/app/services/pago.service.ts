@@ -22,6 +22,7 @@ export interface BuscarPagosParams {
   estados?: EstadoPago[];
   mediosPago?: MedioPago[];
   tipoPago?: TipoPago;
+  codigoReserva?: string;
   codigoEstancia?: string;
   fechaDesde?: string;
   fechaHasta?: string;
@@ -68,6 +69,10 @@ export class PagoService {
 
     if (params?.tipoPago) {
       httpParams = httpParams.set('tipoPago', params.tipoPago);
+    }
+
+    if (params?.codigoReserva) {
+      httpParams = httpParams.set('codigoReserva', params.codigoReserva);
     }
 
     if (params?.codigoEstancia) {

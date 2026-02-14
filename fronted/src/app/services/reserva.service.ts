@@ -82,6 +82,8 @@ export class ReservaService {
       'numeroDocumentoCliente',
       filtros.numeroDocumentoCliente,
     );
+    params = this.setParamIfValue(params, 'rangoGeneralDesde', filtros.rangoGeneralDesde);
+    params = this.setParamIfValue(params, 'rangoGeneralHasta', filtros.rangoGeneralHasta);
     params = this.setParamIfValue(params, 'fechaCreacionDesde', filtros.fechaCreacionDesde);
     params = this.setParamIfValue(params, 'fechaCreacionHasta', filtros.fechaCreacionHasta);
     params = this.setParamIfValue(params, 'entradaDesde', filtros.entradaDesde);

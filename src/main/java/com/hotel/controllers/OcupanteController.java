@@ -2,9 +2,13 @@ package com.hotel.controllers;
 
 import com.hotel.dtos.ocupante.OcupanteDTO;
 import com.hotel.dtos.ocupante.OcupanteNuevoRequestDTO;
+import com.hotel.dtos.ocupante.ClienteTablaDTO;
+import com.hotel.models.enums.TipoDocumento;
 import com.hotel.services.OcupanteService;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,5 +37,24 @@ public class OcupanteController {
     public ResponseEntity<List<OcupanteDTO>> buscarPorNumeroDocumento(@RequestParam("documento") String documento) {
         List<OcupanteDTO> ocupantes = ocupanteService.buscarPorNumeroDocumento(documento);
         return ResponseEntity.ok(ocupantes);
+    }
+
+    @GetMapping("/tabla-clientes")
+    public Page<ClienteTablaDTO> buscarClientesTabla(
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String apellido,
+            @RequestParam(required = false) TipoDocumento tipoDocumento,
+            @RequestParam(required = false) String numeroDocumento,
+            @RequestParam(required = false) String telefono,
+            @RequestParam(required = false) String email,
+            Pageable pageable) {
+        return ocupanteService.buscarClientesTabla(
+                nombre,
+                apellido,
+                tipoDocumento,
+                numeroDocumento,
+                telefono,
+                email,
+                pageable);
     }
 }

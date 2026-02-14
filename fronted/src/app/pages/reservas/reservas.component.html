@@ -4,11 +4,6 @@
       <h1>Reservas</h1>
       <p>Consulta y filtra reservas por estado, canal, cliente, unidad y fechas.</p>
     </div>
-    <div class="reserva-tabla__header-actions">
-      <button type="button" class="btn btn--primary" [routerLink]="['/reservas/nueva']">
-        Crear reserva
-      </button>
-    </div>
   </header>
 
   <section class="reserva-tabla__filtros">
@@ -17,14 +12,13 @@
       <p>Usa los campos principales y abre "Mas filtros" solo cuando lo necesites.</p>
     </div>
 
-    <div class="reserva-tabla__filtros-grid">
+    <div class="reserva-tabla__filtros-grid reserva-tabla__filtros-grid--principal">
       <div class="campo">
         <label for="codigoReserva">Codigo reserva</label>
         <input
           id="codigoReserva"
           type="text"
           [(ngModel)]="filtros.codigoReserva"
-          (ngModelChange)="onFiltroCambio()"
           name="codigoReserva"
         />
       </div>
@@ -35,7 +29,6 @@
           id="codigoUnidad"
           type="text"
           [(ngModel)]="filtros.codigoUnidad"
-          (ngModelChange)="onFiltroCambio()"
           name="codigoUnidad"
         />
       </div>
@@ -46,7 +39,6 @@
           id="nombreCliente"
           type="text"
           [(ngModel)]="filtros.nombreCliente"
-          (ngModelChange)="onFiltroCambio()"
           name="nombreCliente"
         />
       </div>
@@ -57,140 +49,365 @@
           id="numeroDocumentoCliente"
           type="text"
           [(ngModel)]="filtros.numeroDocumentoCliente"
-          (ngModelChange)="onFiltroCambio()"
           name="numeroDocumentoCliente"
         />
       </div>
 
       <div class="campo">
-        <label for="tipoUnidad">Tipo de unidad</label>
-        <select
-          id="tipoUnidad"
-          name="tipoUnidad"
-          [(ngModel)]="filtros.tipoUnidad"
-          (ngModelChange)="aplicarFiltros()"
-        >
-          <option *ngFor="let item of tiposUnidadDisponibles" [ngValue]="item.value">{{ item.label }}</option>
-        </select>
+        <label for="rangoGeneralDesde">Rango general desde</label>
+        <input
+          id="rangoGeneralDesde"
+          type="date"
+          [(ngModel)]="filtros.rangoGeneralDesde"
+          name="rangoGeneralDesde"
+        />
       </div>
 
       <div class="campo">
-        <label for="modoOcupacion">Modo de ocupacion</label>
-        <select
-          id="modoOcupacion"
-          name="modoOcupacion"
-          [(ngModel)]="filtros.modoOcupacion"
-          (ngModelChange)="aplicarFiltros()"
-        >
-          <option *ngFor="let item of modosOcupacionDisponibles" [ngValue]="item.value">{{ item.label }}</option>
-        </select>
+        <label for="rangoGeneralHasta">Rango general hasta</label>
+        <input
+          id="rangoGeneralHasta"
+          type="date"
+          [(ngModel)]="filtros.rangoGeneralHasta"
+          name="rangoGeneralHasta"
+        />
+      </div>
+
+      <div class="campo campo--quick-range">
+        <div class="reserva-tabla__rangos-rapidos">
+          <button
+            type="button"
+            class="check check--chip-toggle"
+            [class.check--chip-active]="esRangoRapidoSeleccionado('rangoGeneral', 'HOY')"
+            (click)="aplicarRangoRapido('HOY', 'rangoGeneral')"
+          >
+            Hoy
+          </button>
+          <button
+            type="button"
+            class="check check--chip-toggle"
+            [class.check--chip-active]="esRangoRapidoSeleccionado('rangoGeneral', 'MANANA')"
+            (click)="aplicarRangoRapido('MANANA', 'rangoGeneral')"
+          >
+            Manana
+          </button>
+          <button
+            type="button"
+            class="check check--chip-toggle"
+            [class.check--chip-active]="esRangoRapidoSeleccionado('rangoGeneral', 'ESTA_SEMANA')"
+            (click)="aplicarRangoRapido('ESTA_SEMANA', 'rangoGeneral')"
+          >
+            Esta semana
+          </button>
+          <button
+            type="button"
+            class="check check--chip-toggle"
+            [class.check--chip-active]="esRangoRapidoSeleccionado('rangoGeneral', 'PROXIMOS_7_DIAS')"
+            (click)="aplicarRangoRapido('PROXIMOS_7_DIAS', 'rangoGeneral')"
+          >
+            Proximos 7 dias
+          </button>
+          <button
+            type="button"
+            class="check check--chip-toggle"
+            [class.check--chip-active]="esRangoRapidoSeleccionado('rangoGeneral', 'ESTE_MES')"
+            (click)="aplicarRangoRapido('ESTE_MES', 'rangoGeneral')"
+          >
+            Este mes
+          </button>
+        </div>
       </div>
     </div>
 
-    <details class="reserva-tabla__filtros-avanzados">
+    <details class="reserva-tabla__filtros-avanzados" (toggle)="onToggleFiltrosAvanzados($event)">
       <summary>Mas filtros</summary>
 
       <div class="reserva-tabla__filtros-avanzados-grid">
-        <div class="campo campo--full">
-          <label>Estados</label>
-          <div class="checks">
-            <label class="check" *ngFor="let estado of estadosReservaDisponibles">
+        <div class="reserva-tabla__chips-card">
+          <div class="campo">
+            <label>Tipo de unidad</label>
+            <div class="checks checks--chips">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                *ngFor="let tipo of tiposUnidadDisponibles"
+                [class.check--chip-active]="esTipoUnidadSeleccionado(tipo)"
+                (click)="seleccionarTipoUnidad(tipo)"
+              >
+                <span>{{ formatearEtiqueta(tipo) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="reserva-tabla__chips-card">
+          <div class="campo">
+            <label>Estados</label>
+            <div class="checks checks--chips">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                *ngFor="let estado of estadosReservaDisponibles"
+                [class.check--chip-active]="estaEstadoSeleccionado(estado)"
+                (click)="toggleEstado(estado, !estaEstadoSeleccionado(estado))"
+              >
+                <span>{{ formatearEtiqueta(estado) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="reserva-tabla__chips-card">
+          <div class="campo">
+            <label>Canales</label>
+            <div class="checks checks--chips">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                *ngFor="let canal of canalesDisponibles"
+                [class.check--chip-active]="estaCanalSeleccionado(canal)"
+                (click)="toggleCanal(canal, !estaCanalSeleccionado(canal))"
+              >
+                <span>{{ formatearCanal(canal) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="reserva-tabla__chips-card">
+          <div class="campo">
+            <label>Entrada</label>
+            <div class="reserva-tabla__rangos-rapidos">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('entrada', 'HOY')"
+                (click)="aplicarRangoRapido('HOY', 'entrada')"
+              >
+                Hoy
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('entrada', 'MANANA')"
+                (click)="aplicarRangoRapido('MANANA', 'entrada')"
+              >
+                Manana
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('entrada', 'ESTA_SEMANA')"
+                (click)="aplicarRangoRapido('ESTA_SEMANA', 'entrada')"
+              >
+                Esta semana
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('entrada', 'PROXIMOS_7_DIAS')"
+                (click)="aplicarRangoRapido('PROXIMOS_7_DIAS', 'entrada')"
+              >
+                Proximos 7 dias
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('entrada', 'ESTE_MES')"
+                (click)="aplicarRangoRapido('ESTE_MES', 'entrada')"
+              >
+                Este mes
+              </button>
+            </div>
+          </div>
+          <div class="rango-fecha">
+            <div class="campo">
+              <label for="entradaDesde">Desde</label>
               <input
-                type="checkbox"
-                [checked]="estaEstadoSeleccionado(estado)"
-                (change)="toggleEstado(estado, $any($event.target).checked)"
+                id="entradaDesde"
+                type="date"
+                [(ngModel)]="filtros.entradaDesde"
+                (ngModelChange)="limpiarSeleccionRangoRapido('entrada')"
+                name="entradaDesde"
               />
-              <span>{{ formatearEtiqueta(estado) }}</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="campo campo--full">
-          <label>Canales</label>
-          <div class="checks">
-            <label class="check" *ngFor="let canal of canalesDisponibles">
+            </div>
+            <div class="campo">
+              <label for="entradaHasta">Hasta</label>
               <input
-                type="checkbox"
-                [checked]="estaCanalSeleccionado(canal)"
-                (change)="toggleCanal(canal, $any($event.target).checked)"
+                id="entradaHasta"
+                type="date"
+                [(ngModel)]="filtros.entradaHasta"
+                (ngModelChange)="limpiarSeleccionRangoRapido('entrada')"
+                name="entradaHasta"
               />
-              <span>{{ formatearEtiqueta(canal) }}</span>
-            </label>
+            </div>
           </div>
         </div>
 
-        <div class="rango-fecha">
+        <div class="reserva-tabla__chips-card">
           <div class="campo">
-            <label for="fechaCreacionDesde">Creacion desde</label>
-            <input
-              id="fechaCreacionDesde"
-              type="datetime-local"
-              [(ngModel)]="filtros.fechaCreacionDesde"
-              (ngModelChange)="onFiltroCambio()"
-              name="fechaCreacionDesde"
-            />
+            <label>Salida</label>
+            <div class="reserva-tabla__rangos-rapidos">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('salida', 'HOY')"
+                (click)="aplicarRangoRapido('HOY', 'salida')"
+              >
+                Hoy
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('salida', 'MANANA')"
+                (click)="aplicarRangoRapido('MANANA', 'salida')"
+              >
+                Manana
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('salida', 'ESTA_SEMANA')"
+                (click)="aplicarRangoRapido('ESTA_SEMANA', 'salida')"
+              >
+                Esta semana
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('salida', 'PROXIMOS_7_DIAS')"
+                (click)="aplicarRangoRapido('PROXIMOS_7_DIAS', 'salida')"
+              >
+                Proximos 7 dias
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('salida', 'ESTE_MES')"
+                (click)="aplicarRangoRapido('ESTE_MES', 'salida')"
+              >
+                Este mes
+              </button>
+            </div>
           </div>
-          <div class="campo">
-            <label for="fechaCreacionHasta">Creacion hasta</label>
-            <input
-              id="fechaCreacionHasta"
-              type="datetime-local"
-              [(ngModel)]="filtros.fechaCreacionHasta"
-              (ngModelChange)="onFiltroCambio()"
-              name="fechaCreacionHasta"
-            />
+          <div class="rango-fecha">
+            <div class="campo">
+              <label for="salidaDesde">Desde</label>
+              <input
+                id="salidaDesde"
+                type="date"
+                [(ngModel)]="filtros.salidaDesde"
+                (ngModelChange)="limpiarSeleccionRangoRapido('salida')"
+                name="salidaDesde"
+              />
+            </div>
+            <div class="campo">
+              <label for="salidaHasta">Hasta</label>
+              <input
+                id="salidaHasta"
+                type="date"
+                [(ngModel)]="filtros.salidaHasta"
+                (ngModelChange)="limpiarSeleccionRangoRapido('salida')"
+                name="salidaHasta"
+              />
+            </div>
           </div>
         </div>
 
-        <div class="rango-fecha">
+        <div class="reserva-tabla__chips-card">
           <div class="campo">
-            <label for="entradaDesde">Entrada desde</label>
-            <input
-              id="entradaDesde"
-              type="datetime-local"
-              [(ngModel)]="filtros.entradaDesde"
-              (ngModelChange)="onFiltroCambio()"
-              name="entradaDesde"
-            />
+            <label>Creacion</label>
+            <div class="reserva-tabla__rangos-rapidos">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('creacion', 'HOY')"
+                (click)="aplicarRangoRapido('HOY', 'creacion')"
+              >
+                Hoy
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('creacion', 'MANANA')"
+                (click)="aplicarRangoRapido('MANANA', 'creacion')"
+              >
+                Manana
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('creacion', 'ESTA_SEMANA')"
+                (click)="aplicarRangoRapido('ESTA_SEMANA', 'creacion')"
+              >
+                Esta semana
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('creacion', 'PROXIMOS_7_DIAS')"
+                (click)="aplicarRangoRapido('PROXIMOS_7_DIAS', 'creacion')"
+              >
+                Proximos 7 dias
+              </button>
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                [class.check--chip-active]="esRangoRapidoSeleccionado('creacion', 'ESTE_MES')"
+                (click)="aplicarRangoRapido('ESTE_MES', 'creacion')"
+              >
+                Este mes
+              </button>
+            </div>
           </div>
-          <div class="campo">
-            <label for="entradaHasta">Entrada hasta</label>
-            <input
-              id="entradaHasta"
-              type="datetime-local"
-              [(ngModel)]="filtros.entradaHasta"
-              (ngModelChange)="onFiltroCambio()"
-              name="entradaHasta"
-            />
-          </div>
-        </div>
-
-        <div class="rango-fecha">
-          <div class="campo">
-            <label for="salidaDesde">Salida desde</label>
-            <input
-              id="salidaDesde"
-              type="datetime-local"
-              [(ngModel)]="filtros.salidaDesde"
-              (ngModelChange)="onFiltroCambio()"
-              name="salidaDesde"
-            />
-          </div>
-          <div class="campo">
-            <label for="salidaHasta">Salida hasta</label>
-            <input
-              id="salidaHasta"
-              type="datetime-local"
-              [(ngModel)]="filtros.salidaHasta"
-              (ngModelChange)="onFiltroCambio()"
-              name="salidaHasta"
-            />
+          <div class="rango-fecha">
+            <div class="campo">
+              <label for="fechaCreacionDesde">Desde</label>
+              <input
+                id="fechaCreacionDesde"
+                type="date"
+                [(ngModel)]="filtros.fechaCreacionDesde"
+                (ngModelChange)="limpiarSeleccionRangoRapido('creacion')"
+                name="fechaCreacionDesde"
+              />
+            </div>
+            <div class="campo">
+              <label for="fechaCreacionHasta">Hasta</label>
+              <input
+                id="fechaCreacionHasta"
+                type="date"
+                [(ngModel)]="filtros.fechaCreacionHasta"
+                (ngModelChange)="limpiarSeleccionRangoRapido('creacion')"
+                name="fechaCreacionHasta"
+              />
+            </div>
           </div>
         </div>
       </div>
     </details>
 
+    <div
+      class="reserva-tabla__filtros-resumen"
+      *ngIf="!filtrosAvanzadosAbiertos && filtrosAvanzadosResumen.length"
+    >
+      <div class="filtro-chip" *ngFor="let item of filtrosAvanzadosResumen; trackBy: trackByResumenFiltro">
+        <span>{{ item.texto }}</span>
+        <button
+          type="button"
+          class="filtro-chip__remove"
+          (click)="quitarFiltroAvanzado(item.clave)"
+          [disabled]="cargando"
+          aria-label="Quitar filtro"
+        >
+          x
+        </button>
+      </div>
+    </div>
+
     <div class="reserva-tabla__filtros-actions">
+      <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
+        Aplicar filtros
+      </button>
       <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">
         Limpiar
       </button>
@@ -202,23 +419,50 @@
   <p class="estado estado--exito" *ngIf="accionExito">{{ accionExito }}</p>
 
   <section class="reserva-tabla__acciones-seleccion">
+    <div class="reserva-tabla__acciones-izquierda">
+      <button type="button" class="btn btn--primary btn--small" [routerLink]="['/estancias/nueva']">
+        <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1Z"
+            fill="currentColor"
+          />
+        </svg>
+        Nueva estancia
+      </button>
+    </div>
     <div class="reserva-tabla__acciones-botones">
-      <button
-        type="button"
-        class="btn btn--small"
-        (click)="editarReservaSeleccionada()"
-        [disabled]="!puedeGestionarReservaSeleccionada() || estaEliminandoReservaSeleccionada()"
-      >
-        Editar
-      </button>
-      <button
-        type="button"
-        class="btn btn--danger btn--small"
-        (click)="eliminarReservaSeleccionada()"
-        [disabled]="!puedeGestionarReservaSeleccionada() || estaEliminandoReservaSeleccionada()"
-      >
-        {{ estaEliminandoReservaSeleccionada() ? 'Eliminando...' : 'Eliminar' }}
-      </button>
+      <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipEditarSeleccionada()">
+        <button
+          type="button"
+          class="btn btn--small"
+          (click)="editarReservaSeleccionada()"
+          [disabled]="!puedeGestionarReservaSeleccionada() || estaEliminandoReservaSeleccionada()"
+        >
+          <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="m15.7 4.3 4 4a1 1 0 0 1 0 1.4l-9.8 9.8a1 1 0 0 1-.5.3l-5 1.2a1 1 0 0 1-1.2-1.2l1.2-5a1 1 0 0 1 .3-.5l9.8-9.8a1 1 0 0 1 1.4 0ZM7 15.6l-.7 2.8 2.8-.7 8.5-8.5-2.1-2.1L7 15.6Z"
+              fill="currentColor"
+            />
+          </svg>
+          Editar
+        </button>
+      </span>
+      <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipEliminarSeleccionada()">
+        <button
+          type="button"
+          class="btn btn--danger btn--small"
+          (click)="eliminarReservaSeleccionada()"
+          [disabled]="!puedeGestionarReservaSeleccionada() || estaEliminandoReservaSeleccionada()"
+        >
+          <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              d="M9 3.8a1 1 0 0 1 .9-.6h4.2a1 1 0 0 1 .9.6l.6 1.2H19a1 1 0 1 1 0 2h-1l-.7 11a2 2 0 0 1-2 1.9H8.7a2 2 0 0 1-2-1.9L6 7H5a1 1 0 1 1 0-2h3.4l.6-1.2Zm.7 3.2.6 9.8h3.4l.6-9.8H9.7Z"
+              fill="currentColor"
+            />
+          </svg>
+          {{ estaEliminandoReservaSeleccionada() ? 'Eliminando...' : 'Eliminar' }}
+        </button>
+      </span>
     </div>
   </section>
 
@@ -230,19 +474,18 @@
         <thead>
           <tr>
             <th class="col-check"></th>
-            <th>Codigo reserva</th>
-            <th>Codigo unidad</th>
-            <th>Tipo unidad</th>
+            <th>Codigo<br />reserva</th>
+            <th>Tipo<br />unidad</th>
+            <th>Codigo<br />unidad</th>
             <th>Cliente</th>
-            <th>Documento</th>
+            <th>Numero<br />personas</th>
             <th>Canal</th>
-            <th>Modo ocupacion</th>
-            <th>Estancia</th>
-            <th>Pago</th>
-            <th>Estado</th>
             <th>Creacion</th>
             <th>Entrada</th>
             <th>Salida</th>
+            <th>Estado</th>
+            <th>Codigo<br />estancia</th>
+            <th>Pago</th>
           </tr>
         </thead>
 
@@ -262,44 +505,155 @@
               />
             </td>
             <td>{{ reserva.codigoReserva }}</td>
-            <td>{{ reserva.codigoUnidad }}</td>
             <td>{{ formatearEtiqueta(reserva.tipoUnidad) }}</td>
-            <td>{{ reserva.nombreCliente }}</td>
-            <td>{{ reserva.numeroDocumentoCliente }}</td>
-            <td>{{ formatearEtiqueta(reserva.canalReserva) }}</td>
-            <td>{{ formatearEtiqueta(reserva.modoOcupacion) }}</td>
+            <td>{{ reserva.codigoUnidad }}</td>
+            <td>
+              <div class="celda-accion celda-accion--cliente">
+                <div class="cliente-info">
+                  <span class="cliente-info__nombre">{{ reserva.nombreCliente }}</span>
+                  <small class="cliente-info__documento">
+                    {{ (reserva.tipoDocumentoCliente || '-') + ' ' + (reserva.numeroDocumentoCliente || '-') }}
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  class="celda-accion__icon-btn"
+                  (click)="irATablaClientes(reserva); $event.stopPropagation()"
+                  aria-label="Ver cliente en tabla de clientes"
+                  data-tooltip="Ver cliente"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+            <td>{{ reserva.numeroPersonas ?? '-' }}</td>
+            <td>{{ formatearCanal(reserva.canalReserva) }}</td>
+            <td>
+              <div class="fecha-columna">
+                <span>{{ formatearSoloFecha(reserva.fechaCreacion) }}</span>
+                <small>{{ formatearSoloHora(reserva.fechaCreacion) }}</small>
+              </div>
+            </td>
+            <td>
+              <div class="fecha-columna">
+                <span>{{ formatearSoloFecha(reserva.entradaEstimada) }}</span>
+                <small>{{ formatearSoloHora(reserva.entradaEstimada) }}</small>
+              </div>
+            </td>
+            <td>
+              <div class="fecha-columna">
+                <span>{{ formatearSoloFecha(reserva.salidaEstimada) }}</span>
+                <small>{{ formatearSoloHora(reserva.salidaEstimada) }}</small>
+              </div>
+            </td>
+            <td>
+              <span
+                class="estado-icon estado-icon--{{ reserva.estadoReserva.toLowerCase() }}"
+                [attr.title]="formatearEtiqueta(reserva.estadoReserva)"
+                [attr.aria-label]="formatearEtiqueta(reserva.estadoReserva)"
+                [attr.data-tooltip]="formatearEtiqueta(reserva.estadoReserva)"
+              >
+                <ng-container [ngSwitch]="reserva.estadoReserva">
+                  <svg *ngSwitchCase="'CONFIRMADA'" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M9.2 16.6 4.9 12.3a1 1 0 1 1 1.4-1.4l2.9 2.9 8.5-8.5a1 1 0 1 1 1.4 1.4l-9.9 9.9Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <svg *ngSwitchCase="'COMPLETADA'" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M5.8 7.8h12.4a1 1 0 0 1 .8 1.6l-6.2 8.3a1 1 0 0 1-1.6 0L5 9.4a1 1 0 0 1 .8-1.6Zm2 2 4.2 5.6 4.2-5.6H7.8Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <svg *ngSwitchCase="'PENDIENTE'" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 6a1 1 0 0 1 1 1v4.5l3.2 1.9a1 1 0 0 1-1 1.7l-3.7-2.2a1 1 0 0 1-.5-.9V7a1 1 0 0 1 1-1Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M12 2.8a9.2 9.2 0 1 0 0 18.4 9.2 9.2 0 0 0 0-18.4Zm0 2a7.2 7.2 0 1 1 0 14.4 7.2 7.2 0 0 1 0-14.4Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <svg *ngSwitchCase="'EXPIRADA'" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 2.8a9.2 9.2 0 1 0 0 18.4 9.2 9.2 0 0 0 0-18.4Zm0 2a7.2 7.2 0 1 1 0 14.4 7.2 7.2 0 0 1 0-14.4Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8.8 8.8a1 1 0 0 1 1.4 0L12 10.6l1.8-1.8a1 1 0 1 1 1.4 1.4L13.4 12l1.8 1.8a1 1 0 0 1-1.4 1.4L12 13.4l-1.8 1.8a1 1 0 0 1-1.4-1.4l1.8-1.8-1.8-1.8a1 1 0 0 1 0-1.4Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <svg *ngSwitchCase="'CANCELADA'" viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 2.8a9.2 9.2 0 1 0 0 18.4 9.2 9.2 0 0 0 0-18.4Zm0 2a7.2 7.2 0 1 1 0 14.4 7.2 7.2 0 0 1 0-14.4Z"
+                      fill="currentColor"
+                    />
+                    <path
+                      d="M8.8 8.8a1 1 0 0 1 1.4 0L12 10.6l1.8-1.8a1 1 0 1 1 1.4 1.4L13.4 12l1.8 1.8a1 1 0 0 1-1.4 1.4L12 13.4l-1.8 1.8a1 1 0 0 1-1.4-1.4l1.8-1.8-1.8-1.8a1 1 0 0 1 0-1.4Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                  <svg *ngSwitchDefault viewBox="0 0 24 24" aria-hidden="true">
+                    <circle cx="12" cy="12" r="4" fill="currentColor" />
+                  </svg>
+                </ng-container>
+              </span>
+            </td>
             <td>
               <div class="reserva-estancia">
-                <ng-container *ngIf="reserva.codigoEstancia?.trim() as codigoEstancia; else sinEstancia">
-                  <span>Si</span>
-                  <button
-                    type="button"
-                    class="celda-accion__icon-btn"
-                    (click)="irATablaEstancias(reserva); $event.stopPropagation()"
-                    aria-label="Ver estancia asociada"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                </ng-container>
-                <ng-template #sinEstancia>
-                  <span class="reserva-estancia__sin">No</span>
-                </ng-template>
+                <span>{{ reserva.codigoEstancia?.trim() || '-' }}</span>
+                <button
+                  type="button"
+                  class="celda-accion__icon-btn"
+                  (click)="irATablaEstancias(reserva); $event.stopPropagation()"
+                  aria-label="Ver estancia asociada"
+                  data-tooltip="Ver estancia"
+                  [disabled]="!(reserva.codigoEstancia?.trim())"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
               </div>
             </td>
             <td>
               <div class="pago-reserva">
                 <div class="celda-accion">
-                  <span>{{ formatearMontoPago(reserva.totalPagoReserva) }}</span>
+                  <span [class.pago-reserva__monto--alerta]="tienePagosModificados(reserva)">
+                    {{ tienePagoAsociado(reserva) ? formatearMontoPago(reserva.totalPagoReserva) : '-' }}
+                  </span>
+                  <span
+                    class="pago-reserva__alerta-icon"
+                    *ngIf="tienePagosModificados(reserva)"
+                    [attr.title]="obtenerTooltipPagosModificados(reserva)"
+                    [attr.aria-label]="obtenerTooltipPagosModificados(reserva)"
+                    [attr.data-tooltip]="obtenerTooltipPagosModificados(reserva)"
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path
+                        d="M12 3 1.8 20.5a1.2 1.2 0 0 0 1 1.8h18.4a1.2 1.2 0 0 0 1-1.8L12 3Zm0 5.8a1 1 0 0 1 1 1v5.2a1 1 0 0 1-2 0V9.8a1 1 0 0 1 1-1Zm0 10a1.2 1.2 0 1 1 0-2.4 1.2 1.2 0 0 1 0 2.4Z"
+                        fill="currentColor"
+                      />
+                    </svg>
+                  </span>
                   <button
                     type="button"
                     class="celda-accion__icon-btn"
                     (click)="irAPagosAnticipoReserva(reserva); $event.stopPropagation()"
                     aria-label="Ver pagos de la reserva"
+                    data-tooltip="Ver pago"
+                    [disabled]="!tienePagoAsociado(reserva)"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
                       <path
@@ -309,23 +663,12 @@
                     </svg>
                   </button>
                 </div>
-                <span class="pago-reserva__alerta" *ngIf="tienePagosModificados(reserva)">
-                  Pago modificado/eliminado
-                </span>
               </div>
             </td>
-            <td>
-              <span class="chip chip--{{ reserva.estadoReserva.toLowerCase() }}">
-                {{ formatearEtiqueta(reserva.estadoReserva) }}
-              </span>
-            </td>
-            <td>{{ formatearFecha(reserva.fechaCreacion) }}</td>
-            <td>{{ formatearFecha(reserva.entradaEstimada) }}</td>
-            <td>{{ formatearFecha(reserva.salidaEstimada) }}</td>
           </tr>
 
           <tr *ngIf="!reservas.length">
-            <td colspan="14" class="tabla-vacia">No hay reservas con los filtros actuales.</td>
+            <td colspan="13" class="tabla-vacia">No hay reservas con los filtros actuales.</td>
           </tr>
         </tbody>
       </table>

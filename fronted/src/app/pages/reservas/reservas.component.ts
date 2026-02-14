@@ -5,10 +5,20 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { PageResponse } from '../../models/page.model';
-import { CanalReserva, EstadoReserva, ModoOcupacion, TipoUnidad } from '../../models/enums';
+import { CanalReserva, EstadoReserva, TipoUnidad } from '../../models/enums';
 import { ReservaTablaFiltros, ReservaTablaItem } from '../../models/reserva-tabla.model';
 import { ReservaService } from '../../services/reserva.service';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
+
+type ResumenFiltroClave = 'tipoUnidad' | 'estados' | 'canales' | 'creacion' | 'entrada' | 'salida';
+
+interface ResumenFiltroItem {
+  clave: ResumenFiltroClave;
+  texto: string;
+}
+
+type RangoRapido = 'HOY' | 'MANANA' | 'ESTA_SEMANA' | 'PROXIMOS_7_DIAS' | 'ESTE_MES';
+type RangoRapidoCampo = 'rangoGeneral' | 'creacion' | 'entrada' | 'salida';
 
 @Component({
   selector: 'app-reservas',
@@ -19,7 +29,6 @@ import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 })
 export class ReservasComponent implements OnInit, OnDestroy {
   readonly estadosReservaDisponibles: EstadoReserva[] = [
-    'PENDIENTE',
     'CONFIRMADA',
     'COMPLETADA',
     'CANCELADA',
@@ -36,18 +45,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
     'MOSTRADOR',
   ];
 
-  readonly modosOcupacionDisponibles: Array<{ label: string; value: ModoOcupacion | '' }> = [
-    { label: 'Todos', value: '' },
-    { label: 'Completo', value: 'COMPLETO' },
-    { label: 'Individual', value: 'INDIVIDUAL' },
-  ];
-
-  readonly tiposUnidadDisponibles: Array<{ label: string; value: TipoUnidad | '' }> = [
-    { label: 'Todos', value: '' },
-    { label: 'Apartamento', value: 'APARTAMENTO' },
-    { label: 'Apartaestudio', value: 'APARTAESTUDIO' },
-    { label: 'Habitacion', value: 'HABITACION' },
-  ];
+  readonly tiposUnidadDisponibles: TipoUnidad[] = ['APARTAMENTO', 'APARTAESTUDIO', 'HABITACION'];
 
   readonly pageSizeOptions = [10, 20, 50, 100];
 
@@ -66,8 +64,14 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
   eliminandoReservaId: number | null = null;
   reservaSeleccionadaId: number | null = null;
+  filtrosAvanzadosAbiertos = false;
+  rangoRapidoSeleccionado: Record<RangoRapidoCampo, RangoRapido | null> = {
+    rangoGeneral: null,
+    creacion: null,
+    entrada: null,
+    salida: null,
+  };
 
-  private filtroCambioTimeout: ReturnType<typeof setTimeout> | null = null;
   private queryParamsSub: Subscription | null = null;
 
   constructor(
@@ -88,10 +92,6 @@ export class ReservasComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-      this.filtroCambioTimeout = null;
-    }
     this.queryParamsSub?.unsubscribe();
     this.queryParamsSub = null;
   }
@@ -103,19 +103,14 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.cargarReservas();
   }
 
-  onFiltroCambio(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-    }
-
-    this.filtroCambioTimeout = setTimeout(() => {
-      this.aplicarFiltros();
-      this.filtroCambioTimeout = null;
-    }, 350);
-  }
-
   limpiarFiltros(): void {
     this.filtros = this.crearFiltrosVacios();
+    this.rangoRapidoSeleccionado = {
+      rangoGeneral: null,
+      creacion: null,
+      entrada: null,
+      salida: null,
+    };
     this.page = 0;
     this.accionError = '';
     this.accionExito = '';
@@ -126,14 +121,12 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.filtros.estados = checked
       ? Array.from(new Set([...this.filtros.estados, estado]))
       : this.filtros.estados.filter((item) => item !== estado);
-    this.aplicarFiltros();
   }
 
   toggleCanal(canal: CanalReserva, checked: boolean): void {
     this.filtros.canales = checked
       ? Array.from(new Set([...this.filtros.canales, canal]))
       : this.filtros.canales.filter((item) => item !== canal);
-    this.aplicarFiltros();
   }
 
   estaEstadoSeleccionado(estado: EstadoReserva): boolean {
@@ -144,10 +137,208 @@ export class ReservasComponent implements OnInit, OnDestroy {
     return this.filtros.canales.includes(canal);
   }
 
+  seleccionarTipoUnidad(tipo: TipoUnidad): void {
+    this.filtros.tipoUnidad = this.filtros.tipoUnidad === tipo ? '' : tipo;
+  }
+
+  esTipoUnidadSeleccionado(tipo: TipoUnidad): boolean {
+    return this.filtros.tipoUnidad === tipo;
+  }
+
+  onToggleFiltrosAvanzados(event: Event): void {
+    const details = event.target as HTMLDetailsElement | null;
+    this.filtrosAvanzadosAbiertos = !!details?.open;
+  }
+
+  get filtrosAvanzadosResumen(): ResumenFiltroItem[] {
+    const items: ResumenFiltroItem[] = [];
+
+    if (this.filtros.tipoUnidad) {
+      items.push({
+        clave: 'tipoUnidad',
+        texto: `Tipo unidad: ${this.formatearEtiqueta(this.filtros.tipoUnidad)}`,
+      });
+    }
+
+    if (this.filtros.estados.length) {
+      const estados = this.filtros.estados.map((estado) => this.formatearEtiqueta(estado)).join(', ');
+      items.push({ clave: 'estados', texto: `Estado: ${estados}` });
+    }
+
+    if (this.filtros.canales.length) {
+      const canales = this.filtros.canales.map((canal) => this.formatearCanal(canal)).join(', ');
+      items.push({ clave: 'canales', texto: `Canal: ${canales}` });
+    }
+
+    const creacion = this.construirResumenRango(
+      'Creacion',
+      this.filtros.fechaCreacionDesde,
+      this.filtros.fechaCreacionHasta
+    );
+    if (creacion) {
+      items.push({ clave: 'creacion', texto: creacion });
+    }
+
+    const entrada = this.construirResumenRango(
+      'Entrada',
+      this.filtros.entradaDesde,
+      this.filtros.entradaHasta
+    );
+    if (entrada) {
+      items.push({ clave: 'entrada', texto: entrada });
+    }
+
+    const salida = this.construirResumenRango('Salida', this.filtros.salidaDesde, this.filtros.salidaHasta);
+    if (salida) {
+      items.push({ clave: 'salida', texto: salida });
+    }
+
+    return items;
+  }
+
+  quitarFiltroAvanzado(clave: ResumenFiltroClave): void {
+    switch (clave) {
+      case 'tipoUnidad':
+        this.filtros.tipoUnidad = '';
+        break;
+      case 'estados':
+        this.filtros.estados = [];
+        break;
+      case 'canales':
+        this.filtros.canales = [];
+        break;
+      case 'creacion':
+        this.filtros.fechaCreacionDesde = '';
+        this.filtros.fechaCreacionHasta = '';
+        this.rangoRapidoSeleccionado.creacion = null;
+        break;
+      case 'entrada':
+        this.filtros.entradaDesde = '';
+        this.filtros.entradaHasta = '';
+        this.rangoRapidoSeleccionado.entrada = null;
+        break;
+      case 'salida':
+        this.filtros.salidaDesde = '';
+        this.filtros.salidaHasta = '';
+        this.rangoRapidoSeleccionado.salida = null;
+        break;
+      default:
+        return;
+    }
+
+    this.aplicarFiltros();
+  }
+
+  trackByResumenFiltro(_: number, item: ResumenFiltroItem): ResumenFiltroClave {
+    return item.clave;
+  }
+
   cambiarPageSize(size: number): void {
     this.size = size;
     this.page = 0;
     this.cargarReservas();
+  }
+
+  aplicarRangoRapido(rango: RangoRapido, campo: RangoRapidoCampo = 'rangoGeneral'): void {
+    if (this.rangoRapidoSeleccionado[campo] === rango) {
+      this.limpiarRangoCampo(campo);
+      this.rangoRapidoSeleccionado[campo] = null;
+      return;
+    }
+
+    const ahora = new Date();
+    let desde: Date;
+    let hasta: Date;
+
+    switch (rango) {
+      case 'HOY':
+        desde = this.inicioDelDia(ahora);
+        hasta = this.finDelDia(ahora);
+        break;
+      case 'MANANA': {
+        const manana = new Date(ahora);
+        manana.setDate(manana.getDate() + 1);
+        desde = this.inicioDelDia(manana);
+        hasta = this.finDelDia(manana);
+        break;
+      }
+      case 'ESTA_SEMANA': {
+        const inicioSemana = new Date(ahora);
+        const diaSemana = inicioSemana.getDay();
+        const desplazamientoLunes = diaSemana === 0 ? -6 : 1 - diaSemana;
+        inicioSemana.setDate(inicioSemana.getDate() + desplazamientoLunes);
+        const finSemana = new Date(inicioSemana);
+        finSemana.setDate(finSemana.getDate() + 6);
+        desde = this.inicioDelDia(inicioSemana);
+        hasta = this.finDelDia(finSemana);
+        break;
+      }
+      case 'PROXIMOS_7_DIAS': {
+        const fin = new Date(ahora);
+        fin.setDate(fin.getDate() + 6);
+        desde = this.inicioDelDia(ahora);
+        hasta = this.finDelDia(fin);
+        break;
+      }
+      case 'ESTE_MES':
+      default: {
+        const inicioMes = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+        const finMes = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+        desde = this.inicioDelDia(inicioMes);
+        hasta = this.finDelDia(finMes);
+        break;
+      }
+    }
+
+    const desdeTexto = this.formatearFechaInput(desde);
+    const hastaTexto = this.formatearFechaInput(hasta);
+
+    if (campo === 'rangoGeneral') {
+      this.filtros.rangoGeneralDesde = desdeTexto;
+      this.filtros.rangoGeneralHasta = hastaTexto;
+    } else if (campo === 'creacion') {
+      this.filtros.fechaCreacionDesde = desdeTexto;
+      this.filtros.fechaCreacionHasta = hastaTexto;
+    } else if (campo === 'entrada') {
+      this.filtros.entradaDesde = desdeTexto;
+      this.filtros.entradaHasta = hastaTexto;
+    } else {
+      this.filtros.salidaDesde = desdeTexto;
+      this.filtros.salidaHasta = hastaTexto;
+    }
+
+    this.rangoRapidoSeleccionado[campo] = rango;
+  }
+
+  esRangoRapidoSeleccionado(campo: RangoRapidoCampo, rango: RangoRapido): boolean {
+    return this.rangoRapidoSeleccionado[campo] === rango;
+  }
+
+  limpiarSeleccionRangoRapido(campo: RangoRapidoCampo): void {
+    this.rangoRapidoSeleccionado[campo] = null;
+  }
+
+  private limpiarRangoCampo(campo: RangoRapidoCampo): void {
+    if (campo === 'rangoGeneral') {
+      this.filtros.rangoGeneralDesde = '';
+      this.filtros.rangoGeneralHasta = '';
+      return;
+    }
+
+    if (campo === 'creacion') {
+      this.filtros.fechaCreacionDesde = '';
+      this.filtros.fechaCreacionHasta = '';
+      return;
+    }
+
+    if (campo === 'entrada') {
+      this.filtros.entradaDesde = '';
+      this.filtros.entradaHasta = '';
+      return;
+    }
+
+    this.filtros.salidaDesde = '';
+    this.filtros.salidaHasta = '';
   }
 
   irPaginaAnterior(): void {
@@ -209,11 +400,31 @@ export class ReservasComponent implements OnInit, OnDestroy {
     return !!reserva && this.eliminandoReservaId === reserva.id;
   }
 
+  obtenerTooltipEditarSeleccionada(): string | null {
+    return this.obtenerTooltipAccionGestionSeleccionada('editar');
+  }
+
+  obtenerTooltipEliminarSeleccionada(): string | null {
+    return this.obtenerTooltipAccionGestionSeleccionada('eliminar');
+  }
+
   formatearEtiqueta(valor: string | null | undefined): string {
     return (valor ?? '')
       .toLowerCase()
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (letra) => letra.toUpperCase());
+  }
+
+  formatearCanal(canal: CanalReserva | null | undefined): string {
+    if (!canal) {
+      return '';
+    }
+
+    const canalSinPrefijo = canal.startsWith('PLATAFORMA_')
+      ? canal.replace('PLATAFORMA_', '')
+      : canal;
+
+    return this.formatearEtiqueta(canalSinPrefijo);
   }
 
   formatearFecha(fecha: string | null | undefined): string {
@@ -232,6 +443,36 @@ export class ReservasComponent implements OnInit, OnDestroy {
     }).format(date);
   }
 
+  formatearSoloFecha(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return '-';
+    }
+
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return fecha;
+    }
+
+    return new Intl.DateTimeFormat('es-CO', {
+      dateStyle: 'medium',
+    }).format(date);
+  }
+
+  formatearSoloHora(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return '';
+    }
+
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat('es-CO', {
+      timeStyle: 'short',
+    }).format(date);
+  }
+
   formatearMontoPago(monto: number | null | undefined): string {
     const valor = monto ?? 0;
     return new Intl.NumberFormat('es-CO', {
@@ -245,10 +486,31 @@ export class ReservasComponent implements OnInit, OnDestroy {
     return (reserva.cantidadPagosModificadosOEliminados ?? 0) > 0;
   }
 
+  obtenerTooltipPagosModificados(reserva: ReservaTablaItem): string {
+    const cantidad = reserva.cantidadPagosModificadosOEliminados ?? 0;
+    const etiqueta = cantidad === 1 ? 'pago modificado' : 'pagos modificados';
+    return `Tiene ${cantidad} ${etiqueta}`;
+  }
+
+  tienePagoAsociado(reserva: ReservaTablaItem): boolean {
+    const totalPagoReserva = reserva.totalPagoReserva ?? 0;
+    if (totalPagoReserva > 0) {
+      return true;
+    }
+
+    return this.tienePagosModificados(reserva);
+  }
+
   irAPagosAnticipoReserva(reserva: ReservaTablaItem): void {
-    const codigoEstancia = reserva.codigoEstancia?.trim() ?? '';
-    if (!codigoEstancia) {
-      this.accionError = 'La reserva no tiene codigo de estancia asociado para consultar pagos.';
+    if (!this.tienePagoAsociado(reserva)) {
+      this.accionError = 'La reserva no tiene pago asociado para consultar.';
+      this.accionExito = '';
+      return;
+    }
+
+    const codigoReserva = reserva.codigoReserva?.trim() ?? '';
+    if (!codigoReserva) {
+      this.accionError = 'La reserva no tiene codigo de reserva asociado para consultar pagos.';
       this.accionExito = '';
       return;
     }
@@ -257,7 +519,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.accionExito = '';
     this.router.navigate(['/pagos'], {
       queryParams: {
-        codigoEstancia,
+        codigoReserva,
         tipoPago: 'ANTICIPO_RESERVA',
       },
     });
@@ -275,6 +537,16 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.accionExito = '';
     this.router.navigate(['/estancias'], {
       queryParams: { codigoEstancia },
+    });
+  }
+
+  irATablaClientes(reserva: ReservaTablaItem): void {
+    const numeroDocumento = reserva.numeroDocumentoCliente?.trim() ?? '';
+
+    this.router.navigate(['/ocupantes/tabla-clientes'], {
+      queryParams: {
+        numeroDocumento,
+      },
     });
   }
 
@@ -359,12 +631,14 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
     const filtros: ReservaTablaFiltros = {
       ...this.filtros,
-      fechaCreacionDesde: this.normalizarFechaHora(this.filtros.fechaCreacionDesde),
-      fechaCreacionHasta: this.normalizarFechaHora(this.filtros.fechaCreacionHasta),
-      entradaDesde: this.normalizarFechaHora(this.filtros.entradaDesde),
-      entradaHasta: this.normalizarFechaHora(this.filtros.entradaHasta),
-      salidaDesde: this.normalizarFechaHora(this.filtros.salidaDesde),
-      salidaHasta: this.normalizarFechaHora(this.filtros.salidaHasta),
+      rangoGeneralDesde: this.normalizarFechaHora(this.filtros.rangoGeneralDesde, 'desde'),
+      rangoGeneralHasta: this.normalizarFechaHora(this.filtros.rangoGeneralHasta, 'hasta'),
+      fechaCreacionDesde: this.normalizarFechaHora(this.filtros.fechaCreacionDesde, 'desde'),
+      fechaCreacionHasta: this.normalizarFechaHora(this.filtros.fechaCreacionHasta, 'hasta'),
+      entradaDesde: this.normalizarFechaHora(this.filtros.entradaDesde, 'desde'),
+      entradaHasta: this.normalizarFechaHora(this.filtros.entradaHasta, 'hasta'),
+      salidaDesde: this.normalizarFechaHora(this.filtros.salidaDesde, 'desde'),
+      salidaHasta: this.normalizarFechaHora(this.filtros.salidaHasta, 'hasta'),
     };
 
     const sort = ['fechaCreacion,desc'];
@@ -400,6 +674,23 @@ export class ReservasComponent implements OnInit, OnDestroy {
     });
   }
 
+  private obtenerTooltipAccionGestionSeleccionada(accion: 'editar' | 'eliminar'): string | null {
+    const reserva = this.obtenerReservaSeleccionada();
+    if (!reserva) {
+      return `Selecciona una reserva para ${accion}.`;
+    }
+
+    if (this.eliminandoReservaId === reserva.id) {
+      return 'Se esta eliminando la reserva seleccionada.';
+    }
+
+    if (!this.puedeGestionarReserva(reserva)) {
+      return `No se puede ${accion} una reserva completada o cancelada.`;
+    }
+
+    return null;
+  }
+
   private crearFiltrosVacios(): ReservaTablaFiltros {
     return {
       estados: [],
@@ -410,6 +701,8 @@ export class ReservasComponent implements OnInit, OnDestroy {
       codigoUnidad: '',
       nombreCliente: '',
       numeroDocumentoCliente: '',
+      rangoGeneralDesde: '',
+      rangoGeneralHasta: '',
       fechaCreacionDesde: '',
       fechaCreacionHasta: '',
       entradaDesde: '',
@@ -419,13 +712,62 @@ export class ReservasComponent implements OnInit, OnDestroy {
     };
   }
 
-  private normalizarFechaHora(fecha: string): string {
+  private normalizarFechaHora(fecha: string, limite: 'desde' | 'hasta'): string {
     const valor = fecha.trim();
     if (!valor) {
       return '';
     }
 
+    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+      return limite === 'desde' ? `${valor}T00:00:00` : `${valor}T23:59:59`;
+    }
+
     return valor.length === 16 ? `${valor}:00` : valor;
+  }
+
+  private inicioDelDia(fecha: Date): Date {
+    return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0, 0);
+  }
+
+  private finDelDia(fecha: Date): Date {
+    return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 0, 0);
+  }
+
+  private formatearFechaInput(fecha: Date): string {
+    const anio = fecha.getFullYear();
+    const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const dia = `${fecha.getDate()}`.padStart(2, '0');
+    return `${anio}-${mes}-${dia}`;
+  }
+
+  private construirResumenRango(etiqueta: string, desde: string, hasta: string): string | null {
+    const desdeTexto = this.formatearFechaResumen(desde);
+    const hastaTexto = this.formatearFechaResumen(hasta);
+
+    if (!desdeTexto && !hastaTexto) {
+      return null;
+    }
+
+    if (desdeTexto && hastaTexto) {
+      return `${etiqueta}: ${desdeTexto} -> ${hastaTexto}`;
+    }
+
+    return `${etiqueta}: ${desdeTexto || hastaTexto}`;
+  }
+
+  private formatearFechaResumen(valor: string): string {
+    const fecha = valor?.trim();
+    if (!fecha) {
+      return '';
+    }
+
+    const soloFecha = fecha.slice(0, 10);
+    const [anio, mes, dia] = soloFecha.split('-');
+    if (!anio || !mes || !dia) {
+      return fecha;
+    }
+
+    return `${dia}/${mes}/${anio}`;
   }
 
   obtenerReservaSeleccionada(): ReservaTablaItem | null {

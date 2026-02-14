@@ -9,7 +9,7 @@
   <section class="pagos-tabla__filtros">
     <div class="pagos-tabla__filtros-head">
       <h2>Filtros de busqueda</h2>
-      <p>La busqueda se aplica automaticamente al cambiar cualquier filtro.</p>
+      <p>Configura los filtros y luego haz clic en "Aplicar filtros".</p>
     </div>
 
     <div class="pagos-tabla__filtros-grid">
@@ -18,7 +18,6 @@
         <select
           id="filtroTipoPago"
           [(ngModel)]="filtroTipoPago"
-          (ngModelChange)="onFiltroCambio()"
           name="filtroTipoPago"
         >
           <option [ngValue]="''">Todos</option>
@@ -27,12 +26,22 @@
       </div>
 
       <div class="campo">
+        <label for="filtroCodigoReserva">Codigo reserva</label>
+        <input
+          id="filtroCodigoReserva"
+          type="text"
+          [(ngModel)]="filtroCodigoReserva"
+          name="filtroCodigoReserva"
+          placeholder="Ej: RES-123456789"
+        />
+      </div>
+
+      <div class="campo">
         <label for="filtroCodigoEstancia">Codigo estancia</label>
         <input
           id="filtroCodigoEstancia"
           type="text"
           [(ngModel)]="filtroCodigoEstancia"
-          (ngModelChange)="onFiltroCambio()"
           name="filtroCodigoEstancia"
           placeholder="Ej: EST-123456789"
         />
@@ -45,7 +54,6 @@
             id="filtroFechaDesde"
             type="datetime-local"
             [(ngModel)]="filtroFechaDesde"
-            (ngModelChange)="onFiltroCambio()"
             name="filtroFechaDesde"
           />
         </div>
@@ -55,7 +63,6 @@
             id="filtroFechaHasta"
             type="datetime-local"
             [(ngModel)]="filtroFechaHasta"
-            (ngModelChange)="onFiltroCambio()"
             name="filtroFechaHasta"
           />
         </div>
@@ -97,6 +104,9 @@
     </details>
 
     <div class="pagos-tabla__filtros-actions">
+      <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
+        Aplicar filtros
+      </button>
       <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">
         Limpiar
       </button>
@@ -112,7 +122,8 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th>
+            <th>Codigo<br />reserva</th>
+            <th>Codigo<br />estancia</th>
             <th>Tipo</th>
             <th>Monto</th>
             <th>Medio</th>
@@ -122,7 +133,8 @@
         </thead>
         <tbody>
           <tr *ngFor="let pago of pagos; trackBy: trackByPagoId">
-            <td>{{ pago.id }}</td>
+            <td>{{ pago.codigoReserva?.trim() || '-' }}</td>
+            <td>{{ pago.codigoEstancia?.trim() || '-' }}</td>
             <td>{{ formatearEtiqueta(obtenerTipoPago(pago)) }}</td>
             <td>{{ obtenerMonto(pago) ?? 0 | currency: 'COP' : 'symbol' : '1.0-0' }}</td>
             <td>{{ formatearEtiqueta(pago.medioPago) }}</td>
@@ -134,7 +146,7 @@
             <td>{{ formatearFecha(pago.fecha) }}</td>
           </tr>
           <tr *ngIf="!pagos.length">
-            <td colspan="6" class="tabla-vacia">No hay pagos con los filtros actuales.</td>
+            <td colspan="7" class="tabla-vacia">No hay pagos con los filtros actuales.</td>
           </tr>
         </tbody>
       </table>

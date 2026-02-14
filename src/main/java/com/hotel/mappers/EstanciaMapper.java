@@ -11,14 +11,11 @@ import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoOcupante;
 
-import java.time.LocalDateTime;
-
 public class EstanciaMapper {
 
     public static Estancia requestToEntity(EstanciaRequestDTO request) {
         Estancia entity = new Estancia();
 
-        entity.setCodigoFolio(generateCodigoEstancia());
         entity.setEntradaReal(request.getEntradaReal());
         entity.setSalidaEstimada(request.getSalidaEstimada());
         entity.setNotas("Notas al registrar: " + request.getNotas());
@@ -78,9 +75,5 @@ public class EstanciaMapper {
         dto.setEstadoEstancia(estancia.getEstado());
 
         return dto;
-    }
-
-    private static String generateCodigoEstancia() {
-        return "EST-" + System.currentTimeMillis();
     }
 }

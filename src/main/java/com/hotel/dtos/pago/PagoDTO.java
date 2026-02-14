@@ -11,6 +11,8 @@ import com.hotel.models.enums.TipoPago;
 public class PagoDTO {
 
     private Long id;
+    private String codigoReserva;
+    private String codigoEstancia;
     private BigDecimal monto;
     private MedioPago medioPago;
     private LocalDateTime fecha;

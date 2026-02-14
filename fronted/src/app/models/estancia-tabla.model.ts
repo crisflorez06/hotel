@@ -9,6 +9,7 @@ export interface EstanciaTablaItem {
   tipoUnidad: TipoUnidad;
   nombreCliente: string;
   idCliente: number;
+  tipoDocumentoCliente?: string | null;
   numeroDocumentoCliente: string;
   estadoEstancia: EstadoEstancia;
   modoOcupacion: ModoOcupacion;

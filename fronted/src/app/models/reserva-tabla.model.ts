@@ -8,6 +8,7 @@ export interface ReservaTablaItem {
   tipoUnidad: TipoUnidad;
   nombreCliente: string;
   idCliente: number;
+  tipoDocumentoCliente?: string | null;
   numeroDocumentoCliente: string;
   numeroPersonas: number;
   canalReserva: CanalReserva;
@@ -30,6 +31,8 @@ export interface ReservaTablaFiltros {
   codigoUnidad: string;
   nombreCliente: string;
   numeroDocumentoCliente: string;
+  rangoGeneralDesde: string;
+  rangoGeneralHasta: string;
   fechaCreacionDesde: string;
   fechaCreacionHasta: string;
   entradaDesde: string;

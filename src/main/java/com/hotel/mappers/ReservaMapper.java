@@ -20,7 +20,6 @@ public class ReservaMapper {
     public static Reserva requestNuevoToEntity(ReservaNuevaRequestDTO request) {
         Reserva entity = new Reserva();
 
-        entity.setCodigo(generateCodigoReserva());
         entity.setFechaCreacion(LocalDateTime.now());
         entity.setEntradaEstimada(request.getEntradaEstimada());
         entity.setSalidaEstimada(request.getSalidaEstimada());
@@ -67,9 +66,5 @@ public class ReservaMapper {
         return reservas.stream()
                 .map(ReservaMapper::entityToCalendarioDTO)
                 .toList();
-    }
-
-    private static String generateCodigoReserva() {
-        return "RES-" + System.currentTimeMillis();
     }
 }

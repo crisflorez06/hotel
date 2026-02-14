@@ -18,6 +18,7 @@ public class PagoSpecification {
             List<MedioPago> mediosPago,
             TipoPago tipoPago,
             String codigoEstancia,
+            String codigoReserva,
             LocalDateTime desde,
             LocalDateTime hasta) {
 
@@ -37,6 +38,15 @@ public class PagoSpecification {
                 predicates.add(criteriaBuilder.like(
                         criteriaBuilder.lower(root.join("estancia", JoinType.LEFT).get("codigoFolio")),
                         "%" + codigoEstancia.toLowerCase() + "%"));
+            }
+            if (codigoReserva != null && !codigoReserva.isBlank()) {
+                predicates.add(criteriaBuilder.equal(root.get("tipoPago"), TipoPago.ANTICIPO_RESERVA));
+                predicates.add(criteriaBuilder.like(
+                        criteriaBuilder.lower(
+                                root.join("estancia", JoinType.LEFT)
+                                        .join("reserva", JoinType.LEFT)
+                                        .get("codigo")),
+                        "%" + codigoReserva.toLowerCase() + "%"));
             }
             if (desde != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("fecha"), desde));

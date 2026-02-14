@@ -29,6 +29,7 @@ export class PagosComponent implements OnInit, OnDestroy {
   filtroEstados: EstadoPago[] = [];
   filtroMediosPago: MedioPago[] = [];
   filtroTipoPago: TipoPago | '' = '';
+  filtroCodigoReserva = '';
   filtroCodigoEstancia = '';
   filtroFechaDesde = '';
   filtroFechaHasta = '';
@@ -48,7 +49,6 @@ export class PagosComponent implements OnInit, OnDestroy {
     'PLATAFORMA',
   ];
   readonly tiposPago: TipoPago[] = ['ANTICIPO_RESERVA', 'ANTICIPO_ESTANCIA', 'ESTANCIA_COMPLETADA'];
-  private filtroCambioTimeout: ReturnType<typeof setTimeout> | null = null;
   private queryParamsSub: Subscription | null = null;
 
   constructor(
@@ -58,9 +58,13 @@ export class PagosComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+      const codigoReserva = (params.get('codigoReserva') ?? '').trim();
       const codigoEstancia = (params.get('codigoEstancia') ?? '').trim();
       const tipoPago = this.parsearTipoPago(params.get('tipoPago'));
 
+      if (codigoReserva !== this.filtroCodigoReserva) {
+        this.filtroCodigoReserva = codigoReserva;
+      }
       if (codigoEstancia !== this.filtroCodigoEstancia) {
         this.filtroCodigoEstancia = codigoEstancia;
       }
@@ -72,10 +76,6 @@ export class PagosComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-      this.filtroCambioTimeout = null;
-    }
     this.queryParamsSub?.unsubscribe();
     this.queryParamsSub = null;
   }
@@ -94,6 +94,7 @@ export class PagosComponent implements OnInit, OnDestroy {
         estados: this.filtroEstados.length ? this.filtroEstados : undefined,
         mediosPago: this.filtroMediosPago.length ? this.filtroMediosPago : undefined,
         tipoPago: this.filtroTipoPago || undefined,
+        codigoReserva: this.filtroCodigoReserva.trim() || undefined,
         codigoEstancia: this.filtroCodigoEstancia.trim() || undefined,
         fechaDesde: this.normalizarFechaFiltro(this.filtroFechaDesde),
         fechaHasta: this.normalizarFechaFiltro(this.filtroFechaHasta),
@@ -118,26 +119,11 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.cargarPagos(0);
   }
 
-  onFiltroCambio(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-    }
-
-    this.filtroCambioTimeout = setTimeout(() => {
-      this.aplicarFiltros();
-      this.filtroCambioTimeout = null;
-    }, 350);
-  }
-
   limpiarFiltros(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-      this.filtroCambioTimeout = null;
-    }
-
     this.filtroEstados = [];
     this.filtroMediosPago = [];
     this.filtroTipoPago = '';
+    this.filtroCodigoReserva = '';
     this.filtroCodigoEstancia = '';
     this.filtroFechaDesde = '';
     this.filtroFechaHasta = '';
@@ -148,14 +134,12 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.filtroEstados = checked
       ? Array.from(new Set([...this.filtroEstados, estado]))
       : this.filtroEstados.filter((item) => item !== estado);
-    this.aplicarFiltros();
   }
 
   toggleMedioPago(medio: MedioPago, checked: boolean): void {
     this.filtroMediosPago = checked
       ? Array.from(new Set([...this.filtroMediosPago, medio]))
       : this.filtroMediosPago.filter((item) => item !== medio);
-    this.aplicarFiltros();
   }
 
   estaEstadoSeleccionado(estado: EstadoPago): boolean {

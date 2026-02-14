@@ -6,6 +6,7 @@ import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.ReservaRepository;
+import com.hotel.services.CodigoUnicoService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -17,11 +18,14 @@ public class EstanciaReservaResolver {
 
     private final EstanciaRepository estanciaRepository;
     private final ReservaRepository reservaRepository;
+    private final CodigoUnicoService codigoUnicoService;
 
     public EstanciaReservaResolver(EstanciaRepository estanciaRepository,
-                                  ReservaRepository reservaRepository) {
+                                  ReservaRepository reservaRepository,
+                                  CodigoUnicoService codigoUnicoService) {
         this.estanciaRepository = estanciaRepository;
         this.reservaRepository = reservaRepository;
+        this.codigoUnicoService = codigoUnicoService;
     }
 
     public Estancia crearEstanciaDesdeReserva(Reserva reserva) {
@@ -30,7 +34,7 @@ public class EstanciaReservaResolver {
             throw new IllegalStateException("La reserva con id: " + reserva.getId() + " no está en estado CONFIRMADA, no se puede crear la estancia");
         }
         Estancia estancia = new Estancia();
-        estancia.setCodigoFolio("EST-" + System.currentTimeMillis());
+        estancia.setCodigoFolio(codigoUnicoService.generarCodigoEstancia());
         estancia.setSalidaEstimada(reserva.getSalidaEstimada());
         estancia.setModoOcupacion(reserva.getModoOcupacion());
         estancia.setEstado(EstadoEstancia.RESERVADA);

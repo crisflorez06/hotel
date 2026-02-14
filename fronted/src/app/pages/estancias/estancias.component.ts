@@ -62,7 +62,6 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   estanciaSeleccionadaId: number | null = null;
   eliminandoEstanciaId: number | null = null;
 
-  private filtroCambioTimeout: ReturnType<typeof setTimeout> | null = null;
   private queryParamsSub: Subscription | null = null;
 
   constructor(
@@ -83,10 +82,6 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-      this.filtroCambioTimeout = null;
-    }
     this.queryParamsSub?.unsubscribe();
     this.queryParamsSub = null;
   }
@@ -96,17 +91,6 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     this.accionExito = '';
     this.page = 0;
     this.cargarEstancias();
-  }
-
-  onFiltroCambio(): void {
-    if (this.filtroCambioTimeout) {
-      clearTimeout(this.filtroCambioTimeout);
-    }
-
-    this.filtroCambioTimeout = setTimeout(() => {
-      this.aplicarFiltros();
-      this.filtroCambioTimeout = null;
-    }, 350);
   }
 
   limpiarFiltros(): void {
@@ -121,7 +105,6 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     this.filtros.estados = checked
       ? Array.from(new Set([...this.filtros.estados, estado]))
       : this.filtros.estados.filter((item) => item !== estado);
-    this.aplicarFiltros();
   }
 
   estaEstadoSeleccionado(estado: EstadoEstancia): boolean {

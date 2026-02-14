@@ -9,7 +9,7 @@
   <section class="estancia-tabla__filtros">
     <div class="estancia-tabla__filtros-head">
       <h2>Filtros de busqueda</h2>
-      <p>La busqueda se aplica automaticamente al cambiar cualquier filtro.</p>
+      <p>Configura los filtros y luego haz clic en "Aplicar filtros".</p>
     </div>
 
     <div class="estancia-tabla__filtros-grid">
@@ -19,7 +19,6 @@
           id="codigoEstancia"
           type="text"
           [(ngModel)]="filtros.codigoEstancia"
-          (ngModelChange)="onFiltroCambio()"
           name="codigoEstancia"
         />
       </div>
@@ -30,7 +29,6 @@
           id="codigoUnidad"
           type="text"
           [(ngModel)]="filtros.codigoUnidad"
-          (ngModelChange)="onFiltroCambio()"
           name="codigoUnidad"
         />
       </div>
@@ -41,7 +39,6 @@
           id="nombreCliente"
           type="text"
           [(ngModel)]="filtros.nombreCliente"
-          (ngModelChange)="onFiltroCambio()"
           name="nombreCliente"
         />
       </div>
@@ -52,7 +49,6 @@
           id="numeroDocumentoCliente"
           type="text"
           [(ngModel)]="filtros.numeroDocumentoCliente"
-          (ngModelChange)="onFiltroCambio()"
           name="numeroDocumentoCliente"
         />
       </div>
@@ -63,7 +59,6 @@
           id="tipoUnidad"
           name="tipoUnidad"
           [(ngModel)]="filtros.tipoUnidad"
-          (ngModelChange)="aplicarFiltros()"
         >
           <option *ngFor="let item of tiposUnidadDisponibles" [ngValue]="item.value">{{ item.label }}</option>
         </select>
@@ -75,7 +70,6 @@
           id="modoOcupacion"
           name="modoOcupacion"
           [(ngModel)]="filtros.modoOcupacion"
-          (ngModelChange)="aplicarFiltros()"
         >
           <option *ngFor="let item of modosOcupacionDisponibles" [ngValue]="item.value">{{ item.label }}</option>
         </select>
@@ -105,7 +99,6 @@
           <select
             id="tieneReservaAsociada"
             [(ngModel)]="filtros.tieneReservaAsociada"
-            (ngModelChange)="aplicarFiltros()"
           >
             <option *ngFor="let opcion of reservaAsociadaOpciones" [ngValue]="opcion.value">
               {{ opcion.label }}
@@ -120,7 +113,6 @@
               id="entradaDesde"
               type="datetime-local"
               [(ngModel)]="filtros.entradaDesde"
-              (ngModelChange)="onFiltroCambio()"
               name="entradaDesde"
             />
           </div>
@@ -130,7 +122,6 @@
               id="entradaHasta"
               type="datetime-local"
               [(ngModel)]="filtros.entradaHasta"
-              (ngModelChange)="onFiltroCambio()"
               name="entradaHasta"
             />
           </div>
@@ -143,7 +134,6 @@
               id="salidaEstimadaDesde"
               type="datetime-local"
               [(ngModel)]="filtros.salidaEstimadaDesde"
-              (ngModelChange)="onFiltroCambio()"
               name="salidaEstimadaDesde"
             />
           </div>
@@ -153,7 +143,6 @@
               id="salidaEstimadaHasta"
               type="datetime-local"
               [(ngModel)]="filtros.salidaEstimadaHasta"
-              (ngModelChange)="onFiltroCambio()"
               name="salidaEstimadaHasta"
             />
           </div>
@@ -166,7 +155,6 @@
               id="salidaRealDesde"
               type="datetime-local"
               [(ngModel)]="filtros.salidaRealDesde"
-              (ngModelChange)="onFiltroCambio()"
               name="salidaRealDesde"
             />
           </div>
@@ -176,7 +164,6 @@
               id="salidaRealHasta"
               type="datetime-local"
               [(ngModel)]="filtros.salidaRealHasta"
-              (ngModelChange)="onFiltroCambio()"
               name="salidaRealHasta"
             />
           </div>
@@ -185,6 +172,9 @@
     </details>
 
     <div class="estancia-tabla__filtros-actions">
+      <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
+        Aplicar filtros
+      </button>
       <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">Limpiar</button>
     </div>
   </section>
@@ -220,18 +210,17 @@
         <thead>
           <tr>
             <th class="col-check"></th>
-            <th>Codigo estancia</th>
-            <th>Codigo unidad</th>
-            <th>Tipo unidad</th>
+            <th>Codigo<br />estancia</th>
+            <th>Codigo<br />unidad</th>
+            <th>Tipo<br />unidad</th>
             <th>Cliente</th>
-            <th>Documento</th>
             <th>Estado</th>
-            <th>Modo ocupacion</th>
+            <th>Modo<br />ocupacion</th>
             <th>Pago</th>
-            <th>Entrada real</th>
-            <th>Salida estimada</th>
-            <th>Salida real</th>
-            <th>Reserva asociada</th>
+            <th>Entrada<br />real</th>
+            <th>Salida<br />estimada</th>
+            <th>Salida<br />real</th>
+            <th>Reserva<br />asociada</th>
           </tr>
         </thead>
 
@@ -253,8 +242,14 @@
             <td>{{ estancia.codigoEstancia }}</td>
             <td>{{ estancia.codigoUnidad }}</td>
             <td>{{ formatearEtiqueta(estancia.tipoUnidad) }}</td>
-            <td>{{ estancia.nombreCliente }}</td>
-            <td>{{ estancia.numeroDocumentoCliente }}</td>
+            <td>
+              <div class="cliente-info">
+                <span class="cliente-info__nombre">{{ estancia.nombreCliente }}</span>
+                <small class="cliente-info__documento">
+                  {{ (estancia.tipoDocumentoCliente || '-') + ' ' + (estancia.numeroDocumentoCliente || '-') }}
+                </small>
+              </div>
+            </td>
             <td>
               <span class="chip chip--{{ estancia.estadoEstancia.toLowerCase() }}">
                 {{ formatearEtiqueta(estancia.estadoEstancia) }}
@@ -308,7 +303,7 @@
           </tr>
 
           <tr *ngIf="!estancias.length">
-            <td colspan="13" class="tabla-vacia">No hay estancias con los filtros actuales.</td>
+            <td colspan="12" class="tabla-vacia">No hay estancias con los filtros actuales.</td>
           </tr>
         </tbody>
       </table>

@@ -4,15 +4,26 @@ import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoReserva;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
+    boolean existsByCodigo(String codigo);
+
     List<Reserva> findByCliente_NumeroDocumentoContainingIgnoreCaseAndEstadoIn(
             String numeroDocumento,
             List<EstadoReserva> estados);
+
+    @Query("""
+           select r
+           from Reserva r
+           where lower(r.cliente.numeroDocumento) in :documentos
+           """)
+    List<Reserva> findByClienteNumeroDocumentoIn(
+            @Param("documentos") Set<String> documentos);
 
     @Query("""
            select count(r) > 0
