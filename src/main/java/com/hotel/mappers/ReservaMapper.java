@@ -31,7 +31,7 @@ public class ReservaMapper {
         } else {
             entity.setModoOcupacion(ModoOcupacion.COMPLETO);
         }
-        entity.setNotas("Notas al registrar: " + request.getNotas());
+        entity.setNotas("Reserva al registrar: " + request.getNotas());
 
 
         return entity;

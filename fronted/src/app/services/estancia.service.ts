@@ -64,6 +64,8 @@ export class EstanciaService {
     params = this.setParamIfValue(params, 'codigoUnidad', filtros.codigoUnidad);
     params = this.setParamIfValue(params, 'nombreCliente', filtros.nombreCliente);
     params = this.setParamIfValue(params, 'numeroDocumentoCliente', filtros.numeroDocumentoCliente);
+    params = this.setParamIfValue(params, 'rangoGeneralDesde', filtros.rangoGeneralDesde);
+    params = this.setParamIfValue(params, 'rangoGeneralHasta', filtros.rangoGeneralHasta);
     params = this.setParamIfValue(params, 'entradaDesde', filtros.entradaDesde);
     params = this.setParamIfValue(params, 'entradaHasta', filtros.entradaHasta);
     params = this.setParamIfValue(params, 'salidaEstimadaDesde', filtros.salidaEstimadaDesde);

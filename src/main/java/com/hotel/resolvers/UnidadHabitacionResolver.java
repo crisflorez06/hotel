@@ -33,4 +33,19 @@ public class UnidadHabitacionResolver {
         return new ArrayList<>(habitaciones);
     }
 
+    public String determinarCodigoUnidad(List<Habitacion> habitaciones) {
+        Unidad unidadPrincipal = habitaciones.getFirst().getUnidad();
+
+        if (unidadPrincipal.getTipo() == TipoUnidad.APARTAESTUDIO) {
+            return unidadPrincipal.getCodigo();
+        }
+
+        if (habitaciones.size() == 1) {
+            return habitaciones.getFirst().getCodigo();
+        }
+
+        return unidadPrincipal.getCodigo();
+
+    }
+
 }

@@ -4,6 +4,7 @@ import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoDocumento;
 import com.hotel.models.enums.TipoUnidad;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.Data;
 
@@ -17,6 +18,7 @@ public class EstanciaTablaDTO {
     private Long idCliente;
     private TipoDocumento tipoDocumentoCliente;
     private String numeroDocumentoCliente;
+    private Integer totalPersonas;
     private EstadoEstancia estadoEstancia;
     private ModoOcupacion modoOcupacion;
     private LocalDateTime entradaReal;
@@ -25,4 +27,6 @@ public class EstanciaTablaDTO {
     private Boolean tieneReservaAsociada;
     private Long idReservaAsociada;
     private String codigoReservaAsociada;
+    private BigDecimal totalPagoEstancia;
+    private Integer cantidadPagosModificadosOEliminados;
 }

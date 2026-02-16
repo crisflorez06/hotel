@@ -83,6 +83,8 @@ public class EstanciaController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaEstimadaHasta,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaRealDesde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime salidaRealHasta,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime rangoGeneralDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime rangoGeneralHasta,
             @RequestParam(required = false) Boolean tieneReservaAsociada,
             Pageable pageable) {
         return estanciaService.buscarEstanciasTabla(
@@ -100,6 +102,8 @@ public class EstanciaController {
                 salidaEstimadaHasta,
                 salidaRealDesde,
                 salidaRealHasta,
+                rangoGeneralDesde,
+                rangoGeneralHasta,
                 tieneReservaAsociada,
                 pageable);
     }

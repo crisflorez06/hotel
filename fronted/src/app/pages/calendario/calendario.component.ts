@@ -31,14 +31,14 @@ interface RegistroCalendarioDia {
 }
 
 @Component({
-  selector: 'app-reserva',
+  selector: 'app-calendario',
   standalone: true,
   imports: [CommonModule, FormsModule, FullCalendarModule, RouterModule],
-  templateUrl: './reserva.component.html',
-  styleUrl: './reserva.component.css',
+  templateUrl: './calendario.component.html',
+  styleUrl: './calendario.component.css',
   encapsulation: ViewEncapsulation.None,
 })
-export class ReservaComponent implements OnInit {
+export class CalendarioComponent implements OnInit {
   reservas: ReservaCalendarioDTO[] = [];
   estancias: EstanciaCalendarioDTO[] = [];
   reservaSeleccionada: ReservaCalendarioDTO | null = null;

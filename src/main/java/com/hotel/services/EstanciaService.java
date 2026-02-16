@@ -18,6 +18,8 @@ import com.hotel.resolvers.AlojamientoResolver;
 import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.EstanciaSpecification;
+import com.hotel.utils.EventoModificadoJsonBuilder;
+import com.hotel.utils.EventoNuevoJsonBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -28,8 +30,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -45,6 +47,7 @@ public class EstanciaService {
     private final DisponibilidadService disponibilidadService;
     private final EstanciaReservaResolver ERService;
     private final CodigoUnicoService codigoUnicoService;
+    private final AuditoriaEventoService eventoService;
 
 
     public EstanciaService(EstanciaRepository estanciaRepository,
@@ -54,7 +57,9 @@ public class EstanciaService {
                            UnidadHabitacionResolver unidadHabitacionResolver,
                            DisponibilidadService disponibilidadService,
                            EstanciaReservaResolver ERService,
-                           CodigoUnicoService codigoUnicoService) {
+                           CodigoUnicoService codigoUnicoService,
+                           AuditoriaEventoService eventoService) {
+        this.eventoService = eventoService;
         this.ERService = ERService;
         this.disponibilidadService = disponibilidadService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
@@ -80,7 +85,7 @@ public class EstanciaService {
         estancia.setCodigoFolio(codigoUnicoService.generarCodigoEstancia());
 
         logger.info("[crearEstanciaNueva] Determinando ocupantes de la estancia");
-        estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
+        estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
 
         logger.info("[crearEstanciaNueva] Llenando habitaciones asociadas a la estancia");
         estancia.setHabitaciones(unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad));
@@ -99,6 +104,22 @@ public class EstanciaService {
 
         logger.info("[crearEstanciaNueva] Creando pagos asociados a la estancia");
         pagoService.crearPago(request.getPago(), estanciaGuardada);
+
+        logger.info("[crearEstanciaNueva] Registrando evento de creación de nueva estancia para codigo: {}", estanciaGuardada.getCodigoFolio());
+        EventoNuevoJsonBuilder nuevaEstanciaJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estanciaGuardada.getCodigoFolio())
+                .agregarProp("unidad", codigo)
+                .agregarProp("fechaEntrada", estanciaGuardada.getEntradaReal())
+                .agregarProp("fechaSalida", estanciaGuardada.getSalidaEstimada());
+
+        eventoService.crearEvento(
+                TipoEvento.CREACION_ESTANCIA,
+                TipoEntidad.ESTANCIA,
+                estanciaGuardada.getId(),
+                nuevaEstanciaJson.build(),
+                estanciaGuardada.getCodigoFolio(),
+                null
+        );
 
         return estanciaGuardada;
     }
@@ -123,7 +144,7 @@ public class EstanciaService {
         estancia.setSalidaEstimada(request.getSalidaEstimada());
 
         logger.info("[activarEstancia] Determinando ocupantes de la estancia");
-        estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
+        estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
 
         logger.info("[activarEstancia] Determinando estado inicial de la estancia");
         estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
@@ -140,6 +161,22 @@ public class EstanciaService {
         logger.info("[activarEstancia] Creando pagos asociados a la estancia");
         pagoService.crearPago(request.getPago(), estanciaGuardada);
 
+        logger.info("[activarEstancia] Registrando evento de creación de nueva estancia para codigo: {}", estanciaGuardada.getCodigoFolio());
+        EventoNuevoJsonBuilder nuevaEstancia = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estanciaGuardada.getCodigoFolio())
+                .agregarProp("unidad", unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()))
+                .agregarProp("fechaEntrada", estanciaGuardada.getEntradaReal())
+                .agregarProp("fechaSalida", estanciaGuardada.getSalidaEstimada());
+
+        eventoService.crearEvento(
+                TipoEvento.ACTIVACION_ESTANCIA,
+                TipoEntidad.ESTANCIA,
+                estanciaGuardada.getId(),
+                nuevaEstancia.build(),
+                estanciaGuardada.getCodigoFolio(),
+                reserva.getCodigo()
+        );
+
         return estanciaGuardada;
 
     }
@@ -147,6 +184,8 @@ public class EstanciaService {
 
     @Transactional
     public void editarEstancia(EstanciaRequestDTO request, Long idEstancia) {
+
+        EventoModificadoJsonBuilder estanciaModificadaJson = new EventoModificadoJsonBuilder();
 
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
@@ -168,26 +207,64 @@ public class EstanciaService {
         validarCambioDeCodigo(request.getCodigo(), request.getTipoUnidad(), estancia);
 
         logger.info("[editarEstancia] verificando entrada y salida de la estancia");
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(estancia, codigo, tipoUnidad, entradaReal, salidaEstimada);
+        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(estancia, null, codigo, tipoUnidad, entradaReal, salidaEstimada);
         if(!existeDisponibilidad.isEmpty()) {
             throw new IllegalStateException("No se puede editar la estancia: " + existeDisponibilidad);
         }
 
+
         estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
-        estancia.setEntradaReal(entradaReal);
-        estancia.setSalidaEstimada(salidaEstimada);
+
+        if(!estancia.getEntradaReal().isEqual(entradaReal)) {
+            estanciaModificadaJson.agregarCambio("entradaReal", estancia.getEntradaReal(), entradaReal);
+            estancia.setEntradaReal(entradaReal);
+        }
+
+        if(!estancia.getSalidaEstimada().isEqual(salidaEstimada)) {
+            estanciaModificadaJson.agregarCambio("salidaEstimada", estancia.getSalidaEstimada(), salidaEstimada);
+            estancia.setSalidaEstimada(salidaEstimada);
+        }
 
         logger.info("[editarEstancia] Determinando ocupantes de la estancia");
-        estancia.setOcupantes(ocupanteService.determinarOcupantesEstancia(request.getIdCliente(), request.getIdAcompanantes()));
+        Ocupante cliente = ocupanteService.determinarCliente(estancia.getOcupantes()).
+                orElseThrow(() -> new IllegalStateException("La estancia debe tener un cliente ocupante"));
+
+        if(!cliente.getId().equals(request.getIdCliente())) {
+            estanciaModificadaJson.agregarCambio("cliente",
+                    ocupanteService.obtenerNombre(cliente.getId()),
+                    ocupanteService.obtenerNombre(request.getIdCliente()));
+        }
+
+        Integer ocupantesAntes = estancia.getOcupantes() != null ? estancia.getOcupantes().size() - 1 : 0;
+        Integer ocupantesDespues = request.getIdAcompanantes() != null ? request.getIdAcompanantes().size() : 0;
+
+        if(!ocupantesAntes.equals(ocupantesDespues)) {
+            estanciaModificadaJson.agregarCambio("cantidadAcompanantes",
+                    estancia.getOcupantes() != null ? estancia.getOcupantes().size() - 1 : 0,
+                    request.getIdAcompanantes() != null ? request.getIdAcompanantes().size() : 0);
+        }
+
+        estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
 
         estancia.setNotas(estancia.getNotas() + " | Notas editadas: " + request.getNotas());
+
+        Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
         if(request.getPago() != null) {
             logger.info("[editarEstancia] Modificando o creando pago asociado a la estancia editada");
             modificarPagoEstancia(estancia, request.getPago());
         }
 
-        estanciaRepository.save(estancia);
+        if (estanciaModificadaJson.tieneCambios()) {
+            eventoService.crearEvento(
+                    TipoEvento.MODIFICACION_ESTANCIA,
+                    TipoEntidad.ESTANCIA,
+                    estanciaGuardada.getId(),
+                    estanciaModificadaJson.build(),
+                    estanciaGuardada.getCodigoFolio(),
+                    null
+            );
+        }
 
     }
 
@@ -208,6 +285,21 @@ public class EstanciaService {
 
         logger.info("[eliminarEstancia] Guardando cambios en la estancia eliminada");
         estanciaRepository.save(estancia);
+
+
+        logger.info("[eliminarEstancia] Registrando evento de eliminación de estancia para codigo: {}", estancia.getCodigoFolio());
+
+        EventoNuevoJsonBuilder estanciaEliminadaJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estancia.getCodigoFolio());
+
+        eventoService.crearEvento(
+                TipoEvento.ELIMINACION_ESTANCIA,
+                TipoEntidad.ESTANCIA,
+                estancia.getId(),
+                estanciaEliminadaJson.build(),
+                estancia.getCodigoFolio(),
+                null
+        );
         return null;
     }
 
@@ -241,6 +333,8 @@ public class EstanciaService {
             LocalDateTime salidaEstimadaHasta,
             LocalDateTime salidaRealDesde,
             LocalDateTime salidaRealHasta,
+            LocalDateTime rangoGeneralDesde,
+            LocalDateTime rangoGeneralHasta,
             Boolean tieneReservaAsociada,
             Pageable pageable) {
         Pageable pageableConOrden = pageable;
@@ -267,6 +361,8 @@ public class EstanciaService {
                         salidaEstimadaHasta,
                         salidaRealDesde,
                         salidaRealHasta,
+                        rangoGeneralDesde,
+                        rangoGeneralHasta,
                         tieneReservaAsociada),
                 pageableConOrden
         );
@@ -295,7 +391,24 @@ public class EstanciaService {
         estancia.setPrecioTotal(pagoService.sumarTotalPagosPorEstancia(estancia.getId()));
 
         logger.info("[finalizarEstancia] Guardando cambios en la estancia finalizada");
-        estanciaRepository.save(estancia);
+        Estancia estanciaFinalizada = estanciaRepository.save(estancia);
+
+
+        logger.info("[finalizarEstancia] Registrando evento de creación de nueva estancia para codigo: {}", estanciaFinalizada.getCodigoFolio());
+        EventoNuevoJsonBuilder nuevaEstancia = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estanciaFinalizada.getCodigoFolio())
+                .agregarProp("unidad", unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()))
+                .agregarProp("fechaEntrada", estanciaFinalizada.getEntradaReal())
+                .agregarProp("fechaSalida", estanciaFinalizada.getSalidaReal());
+
+        eventoService.crearEvento(
+                TipoEvento.FINALIZACION_ESTANCIA,
+                TipoEntidad.ESTANCIA,
+                estanciaFinalizada.getId(),
+                nuevaEstancia.build(),
+                estanciaFinalizada.getCodigoFolio(),
+                null
+        );
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
     }
@@ -307,7 +420,7 @@ public class EstanciaService {
         if (pagoAnterior == null) {
             pagoService.crearPago(request, estancia);
         } else {
-            pagoService.reemplazarPago(request, pagoAnterior);
+            pagoService.reemplazarPago(request, pagoAnterior, estancia);
         }
     }
 
@@ -318,7 +431,7 @@ public class EstanciaService {
 
         logger.info("[validarCreacionEstancia] Verificando disponibilidad para codigo: {}", codigo);
         String detalleNoDisponible = disponibilidadService.verificarDisponibilidad(
-                null, codigo, tipoUnidad, entradaReal, salidaEstimada
+                null, null, codigo, tipoUnidad, entradaReal, salidaEstimada
         );
 
         if (!detalleNoDisponible.isEmpty()) {
@@ -399,9 +512,12 @@ public class EstanciaService {
         dto.setEntradaReal(estancia.getEntradaReal());
         dto.setSalidaEstimada(estancia.getSalidaEstimada());
         dto.setSalidaReal(estancia.getSalidaReal());
+        dto.setTotalPersonas(estancia.getOcupantes() != null ? estancia.getOcupantes().size() : 0);
         dto.setTieneReservaAsociada(estancia.getReserva() != null);
         dto.setIdReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getId() : null);
         dto.setCodigoReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null);
+        dto.setTotalPagoEstancia(BigDecimal.ZERO);
+        dto.setCantidadPagosModificadosOEliminados(0);
 
         if (estancia.getOcupantes() != null) {
             Ocupante cliente = estancia.getOcupantes().stream()
@@ -424,6 +540,20 @@ public class EstanciaService {
                 dto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getCodigo());
                 dto.setTipoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getTipo());
             }
+        }
+
+        if (estancia.getPagos() != null) {
+            dto.setTotalPagoEstancia(estancia.getPagos().stream()
+                    .filter(pago -> pago.getEstado() == EstadoPago.PENDIENTE
+                            || pago.getEstado() == EstadoPago.COMPLETADO)
+                    .map(Pago::getMonto)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
+
+            int cantidadPagosModificadosOEliminados = (int) estancia.getPagos().stream()
+                    .filter(pago -> pago.getEstado() == EstadoPago.MODIFICADO
+                            || pago.getEstado() == EstadoPago.ELIMINADO)
+                    .count();
+            dto.setCantidadPagosModificadosOEliminados(cantidadPagosModificadosOEliminados);
         }
 
         return dto;

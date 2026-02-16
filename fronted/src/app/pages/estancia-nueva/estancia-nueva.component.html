@@ -138,11 +138,17 @@
           </div>
         </section>
 
-        <section class="estancia__card" *ngIf="!esEdicion">
+        <section class="estancia__card">
           <div class="estancia__card-head">
             <div>
-              <h2>Pago inicial</h2>
-              <p>Registra un pago directo al momento del check-in.</p>
+              <h2>{{ esEdicion ? 'Pago de estancia' : 'Pago inicial' }}</h2>
+              <p>
+                {{
+                  esEdicion
+                    ? 'Registra un pago al momento de actualizar la estancia.'
+                    : 'Registra un pago directo al momento del check-in.'
+                }}
+              </p>
             </div>
             <label class="estancia__toggle">
               <input
@@ -244,7 +250,7 @@
           </div>
         </div>
 
-        <div class="estancia__summary-card" *ngIf="!esEdicion">
+        <div class="estancia__summary-card">
           <p class="estancia__summary-eyebrow">Pago</p>
           <h3>{{ conPago ? 'Pago activo' : 'Sin pago' }}</h3>
           <div class="estancia__summary-grid">

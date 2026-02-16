@@ -30,6 +30,7 @@ export interface EstanciaEditarRequest {
   salidaEstimada?: string;
   idAcompanantes?: number[];
   notas?: string;
+  pago?: PagoNuevoRequest | null;
 }
 
 export interface SalidaEstanciaRequest {

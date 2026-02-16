@@ -225,6 +225,12 @@ export class EstanciaNuevaComponent implements OnInit {
         this.error = 'No se encontro la estancia a editar.';
         return;
       }
+      const pago = this.conPago ? this.buildPago() : null;
+      if (this.conPago && !pago) {
+        this.guardando = false;
+        this.error = 'Completa los campos de pago obligatorios.';
+        return;
+      }
 
       const request: EstanciaEditarRequest = {
         tipoUnidad: this.tipoUnidad as TipoUnidad,
@@ -234,6 +240,7 @@ export class EstanciaNuevaComponent implements OnInit {
         salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
         idAcompanantes: this.parseAcompanantes(),
         notas: this.notas || undefined,
+        pago,
       };
 
       this.estanciaService.editarEstancia(this.estanciaId, request).subscribe({
@@ -309,7 +316,7 @@ export class EstanciaNuevaComponent implements OnInit {
   }
 
   recalcularPago(): void {
-    if (!this.conPago || this.esEdicion) {
+    if (!this.conPago) {
       this.totalCalculado = null;
       this.calculoError = '';
       return;

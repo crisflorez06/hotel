@@ -41,7 +41,7 @@ export const routes: Routes = [
   {
     path: 'calendario',
     loadComponent: () =>
-      import('./pages/reserva/reserva.component').then((m) => m.ReservaComponent),
+      import('./pages/calendario/calendario.component').then((m) => m.CalendarioComponent),
   },
   {
     path: 'reservas',
@@ -52,6 +52,11 @@ export const routes: Routes = [
   {
     path: 'pagos',
     loadComponent: () => import('./pages/pagos/pagos.component').then((m) => m.PagosComponent),
+  },
+  {
+    path: 'dashboard',
+    loadComponent: () =>
+      import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
     path: 'ocupantes/tabla-clientes',

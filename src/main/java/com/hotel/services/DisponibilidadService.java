@@ -2,6 +2,7 @@ package com.hotel.services;
 
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
+import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoReserva;
@@ -39,11 +40,18 @@ public class DisponibilidadService {
     }
 
 
-    public String verificarDisponibilidad(Estancia estancia, String codigo, TipoUnidad tipoUnidad, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
+    public String verificarDisponibilidad(Estancia estancia, Reserva reserva, String codigo, TipoUnidad tipoUnidad, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
 
         logger.info("[DisponibilidadService.verificarDisponiblidad] Verificando disponibilidad para reserva con codigo: {} y tipoUnidad: {} en el rango de fechas: {} - {}", codigo, tipoUnidad, fechaIncioReserva, fechaFinReserva);
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-        List<Habitacion> habitacionesConReserva = verificarReservaPorHabitacion(habitaciones, fechaIncioReserva, fechaFinReserva);
+        List<Habitacion> habitacionesConReserva = new ArrayList<>();
+        if(reserva == null) {
+            logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Si el codigo de reserva no es nulo, se omite la verificación de reservas para las habitaciones");
+
+        } else {
+            logger.info("[DisponibilidadService.verificarDisponiblidad] Se encontró una reserva asociada para codigo: {} y tipoUnidad: {}, se procede a verificar reservas activas en el rango de fechas", codigo, tipoUnidad);
+            habitacionesConReserva = verificarReservaPorHabitacion(reserva.getCodigo(), habitaciones, fechaIncioReserva, fechaFinReserva);
+        }
 
         logger.info("[DisponibilidadService.verificarDisponiblidad] Habitaciones con reserva encontradas: {}", habitacionesConReserva.size());
         if(!habitacionesConReserva.isEmpty()) {
@@ -82,9 +90,15 @@ public class DisponibilidadService {
 
     }
 
-    private List<Habitacion> verificarReservaPorHabitacion(List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
+    private List<Habitacion> verificarReservaPorHabitacion(String codigoReserva ,List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
         logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Verificando reservas para las habitaciones en el rango de fechas: {} - {}", fechaIncioReserva, fechaFinReserva);
         List<Habitacion> habitacionesConReserva = new ArrayList<>();
+        if(reservaRepository.existsByCodigo(codigoReserva)){
+            logger.info("[DisponibilidadService.verificarReservaPorHabitacion] se encontró una reserva con el codigo: {}, se omite la verificación de reservas para las habitaciones", codigoReserva);
+            return habitacionesConReserva;
+        }
+
+
         for (Habitacion habitacion : habitaciones) {
             boolean existeReserva = reservaRepository.existsReservaByHabitacionAndRango(
                     habitacion.getId(),

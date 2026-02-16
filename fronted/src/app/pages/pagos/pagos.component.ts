@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { EstadoPago, MedioPago, TipoPago } from '../../models/enums';
@@ -25,6 +25,7 @@ export class PagosComponent implements OnInit, OnDestroy {
   totalPaginas = 0;
   totalElementos = 0;
   readonly tamanoPagina = 10;
+  pagoSeleccionadoId: number | null = null;
 
   filtroEstados: EstadoPago[] = [];
   filtroMediosPago: MedioPago[] = [];
@@ -53,7 +54,8 @@ export class PagosComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly pagoService: PagoService,
-    private readonly route: ActivatedRoute
+    private readonly route: ActivatedRoute,
+    private readonly router: Router
   ) {}
 
   ngOnInit(): void {
@@ -102,6 +104,12 @@ export class PagosComponent implements OnInit, OnDestroy {
       .subscribe({
         next: (response) => {
           this.pagos = response.content;
+          if (this.pagoSeleccionadoId !== null) {
+            const pagoSigueDisponible = this.pagos.some((pago) => pago.id === this.pagoSeleccionadoId);
+            if (!pagoSigueDisponible) {
+              this.pagoSeleccionadoId = null;
+            }
+          }
           this.paginaActual = response.number;
           this.totalPaginas = response.totalPages;
           this.totalElementos = response.totalElements;
@@ -109,6 +117,7 @@ export class PagosComponent implements OnInit, OnDestroy {
         },
         error: (errorResponse: unknown) => {
           this.pagos = [];
+          this.pagoSeleccionadoId = null;
           this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los pagos.');
           this.cargando = false;
         },
@@ -184,6 +193,14 @@ export class PagosComponent implements OnInit, OnDestroy {
     return pago.id;
   }
 
+  seleccionarPago(pago: PagoDTO): void {
+    this.pagoSeleccionadoId = this.pagoSeleccionadoId === pago.id ? null : pago.id;
+  }
+
+  esPagoSeleccionado(pago: PagoDTO): boolean {
+    return this.pagoSeleccionadoId === pago.id;
+  }
+
   obtenerTipoPago(pago: PagoDTO): string {
     return pago.tipoPago ?? '-';
   }
@@ -198,6 +215,58 @@ export class PagosComponent implements OnInit, OnDestroy {
 
   get indiceFin(): number {
     return Math.min((this.paginaActual + 1) * this.tamanoPagina, this.totalElementos);
+  }
+
+  irATablaReservas(pago: PagoDTO): void {
+    const codigoReserva = pago.codigoReserva?.trim() ?? '';
+    if (!codigoReserva) {
+      return;
+    }
+
+    this.router.navigate(['/reservas'], {
+      queryParams: { codigoReserva },
+    });
+  }
+
+  irATablaEstancias(pago: PagoDTO): void {
+    const codigoEstancia = pago.codigoEstancia?.trim() ?? '';
+    if (!codigoEstancia) {
+      return;
+    }
+
+    this.router.navigate(['/estancias'], {
+      queryParams: { codigoEstancia },
+    });
+  }
+
+  formatearSoloFecha(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return '-';
+    }
+
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return fecha;
+    }
+
+    return new Intl.DateTimeFormat('es-CO', {
+      dateStyle: 'medium',
+    }).format(date);
+  }
+
+  formatearSoloHora(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return '';
+    }
+
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat('es-CO', {
+      timeStyle: 'short',
+    }).format(date);
   }
 
   private normalizarFechaFiltro(fecha: string): string | undefined {

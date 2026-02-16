@@ -18,12 +18,7 @@ import com.hotel.repositories.ReservaRepository;
 import com.hotel.specifications.OcupanteSpecification;
 import jakarta.persistence.EntityNotFoundException;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -133,7 +128,7 @@ public class OcupanteService {
         return ocupanteRepository.save(nuevoOcupante);
     }
 
-    public List<Ocupante> determinarOcupantesEstancia(Long idCliente, List<Long> idsAcompanantes) {
+    public List<Ocupante> determinarOcupantes(Long idCliente, List<Long> idsAcompanantes) {
         logger.info("[OcupanteService.determinarOcupantesEstancia] Cargando ocupantes para la estancia");
         List<Ocupante> ocupantes = new ArrayList<>();
 
@@ -166,6 +161,17 @@ public class OcupanteService {
             }
         }
         return ocupantes;
+    }
+
+    public Optional<Ocupante> determinarCliente(List<Ocupante> ocupantes) {
+        return ocupantes.stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst();
+    }
+
+    public String obtenerNombre(Long idCliente) {
+        Ocupante cliente = buscarPorId(idCliente);
+        return cliente.getNombres() + " " + cliente.getApellidos();
     }
 
     private ClienteTablaDTO mapearClienteTablaDTO(

@@ -176,7 +176,7 @@
 
         <div class="reserva-tabla__chips-card">
           <div class="campo">
-            <label>Entrada</label>
+            <label>Entrada estimada</label>
             <div class="reserva-tabla__rangos-rapidos">
               <button
                 type="button"
@@ -246,7 +246,7 @@
 
         <div class="reserva-tabla__chips-card">
           <div class="campo">
-            <label>Salida</label>
+            <label>Salida estimada</label>
             <div class="reserva-tabla__rangos-rapidos">
               <button
                 type="button"
@@ -420,14 +420,14 @@
 
   <section class="reserva-tabla__acciones-seleccion">
     <div class="reserva-tabla__acciones-izquierda">
-      <button type="button" class="btn btn--primary btn--small" [routerLink]="['/estancias/nueva']">
+      <button type="button" class="btn btn--primary btn--small" [routerLink]="['/reservas/nueva']">
         <svg class="btn__icon" viewBox="0 0 24 24" aria-hidden="true">
           <path
             d="M12 5a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H6a1 1 0 1 1 0-2h5V6a1 1 0 0 1 1-1Z"
             fill="currentColor"
           />
         </svg>
-        Nueva estancia
+        Nueva reserva
       </button>
     </div>
     <div class="reserva-tabla__acciones-botones">
@@ -481,8 +481,8 @@
             <th>Numero<br />personas</th>
             <th>Canal</th>
             <th>Creacion</th>
-            <th>Entrada</th>
-            <th>Salida</th>
+            <th>Entrada<br />estimada</th>
+            <th>Salida<br />estimada</th>
             <th>Estado</th>
             <th>Codigo<br />estancia</th>
             <th>Pago</th>
@@ -531,7 +531,7 @@
                 </button>
               </div>
             </td>
-            <td>{{ reserva.numeroPersonas ?? '-' }}</td>
+            <td>{{ reserva.numeroPersonas }}</td>
             <td>{{ formatearCanal(reserva.canalReserva) }}</td>
             <td>
               <div class="fecha-columna">
@@ -703,4 +703,30 @@
       </div>
     </footer>
   </section>
+
+  <div class="modal" *ngIf="reservaPendienteEliminacion as reserva">
+    <div class="modal__backdrop" (click)="cerrarModalEliminarReserva()"></div>
+    <div class="modal__panel modal__panel--confirm" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="modal__header">
+        <h2>Cancelar reserva</h2>
+        <p>
+          Se cancelara la reserva <strong>{{ reserva.codigoReserva }}</strong>. Esta accion no se puede deshacer.
+        </p>
+      </header>
+
+      <div class="modal__actions">
+        <button type="button" class="btn" (click)="cerrarModalEliminarReserva()" [disabled]="eliminandoReservaId === reserva.id">
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--danger"
+          (click)="confirmarEliminarReserva()"
+          [disabled]="eliminandoReservaId === reserva.id"
+        >
+          {{ eliminandoReservaId === reserva.id ? 'Eliminando...' : 'Eliminar reserva' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </section>

@@ -5,12 +5,14 @@ export interface EstanciaTablaItem {
   codigoEstancia: string;
   codigoReservaAsociada?: string | null;
   totalPagoEstancia?: number | null;
+  cantidadPagosModificadosOEliminados?: number | null;
   codigoUnidad: string;
   tipoUnidad: TipoUnidad;
   nombreCliente: string;
   idCliente: number;
   tipoDocumentoCliente?: string | null;
   numeroDocumentoCliente: string;
+  totalPersonas?: number | null;
   estadoEstancia: EstadoEstancia;
   modoOcupacion: ModoOcupacion;
   entradaReal: string;
@@ -28,6 +30,8 @@ export interface EstanciaTablaFiltros {
   codigoUnidad: string;
   nombreCliente: string;
   numeroDocumentoCliente: string;
+  rangoGeneralDesde: string;
+  rangoGeneralHasta: string;
   entradaDesde: string;
   entradaHasta: string;
   salidaEstimadaDesde: string;

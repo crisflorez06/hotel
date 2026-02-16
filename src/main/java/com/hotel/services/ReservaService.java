@@ -6,17 +6,13 @@ import com.hotel.dtos.reserva.ReservaTablaDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.mappers.ReservaMapper;
 import com.hotel.models.*;
-import com.hotel.models.enums.CanalReserva;
-import com.hotel.models.enums.EstadoEstancia;
-import com.hotel.models.enums.EstadoPago;
-import com.hotel.models.enums.EstadoReserva;
-import com.hotel.models.enums.ModoOcupacion;
-import com.hotel.models.enums.TipoPago;
-import com.hotel.models.enums.TipoUnidad;
+import com.hotel.models.enums.*;
 import com.hotel.repositories.ReservaRepository;
 import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.ReservaSpecification;
+import com.hotel.utils.EventoModificadoJsonBuilder;
+import com.hotel.utils.EventoNuevoJsonBuilder;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -44,6 +40,7 @@ public class ReservaService {
     private final DisponibilidadService disponibilidadService;
     private final EstanciaReservaResolver estanciaReservaResolver;
     private final CodigoUnicoService codigoUnicoService;
+    private final AuditoriaEventoService eventoService;
 
     public ReservaService(ReservaRepository reservaRepository,
                           OcupanteService ocupanteService,
@@ -51,7 +48,9 @@ public class ReservaService {
                           UnidadHabitacionResolver unidadHabitacionResolver,
                           DisponibilidadService disponibilidadService,
                           EstanciaReservaResolver estanciaReservaResolver,
-                          CodigoUnicoService codigoUnicoService) {
+                          CodigoUnicoService codigoUnicoService,
+                          AuditoriaEventoService eventoService) {
+        this.eventoService = eventoService;
         this.estanciaReservaResolver = estanciaReservaResolver;
         this.pagoService = pagoService;
         this.unidadHabitacionResolver = unidadHabitacionResolver;
@@ -76,7 +75,7 @@ public class ReservaService {
 
 
         logger.info("[crearReserva] Verificando disponibilidad para la unidad o habitacion con codigo: {}", request.getCodigo());
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(null, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
+        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(null, null, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
         if (!existeDisponibilidad.isEmpty()) {
             throw new IllegalArgumentException("No es posible crear la reserva: " + existeDisponibilidad);
         }
@@ -92,7 +91,7 @@ public class ReservaService {
         reserva.setCodigo(codigoUnicoService.generarCodigoReserva());
 
         logger.info("[crearReserva] Buscando ocupante para asignar a la reserva");
-        reserva.setCliente(ocupanteService.buscarPorId(request.getIdOcupante()));
+        reserva.setCliente(determinarCliente(request.getIdOcupante()));
 
         logger.info("[crearReserva] Asignando habitaciones a la reserva");
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(request.getCodigo(), request.getTipoUnidad());
@@ -105,11 +104,33 @@ public class ReservaService {
         logger.info("[crearReserva] Creando pago inicial asociado a la estancia de la reserva");
         pagoService.crearPago(request.getPago(), estancia);
 
-        return reservaRepository.save(reserva);
+        Reserva reservaGuardada = reservaRepository.save(reserva);
+
+        logger.info("[crearReserva] Registrando evento de creación de estancia para codigo de estancia: {} y unidad: {}", estancia.getCodigoFolio(), codigo);
+        EventoNuevoJsonBuilder nuevaReservaJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoReserva", reservaGuardada.getCodigo())
+                .agregarProp("unidad", codigo)
+                .agregarProp("fechaEntrada", reservaGuardada.getEntradaEstimada())
+                .agregarProp("fechaSalida", reservaGuardada.getSalidaEstimada());
+
+        eventoService.crearEvento(
+                TipoEvento.CREACION_RESERVA,
+                TipoEntidad.RESERVA,
+                reservaGuardada.getId(),
+                nuevaReservaJson.build(),
+                null,
+                reservaGuardada.getCodigo()
+        );
+
+        return reservaGuardada;
     }
 
     @Transactional
     public void editarReserva(ReservaNuevaRequestDTO request, Long idReserva) {
+
+        EventoModificadoJsonBuilder reservaModificaJson = new EventoModificadoJsonBuilder();
+
+
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
         LocalDateTime entradaEstimada = request.getEntradaEstimada();
@@ -129,7 +150,7 @@ public class ReservaService {
             throw new IllegalArgumentException("No es posible editar la reserva: " + fechaConflicto);
         }
 
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(null, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
+        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(null, reserva, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
         if (!existeDisponibilidad.isEmpty()) {
             throw new IllegalArgumentException("No es posible editar la reserva: " + existeDisponibilidad);
         }
@@ -140,12 +161,35 @@ public class ReservaService {
             throw new IllegalStateException("No se puede editar la reserva: " + conflictoDisponibilidad);
         }
 
-        reserva.setEntradaEstimada(entradaEstimada);
-        reserva.setSalidaEstimada(salidaEstimada);
-        reserva.setNumeroPersonas(request.getNumeroPersonas());
-        reserva.setCanalReserva(request.getCanalReserva());
-        reserva.setCliente(ocupanteService.buscarPorId(request.getIdOcupante()));
-        reserva.setNotas(reserva.getNotas() + " | Notas editadas: " + request.getNotas());
+        if(!reserva.getEntradaEstimada().isEqual(entradaEstimada)){
+            reservaModificaJson.agregarCambio("fechaEntrada", reserva.getEntradaEstimada(), entradaEstimada);
+            reserva.setEntradaEstimada(entradaEstimada);
+
+        }
+
+        if(!reserva.getSalidaEstimada().isEqual(salidaEstimada)){
+            reservaModificaJson.agregarCambio("fechaSalida", reserva.getSalidaEstimada(), salidaEstimada);
+            reserva.setSalidaEstimada(salidaEstimada);
+        }
+
+        if(!reserva.getNumeroPersonas().equals(request.getNumeroPersonas())){
+            reservaModificaJson.agregarCambio("numeroPersonas", reserva.getNumeroPersonas(), request.getNumeroPersonas());
+            reserva.setNumeroPersonas(request.getNumeroPersonas());
+        }
+
+        if(!reserva.getCanalReserva().equals(request.getCanalReserva())){
+            reservaModificaJson.agregarCambio("canalReserva", reserva.getCanalReserva(), request.getCanalReserva());
+            reserva.setCanalReserva(request.getCanalReserva());
+        }
+
+        if(!reserva.getCliente().getId().equals(request.getIdOcupante())){
+            reservaModificaJson.agregarCambio("cliente",
+                    ocupanteService.obtenerNombre(reserva.getCliente().getId()),
+                    ocupanteService.obtenerNombre(request.getIdOcupante()));
+        }
+        reserva.setCliente(determinarCliente(request.getIdOcupante()));
+
+        reserva.setNotas(reserva.getNotas() + " | Reserva editadas: " + request.getNotas());
 
         Estancia estancia = reserva.getEstancia();
         if (estancia != null) {
@@ -153,12 +197,23 @@ public class ReservaService {
             estancia.setNotas(estancia.getNotas() + " | Reserva editada: " + request.getNotas());
         }
 
+        Reserva reservaGuardada = reservaRepository.save(reserva);
+
         if (request.getPago() != null && estancia != null) {
             logger.info("[editarReserva] Modificando o creando pago asociado a la reserva");
             modificarPagoReserva(estancia, request.getPago());
         }
 
-        reservaRepository.save(reserva);
+        if (reservaModificaJson.tieneCambios()) {
+            eventoService.crearEvento(
+                    TipoEvento.MODIFICACION_RESERVA,
+                    TipoEntidad.RESERVA,
+                    reservaGuardada.getId(),
+                    reservaModificaJson.build(),
+                    null,
+                    reservaGuardada.getCodigo()
+            );
+        }
     }
 
     @Transactional
@@ -176,6 +231,22 @@ public class ReservaService {
         }
 
         reservaRepository.save(reserva);
+
+
+
+        logger.info("[eliminarReserva] Registrando evento de eliminación de reserva para codigo: {}", reserva.getCodigo());
+
+        EventoNuevoJsonBuilder reservaEliminadaJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoReserva", reserva.getCodigo());
+
+        eventoService.crearEvento(
+                TipoEvento.ELIMINACION_RESERVA,
+                TipoEntidad.RESERVA,
+                reserva.getId(),
+                reservaEliminadaJson.build(),
+                null,
+                reserva.getCodigo()
+        );
         return null;
     }
 
@@ -275,7 +346,7 @@ public class ReservaService {
         if (pagoAnterior == null) {
             pagoService.crearPago(request, estancia);
         } else {
-            pagoService.reemplazarPago(request, pagoAnterior);
+            pagoService.reemplazarPago(request, pagoAnterior, estancia);
         }
     }
 
@@ -290,6 +361,17 @@ public class ReservaService {
                 throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la reserva");
             }
         }
+    }
+
+    private Ocupante determinarCliente(long idCliente){
+        logger.info("[determinarCliente] Determinando cliente para la reserva");
+        List<Ocupante> ocupantes = ocupanteService.determinarOcupantes(idCliente, null);
+
+        return  ocupantes.stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró un cliente válido con id: " + idCliente));
+
     }
 
     private String verificarDisponibilidadEdicion(
@@ -340,11 +422,18 @@ public class ReservaService {
 
     private ReservaTablaDTO mapearReservaTablaDTO(Reserva reserva) {
         ReservaTablaDTO dto = new ReservaTablaDTO();
-        boolean estanciaAsociada = reserva.getEstancia() != null
-                && reserva.getEstancia().getEstado() != EstadoEstancia.RESERVADA;
+        Estancia estancia = reserva.getEstancia();
+        boolean estanciaCanceladaSinActivar = estancia != null
+                && estancia.getEstado() == EstadoEstancia.CANCELADA
+                && estancia.getEntradaReal() == null;
+        boolean estanciaReservada = estancia != null
+                && estancia.getEstado() == EstadoEstancia.RESERVADA;
+        boolean estanciaAsociada = estancia != null
+                && !estanciaCanceladaSinActivar
+                && !estanciaReservada;
         dto.setId(reserva.getId());
         dto.setCodigoReserva(reserva.getCodigo());
-        dto.setCodigoEstancia(estanciaAsociada ? reserva.getEstancia().getCodigoFolio() : null);
+        dto.setCodigoEstancia(estanciaAsociada ? estancia.getCodigoFolio() : null);
         dto.setFechaCreacion(reserva.getFechaCreacion());
         dto.setEntradaEstimada(reserva.getEntradaEstimada());
         dto.setSalidaEstimada(reserva.getSalidaEstimada());

@@ -7,10 +7,7 @@ import com.hotel.mappers.PagoMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
-import com.hotel.models.enums.EstadoEstancia;
-import com.hotel.models.enums.EstadoPago;
-import com.hotel.models.enums.MedioPago;
-import com.hotel.models.enums.TipoPago;
+import com.hotel.models.enums.*;
 import com.hotel.repositories.PagoRepository;
 import com.hotel.resolvers.PagoResolver;
 import com.hotel.specifications.PagoSpecification;
@@ -19,6 +16,9 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+
+import com.hotel.utils.EventoModificadoJsonBuilder;
+import com.hotel.utils.EventoNuevoJsonBuilder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
@@ -33,10 +33,13 @@ public class PagoService {
 
     private final PagoRepository pagoRepository;
     private final PagoResolver pagoResolver;
+    private final AuditoriaEventoService eventoService;
 
 
     public PagoService(PagoRepository pagoRepository,
-                       PagoResolver pagoResolver) {
+                       PagoResolver pagoResolver,
+                       AuditoriaEventoService eventoService) {
+        this.eventoService = eventoService;
         this.pagoResolver = pagoResolver;
         this.pagoRepository = pagoRepository;
     }
@@ -53,11 +56,36 @@ public class PagoService {
 
         pago.setEstancia(estancia);
 
-        return pagoRepository.save(pago);
+        EventoNuevoJsonBuilder nuevoPagoJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estancia.getCodigoFolio())
+                .agregarProp("tipoPago", request.getTipoPago())
+                .agregarProp("monto", request.getMonto())
+                .agregarProp("estado", pago.getEstado());
+
+        Pago pagoCreado = pagoRepository.save(pago);
+
+        String codigoEstancia;
+        if(estancia.getEstado().equals(EstadoEstancia.RESERVADA)){
+            codigoEstancia = null;
+        } else {
+            codigoEstancia = estancia.getCodigoFolio();
+        }
+
+        eventoService.crearEvento(
+                TipoEvento.CREACION_PAGO,
+                TipoEntidad.PAGO,
+                pagoCreado.getId(),
+                nuevoPagoJson.build(),
+                codigoEstancia,
+                estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null
+        );
+
+
+        return pagoCreado;
     }
 
     @Transactional
-    public Pago reemplazarPago(PagoNuevoRequestDTO request, Pago pagoAnterior) {
+    public Pago reemplazarPago(PagoNuevoRequestDTO request, Pago pagoAnterior, Estancia estancia) {
         if (request == null) {
             logger.info("[reemplazarPago] No se proporcionó información de pago. Se omite el reemplazo.");
             return null;
@@ -65,18 +93,42 @@ public class PagoService {
 
         if (pagoAnterior == null) {
             logger.info("[reemplazarPago] No existe pago anterior. Se crea un pago nuevo.");
-            Pago pagoNuevo = PagoMapper.requestNuevoToEntity(request);
-            return pagoRepository.save(pagoNuevo);
+
+            return crearPago(request, estancia);
         }
 
         logger.info("[reemplazarPago] Reemplazando pago con id: {}", pagoAnterior.getId());
         pagoAnterior.setEstado(EstadoPago.MODIFICADO);
-        pagoRepository.save(pagoAnterior);
+
+        EventoModificadoJsonBuilder pagoModificadoJson = new EventoModificadoJsonBuilder()
+                .agregarCambio("codigoEstancia", estancia.getCodigoFolio(), estancia.getCodigoFolio())
+                .agregarCambio("tipoPago", pagoAnterior.getTipoPago(), request.getTipoPago())
+                .agregarCambio("monto", pagoAnterior.getMonto(), request.getMonto());
+
+        Pago pagoModificado = pagoRepository.save(pagoAnterior);
 
         Pago pagoNuevo = PagoMapper.requestNuevoToEntity(request);
-        pagoNuevo.setEstancia(pagoAnterior.getEstancia());
+        pagoNuevo.setEstancia(estancia);
+        Pago pagoCreado = pagoRepository.save(pagoNuevo);
 
-        return pagoRepository.save(pagoNuevo);
+        String codigoEstancia;
+        if(estancia.getEstado().equals(EstadoEstancia.RESERVADA)){
+            codigoEstancia = null;
+        } else {
+            codigoEstancia = estancia.getCodigoFolio();
+        }
+
+        eventoService.crearEvento(
+                TipoEvento.MODIFICACION_PAGO,
+                TipoEntidad.PAGO,
+                pagoModificado.getId(),
+                pagoModificadoJson.build(),
+                codigoEstancia,
+                estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null
+        );
+
+
+        return pagoCreado;
     }
 
     public Optional<Pago> buscarUltimoPagoPorEstanciaYTipo(Long idEstancia, TipoPago tipoPago) {
@@ -116,7 +168,31 @@ public class PagoService {
         List<Pago> pagos = pagoRepository.findByEstanciaId(idEstancia);
         for(Pago pago : pagos) {
             logger.info("[eliminarPagosPorEstancia] Eliminando pago con id: {}", pago.getId());
+            Estancia estancia = pago.getEstancia();
             pago.setEstado(EstadoPago.ELIMINADO);
+
+            logger.info("[eliminarPagos] Registrando evento de eliminación de pagos para codigo de estancia: {}", estancia.getCodigoFolio());
+
+            EventoNuevoJsonBuilder estanciaEliminada = new EventoNuevoJsonBuilder()
+                    .agregarProp("codigoEstancia", estancia.getCodigoFolio());
+
+
+            String codigoEstancia;
+            if(estancia.getEstado().equals(EstadoEstancia.RESERVADA)){
+                codigoEstancia = null;
+            } else {
+                codigoEstancia = estancia.getCodigoFolio();
+            }
+
+            eventoService.crearEvento(
+                    TipoEvento.ELIMINACION_PAGO,
+                    TipoEntidad.PAGO,
+                    pago.getId(),
+                    estanciaEliminada.build(),
+                    codigoEstancia,
+                    estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null
+            );
+
         }
 
         pagoRepository.saveAll(pagos);

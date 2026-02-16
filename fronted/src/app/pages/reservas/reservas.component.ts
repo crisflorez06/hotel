@@ -63,6 +63,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
   totalPages = 0;
 
   eliminandoReservaId: number | null = null;
+  reservaPendienteEliminacion: ReservaTablaItem | null = null;
   reservaSeleccionadaId: number | null = null;
   filtrosAvanzadosAbiertos = false;
   rangoRapidoSeleccionado: Record<RangoRapidoCampo, RangoRapido | null> = {
@@ -591,16 +592,19 @@ export class ReservasComponent implements OnInit, OnDestroy {
   }
 
   eliminarReserva(reserva: ReservaTablaItem): void {
-    if (!this.puedeGestionarReserva(reserva)) {
-      this.accionError = 'No se pueden eliminar reservas completadas o canceladas.';
-      this.accionExito = '';
+    this.abrirModalEliminarReserva(reserva);
+  }
+
+  cerrarModalEliminarReserva(): void {
+    if (this.eliminandoReservaId !== null) {
       return;
     }
+    this.reservaPendienteEliminacion = null;
+  }
 
-    const confirmacion = window.confirm(
-      `Se cancelara la reserva ${reserva.codigoReserva}. Esta accion no se puede deshacer.`
-    );
-    if (!confirmacion) {
+  confirmarEliminarReserva(): void {
+    const reserva = this.reservaPendienteEliminacion;
+    if (!reserva) {
       return;
     }
 
@@ -611,11 +615,13 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.reservaService.eliminarReserva(reserva.id).subscribe({
       next: () => {
         this.eliminandoReservaId = null;
+        this.reservaPendienteEliminacion = null;
         this.accionExito = 'Reserva cancelada correctamente.';
         this.cargarReservas();
       },
       error: (errorResponse: unknown) => {
         this.eliminandoReservaId = null;
+        this.reservaPendienteEliminacion = null;
         this.accionError = extractBackendErrorMessage(
           errorResponse,
           'No fue posible eliminar la reserva.'
@@ -623,6 +629,18 @@ export class ReservasComponent implements OnInit, OnDestroy {
         this.accionExito = '';
       },
     });
+  }
+
+  private abrirModalEliminarReserva(reserva: ReservaTablaItem): void {
+    if (!this.puedeGestionarReserva(reserva)) {
+      this.accionError = 'No se pueden eliminar reservas completadas o canceladas.';
+      this.accionExito = '';
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
+    this.reservaPendienteEliminacion = reserva;
   }
 
   private cargarReservas(): void {

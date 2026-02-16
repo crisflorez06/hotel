@@ -40,11 +40,4 @@ public class Usuario {
     @Column(nullable = false)
     private Boolean activo;
 
-    @Column(name = "creado_en", nullable = false)
-    private LocalDateTime creadoEn;
-
-    @OneToMany(mappedBy = "usuario")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private List<AuditoriaEvento> auditoriaEventos;
 }

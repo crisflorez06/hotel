@@ -1,29 +1,17 @@
 package com.hotel.models;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import com.hotel.models.enums.TipoEntidad;
+import com.hotel.models.enums.TipoEvento;
+import jakarta.persistence.*;
+
 import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.ToString;
 
 @Entity
-@Table(name = "auditoria_eventos",
-        indexes = {
-                @Index(name = "idx_auditoria_usuario", columnList = "id_usuario")
-        }
-)
+@Table(name = "auditoria_eventos")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -34,24 +22,45 @@ public class AuditoriaEvento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40)
-    private String entidad;
+    private TipoEntidad entidad;
 
     @Column(name = "id_entidad", nullable = false)
     private Long idEntidad;
 
-    @Column(nullable = false, length = 30)
-    private String accion;
+    @Column(name = "codigo_estancia", length = 30)
+    private String codigoEstancia;
 
-    @Column(columnDefinition = "text")
+    @Column(name = "codigo_reserva", length = 30)
+    private String codigoReserva;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 30)
+    private TipoEvento tipoEvento;
+
+    @Column(columnDefinition = "JSON")
     private String detalle;
 
     @Column(nullable = false)
     private LocalDateTime fecha;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id_usuario")
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private Usuario usuario;
+    @PrePersist
+    protected void onCreate() {
+        this.fecha = LocalDateTime.now();
+        validarCodigos();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        validarCodigos();
+    }
+
+    private void validarCodigos() {
+        boolean sinCodigoEstancia = codigoEstancia == null || codigoEstancia.isBlank();
+        boolean sinCodigoReserva = codigoReserva == null || codigoReserva.isBlank();
+        if (sinCodigoEstancia && sinCodigoReserva) {
+            throw new IllegalStateException("AuditoriaEvento requiere codigoEstancia o codigoReserva");
+        }
+    }
 }

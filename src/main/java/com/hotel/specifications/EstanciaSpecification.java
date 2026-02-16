@@ -112,6 +112,8 @@ public class EstanciaSpecification {
             LocalDateTime salidaEstimadaHasta,
             LocalDateTime salidaRealDesde,
             LocalDateTime salidaRealHasta,
+            LocalDateTime rangoGeneralDesde,
+            LocalDateTime rangoGeneralHasta,
             Boolean tieneReservaAsociada) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -147,6 +149,36 @@ public class EstanciaSpecification {
             }
             if (salidaRealHasta != null) {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("salidaReal"), salidaRealHasta));
+            }
+            if (rangoGeneralDesde != null || rangoGeneralHasta != null) {
+                Predicate entradaEnRango;
+                Predicate salidaEstimadaEnRango;
+                Predicate salidaRealEnRango;
+
+                if (rangoGeneralDesde != null && rangoGeneralHasta != null) {
+                    entradaEnRango = criteriaBuilder.between(
+                            root.get("entradaReal"),
+                            rangoGeneralDesde,
+                            rangoGeneralHasta);
+                    salidaEstimadaEnRango = criteriaBuilder.between(
+                            root.get("salidaEstimada"),
+                            rangoGeneralDesde,
+                            rangoGeneralHasta);
+                    salidaRealEnRango = criteriaBuilder.between(
+                            root.get("salidaReal"),
+                            rangoGeneralDesde,
+                            rangoGeneralHasta);
+                } else if (rangoGeneralDesde != null) {
+                    entradaEnRango = criteriaBuilder.greaterThanOrEqualTo(root.get("entradaReal"), rangoGeneralDesde);
+                    salidaEstimadaEnRango = criteriaBuilder.greaterThanOrEqualTo(root.get("salidaEstimada"), rangoGeneralDesde);
+                    salidaRealEnRango = criteriaBuilder.greaterThanOrEqualTo(root.get("salidaReal"), rangoGeneralDesde);
+                } else {
+                    entradaEnRango = criteriaBuilder.lessThanOrEqualTo(root.get("entradaReal"), rangoGeneralHasta);
+                    salidaEstimadaEnRango = criteriaBuilder.lessThanOrEqualTo(root.get("salidaEstimada"), rangoGeneralHasta);
+                    salidaRealEnRango = criteriaBuilder.lessThanOrEqualTo(root.get("salidaReal"), rangoGeneralHasta);
+                }
+
+                predicates.add(criteriaBuilder.or(entradaEnRango, salidaEstimadaEnRango, salidaRealEnRango));
             }
 
             if (tieneReservaAsociada != null) {
