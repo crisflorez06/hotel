@@ -39,7 +39,7 @@ public class Estancia {
     @EqualsAndHashCode.Exclude
     private Reserva reserva;
 
-    @ManyToMany(cascade = CascadeType.ALL)
+    @ManyToMany
     @JoinTable(
             name = "estancia_ocupantes",
             joinColumns = @JoinColumn(name = "id_estancia"),
@@ -50,10 +50,10 @@ public class Estancia {
     private List<Ocupante> ocupantes;
 
 
-    @Column(name = "entrada_real", nullable = true)
+    @Column(name = "entrada_real")
     private LocalDateTime entradaReal;
 
-    @Column(name = "salida_estimado", nullable = false)
+    @Column(name = "salida_estimado")
     private LocalDateTime salidaEstimada;
 
     @Column(name = "salida_real")

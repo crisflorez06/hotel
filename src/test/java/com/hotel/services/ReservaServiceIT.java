@@ -26,6 +26,8 @@ import com.hotel.repositories.UnidadRepository;
 import com.hotel.services.support.AbstractServiceIT;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,8 +129,8 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         comprobarPagosDb(
                 estanciaDb.getPagos(),
-                500000,
-                0,
+                BigDecimal.valueOf( 500000),
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
                 EstadoPago.MODIFICADO,
@@ -192,8 +194,8 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         comprobarPagosDb(
                 estanciaDb.getPagos(),
-                500000,
-                0,
+                BigDecimal.valueOf( 500000),
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
                 EstadoPago.MODIFICADO,
@@ -257,8 +259,8 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         comprobarPagosDb(
                 estanciaDb.getPagos(),
-                500000,
-                0,
+                BigDecimal.valueOf( 500000),
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
                 EstadoPago.MODIFICADO,

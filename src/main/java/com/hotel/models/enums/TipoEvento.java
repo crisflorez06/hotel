@@ -11,5 +11,12 @@ public enum TipoEvento {
     FINALIZACION_ESTANCIA,
     CREACION_PAGO,
     MODIFICACION_PAGO,
-    ELIMINACION_PAGO
+    ELIMINACION_PAGO;
+
+    public boolean contiene(String palabra) {
+        if (palabra == null || palabra.isBlank()) {
+            return false;
+        }
+        return this.name().contains(palabra.toUpperCase());
+    }
 }

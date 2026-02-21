@@ -20,6 +20,7 @@ import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.EstanciaSpecification;
 import com.hotel.utils.EventoModificadoJsonBuilder;
 import com.hotel.utils.EventoNuevoJsonBuilder;
+import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -75,10 +77,10 @@ public class EstanciaService {
 
         TipoUnidad tipoUnidad = request.getTipoUnidad();
         String codigo = request.getCodigo();
-
+        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
 
         logger.info("[crearEstanciaNueva] Validando creacion de nueva estancia");
-        validarCreacionEstancia(request.getEntradaReal(), request.getSalidaEstimada(), codigo, tipoUnidad);
+        validarCreacionEstancia(habitaciones, request.getEntradaReal(), request.getSalidaEstimada());
 
         logger.info("[crearEstanciaNueva] Mapeando datos del request a la entidad Estancia");
         Estancia estancia = EstanciaMapper.requestToEntity(request);
@@ -88,7 +90,7 @@ public class EstanciaService {
         estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
 
         logger.info("[crearEstanciaNueva] Llenando habitaciones asociadas a la estancia");
-        estancia.setHabitaciones(unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad));
+        estancia.setHabitaciones(habitaciones);
 
         logger.info("[crearEstanciaNueva] Estableciendo modo de ocupacion para la estancia");
         estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
@@ -112,6 +114,7 @@ public class EstanciaService {
                 .agregarProp("fechaEntrada", estanciaGuardada.getEntradaReal())
                 .agregarProp("fechaSalida", estanciaGuardada.getSalidaEstimada());
 
+        logger.info("[crearEstanciaNueva] propiedades del evento de nueva estancia: {}", nuevaEstanciaJson.build());
         eventoService.crearEvento(
                 TipoEvento.CREACION_ESTANCIA,
                 TipoEntidad.ESTANCIA,
@@ -123,8 +126,6 @@ public class EstanciaService {
 
         return estanciaGuardada;
     }
-
-
 
     @Transactional
     public Estancia activarEstancia(ActivarEstanciaDTO request) {
@@ -181,14 +182,14 @@ public class EstanciaService {
 
     }
 
-
     @Transactional
-    public void editarEstancia(EstanciaRequestDTO request, Long idEstancia) {
+    public void editarEstancia(@Nonnull EstanciaRequestDTO request, Long idEstancia) {
 
         EventoModificadoJsonBuilder estanciaModificadaJson = new EventoModificadoJsonBuilder();
 
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
+        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
         LocalDateTime entradaReal = request.getEntradaReal();
         LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
@@ -200,29 +201,43 @@ public class EstanciaService {
             throw new IllegalStateException("Solo se pueden editar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
         }
 
-        logger.info("[editarEstancia] validando fechas de entrada y salida de la estancia");
-        validarFechasEstancia(request.getEntradaReal(), request.getSalidaEstimada());
+        logger.info("[editarEstancia] Verificando si se ha cambiado el codigo o tipo de unidad asignada a la estancia");
+        boolean cambioCodigo = codigoHaCambiado(habitaciones, estancia);
+        boolean cambioFechas = cambioFechas(entradaReal, salidaEstimada, estancia);
 
-        logger.info("[editarEstancia] Verificando que no cambio el codigo, ya que no se permite cambiar la unidad asignada a una estancia");
-        validarCambioDeCodigo(request.getCodigo(), request.getTipoUnidad(), estancia);
-
-        logger.info("[editarEstancia] verificando entrada y salida de la estancia");
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(estancia, null, codigo, tipoUnidad, entradaReal, salidaEstimada);
-        if(!existeDisponibilidad.isEmpty()) {
-            throw new IllegalStateException("No se puede editar la estancia: " + existeDisponibilidad);
+        if(cambioCodigo || cambioFechas) {
+            logger.info("[editarEstancia] Verificando disponibilidad para el cambio de codigo o fechas");
+            validarEdicionEstancia(estancia, habitaciones, request.getEntradaReal(), request.getSalidaEstimada());
         }
 
 
-        estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
+        logger.info("[editarEstancia] Verificando si hubo cambio de codigo o tipo de unidad asignada a la estancia");
 
-        if(!estancia.getEntradaReal().isEqual(entradaReal)) {
+        estanciaModificadaJson.agregarCambio("unidad",
+                unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()),
+                codigo);
+
+        if(cambioCodigo){
+
+            alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
+
+            estancia.setHabitaciones(new ArrayList<>(habitaciones));
+            alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.OCUPADO);
+
+            logger.info("[editarEstancia] Estableciendo modo de ocupacion para la estancia");
+            estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
+        }
+
+        logger.info("[editarEstancia] Verificando si hubo cambio de fechas");
+        if(cambioFechas) {
             estanciaModificadaJson.agregarCambio("entradaReal", estancia.getEntradaReal(), entradaReal);
             estancia.setEntradaReal(entradaReal);
-        }
 
-        if(!estancia.getSalidaEstimada().isEqual(salidaEstimada)) {
             estanciaModificadaJson.agregarCambio("salidaEstimada", estancia.getSalidaEstimada(), salidaEstimada);
             estancia.setSalidaEstimada(salidaEstimada);
+
+            estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
+
         }
 
         logger.info("[editarEstancia] Determinando ocupantes de la estancia");
@@ -250,10 +265,7 @@ public class EstanciaService {
 
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
-        if(request.getPago() != null) {
-            logger.info("[editarEstancia] Modificando o creando pago asociado a la estancia editada");
-            modificarPagoEstancia(estancia, request.getPago());
-        }
+        logger.info("[editarEstancia] propiedades del evento de nueva estancia: {}", estanciaModificadaJson.build());
 
         if (estanciaModificadaJson.tieneCambios()) {
             eventoService.crearEvento(
@@ -425,32 +437,38 @@ public class EstanciaService {
     }
 
 
-    private void validarCreacionEstancia(LocalDateTime entradaReal, LocalDateTime salidaEstimada, String codigo, TipoUnidad tipoUnidad) {
+    private void validarCreacionEstancia(List<Habitacion> habitaciones, LocalDateTime entradaReal, LocalDateTime salidaEstimada) {
         logger.info("[validarCreacionEstancia] Validando fechas de entrada y salida");
         validarFechasEstancia(entradaReal, salidaEstimada);
 
-        logger.info("[validarCreacionEstancia] Verificando disponibilidad para codigo: {}", codigo);
-        String detalleNoDisponible = disponibilidadService.verificarDisponibilidad(
-                null, null, codigo, tipoUnidad, entradaReal, salidaEstimada
-        );
+        logger.info("[validarCreacionEstancia] Verificando disponibilidad");
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadNuevo(habitaciones, entradaReal, salidaEstimada);
 
         if (!detalleNoDisponible.isEmpty()) {
             throw new IllegalStateException("No se puede crear la estancia: " + detalleNoDisponible);
         }
     }
 
-    private void validarCambioDeCodigo(String codigo, TipoUnidad tipoUnidad, Estancia estancia) {
-        logger.info("[validarCambioDeCodigo] Validando que no se cambie el codigo de la unidad asignada a la estancia");
-        if (tipoUnidad.equals(TipoUnidad.HABITACION)) {
-            if(!estancia.getHabitaciones().getFirst().getCodigo().equals(codigo)) {
-                throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la estancia");
-            }
-        }
-        if(tipoUnidad.equals(TipoUnidad.APARTAMENTO) || tipoUnidad.equals(TipoUnidad.APARTAESTUDIO)) {
-            if(!estancia.getHabitaciones().getFirst().getUnidad().getCodigo().equals(codigo)) {
-                throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la estancia");
-            }
-        }
+    private boolean codigoHaCambiado(List<Habitacion> habitacionesAhora, Estancia estancia) {
+        logger.info("[codigoHaCambiado] Validando que no se cambie el codigo de la unidad asignada a la estancia");
+
+        List<String> codigosAhora = habitacionesAhora.stream()
+                .map(Habitacion::getCodigo)
+                .sorted()
+                .toList();
+
+        List<String> codigosAntes = estancia.getHabitaciones().stream()
+                .map(Habitacion::getCodigo)
+                .sorted()
+                .toList();
+
+        return !codigosAhora.equals(codigosAntes);
+    }
+
+    private boolean cambioFechas(LocalDateTime entradaReal, LocalDateTime salidaEstimada, Estancia estancia) {
+        logger.info("[cambioFechas] Validando si se han cambiado las fechas de entrada o salida de la estancia");
+        return !estancia.getEntradaReal().isEqual(entradaReal)
+                || !estancia.getSalidaEstimada().isEqual(salidaEstimada);
     }
 
     private void validarActivacionEstancia(Reserva reserva, Estancia estancia) {
@@ -476,6 +494,9 @@ public class EstanciaService {
         if (salida.isBefore(entrada) || salida.isEqual(entrada)) {
             throw new IllegalArgumentException("La fecha de salida debe ser posterior a la fecha de entrada");
         }
+        if(entrada.isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("La fecha de entrada no puede ser superior a la fecha actual, crear reserva si se desea una estancia futura");
+        }
     }
 
 
@@ -499,8 +520,20 @@ public class EstanciaService {
         }
 
         throw new IllegalStateException(
-                "No se puede tener una estancia futura; debe crearse una reserva"
+                "No se puede determinar el estado de la estancia con las fechas proporcionadas. Entrada: " + entrada + ", Salida: " + salida
         );
+    }
+
+    private void validarEdicionEstancia(Estancia estancia, List<Habitacion> habitaciones, LocalDateTime entradaReal, LocalDateTime salidaEstimada) {
+        logger.info("[validarEdicionEstancia] Validando fechas de entrada y salida");
+        validarFechasEstancia(entradaReal, salidaEstimada);
+
+        logger.info("[validarEdicionEstancia] Verificando disponibilidad");
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadEditar(null, estancia, habitaciones, entradaReal, salidaEstimada);
+
+        if (!detalleNoDisponible.isEmpty()) {
+            throw new IllegalStateException("No se puede editar la estancia: " + detalleNoDisponible);
+        }
     }
 
     private EstanciaTablaDTO mapearEstanciaTablaDTO(Estancia estancia) {

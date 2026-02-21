@@ -6,6 +6,247 @@
     </div>
   </header>
 
+  <section class="dashboard-panel">
+    <div class="dashboard-panel__header">
+      <div>
+        <h2>Indicadores operativos y financieros</h2>
+        <p>Vista consolidada previa al monitor de eventos.</p>
+      </div>
+
+      <div class="dashboard-panel__actions">
+        <button type="button" class="btn btn--primary" (click)="aplicarFiltrosPanel()" [disabled]="dashboardCargando">
+          Actualizar panel
+        </button>
+        <button type="button" class="btn" (click)="limpiarFiltrosPanel()" [disabled]="dashboardCargando">
+          Restablecer
+        </button>
+      </div>
+    </div>
+
+    <div class="dashboard-panel__filters">
+      <div class="campo">
+        <label for="dashboardDesde">Desde</label>
+        <input id="dashboardDesde" type="date" [(ngModel)]="dashboardFiltros.desde" />
+      </div>
+
+      <div class="campo">
+        <label for="dashboardHasta">Hasta</label>
+        <input id="dashboardHasta" type="date" [(ngModel)]="dashboardFiltros.hasta" />
+      </div>
+
+      <div class="campo">
+        <label for="dashboardGranularidad">Granularidad serie</label>
+        <select id="dashboardGranularidad" [(ngModel)]="dashboardFiltros.granularidad">
+          <option *ngFor="let g of granularidadesDisponibles" [ngValue]="g">{{ formatearGranularidad(g) }}</option>
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="dashboardDiasAlertas">Ventana de alertas (dias)</label>
+        <input id="dashboardDiasAlertas" type="number" min="1" [(ngModel)]="dashboardFiltros.diasAlertas" />
+      </div>
+    </div>
+
+    <div class="dashboard-panel__state" *ngIf="dashboardCargando">Cargando indicadores...</div>
+    <p class="estado estado--error" *ngIf="dashboardError">{{ dashboardError }}</p>
+
+    <div class="dashboard-panel__content" *ngIf="!dashboardCargando && !dashboardError">
+      <section class="dashboard-kpis">
+        <article class="kpi-card">
+          <h3>Ocupacion actual</h3>
+          <div class="kpi-card__value">{{ porcentajeOcupacion() | number: '1.0-1' }}%</div>
+          <p>
+            {{ formatearNumero(dashboardResumen?.operativo?.habitacionesOcupadas) }} /
+            {{ formatearNumero(dashboardResumen?.operativo?.habitacionesTotales) }} habitaciones
+          </p>
+          <div class="kpi-progress">
+            <span [style.width.%]="porcentajeOcupacion()"></span>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <h3>Operacion hotel</h3>
+          <div class="kpi-card__split">
+            <div>
+              <span class="kpi-card__label">Estancias activas</span>
+              <strong>{{ formatearNumero(dashboardResumen?.operativo?.estanciasActivas) }}</strong>
+            </div>
+            <div>
+              <span class="kpi-card__label">Reservas confirmadas</span>
+              <strong>{{ formatearNumero(dashboardResumen?.operativo?.reservasConfirmadas) }}</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="kpi-card">
+          <h3>Resumen financiero</h3>
+          <div class="kpi-card__split">
+            <div>
+              <span class="kpi-card__label">Ingresos</span>
+              <strong>{{ formatearMoneda(dashboardResumen?.financiero?.ingresos) }}</strong>
+            </div>
+            <div>
+              <span class="kpi-card__label">Gastos</span>
+              <strong>{{ formatearMoneda(dashboardResumen?.financiero?.gastos) }}</strong>
+            </div>
+          </div>
+          <p [class.kpi-card__neto-negativo]="netoFinanciero() < 0">
+            Neto: {{ formatearMoneda(dashboardResumen?.financiero?.neto) }}
+          </p>
+        </article>
+
+        <article class="kpi-card">
+          <h3>Pagos pendientes</h3>
+          <div class="kpi-card__value">{{ formatearNumero(dashboardResumen?.financiero?.pagosPendientesCantidad) }}</div>
+          <p>Monto pendiente: {{ formatearMoneda(dashboardResumen?.financiero?.pagosPendientesMonto) }}</p>
+        </article>
+
+        <article class="kpi-card kpi-card--alerta">
+          <h3>Alertas activas</h3>
+          <div class="kpi-card__value">{{ formatearNumero(resumenAlertasTotal) }}</div>
+          <p>
+            Reservas expiradas:
+            {{ formatearNumero(dashboardResumen?.alertas?.reservasExpiradas) }}
+          </p>
+          <p>
+            Estancias excedidas:
+            {{ formatearNumero(dashboardResumen?.alertas?.estanciasExcedidas) }}
+          </p>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="panel-card">
+          <header>
+            <h3>Disponibilidad por tipo de unidad</h3>
+            <p>Proporcion de estados por categoria</p>
+          </header>
+
+          <div class="chart-card" *ngIf="dashboardConteosUnidad.length; else sinConteosUnidad">
+            <canvas
+              baseChart
+              [type]="unidadChartType"
+              [data]="unidadChartData"
+              [options]="unidadChartOptions"
+            ></canvas>
+          </div>
+          <ng-template #sinConteosUnidad>
+            <p class="panel-empty">No hay datos de unidades para el rango seleccionado.</p>
+          </ng-template>
+        </article>
+
+        <article class="panel-card">
+          <header>
+            <h3>Serie financiera</h3>
+            <p>Ingresos, gastos y neto por periodo</p>
+          </header>
+
+          <div class="chart-card" *ngIf="dashboardSerieFinanciera.length; else sinSerie">
+            <canvas
+              baseChart
+              [type]="serieChartType"
+              [data]="serieChartData"
+              [options]="serieChartOptions"
+            ></canvas>
+          </div>
+          <ng-template #sinSerie>
+            <p class="panel-empty">No hay serie financiera para el rango seleccionado.</p>
+          </ng-template>
+        </article>
+
+        <article class="panel-card panel-card--full">
+          <header>
+            <h3>Distribucion financiera</h3>
+            <p>Participacion por categoria</p>
+          </header>
+
+          <div class="distribucion-grid">
+            <section>
+              <h4>Ingresos por tipo de pago</h4>
+              <div class="chart-card chart-card--small" *ngIf="(dashboardDistribucion?.ingresosPorTipoPago?.length ?? 0) > 0">
+                <canvas
+                  baseChart
+                  [type]="distribucionChartType"
+                  [data]="distribucionTipoChartData"
+                  [options]="distribucionChartOptions"
+                ></canvas>
+              </div>
+              <div class="categoria-row" *ngFor="let item of dashboardDistribucion?.ingresosPorTipoPago ?? []; trackBy: trackByCategoria">
+                <div class="categoria-row__head">
+                  <span>{{ formatearEtiqueta(item.categoria) }}</span>
+                  <strong>{{ formatearMoneda(item.monto) }}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h4>Ingresos por medio de pago</h4>
+              <div class="chart-card chart-card--small" *ngIf="(dashboardDistribucion?.ingresosPorMedioPago?.length ?? 0) > 0">
+                <canvas
+                  baseChart
+                  [type]="distribucionChartType"
+                  [data]="distribucionMedioChartData"
+                  [options]="distribucionChartOptions"
+                ></canvas>
+              </div>
+              <div class="categoria-row" *ngFor="let item of dashboardDistribucion?.ingresosPorMedioPago ?? []; trackBy: trackByCategoria">
+                <div class="categoria-row__head">
+                  <span>{{ formatearEtiqueta(item.categoria) }}</span>
+                  <strong>{{ formatearMoneda(item.monto) }}</strong>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <h4>Gastos por concepto</h4>
+              <div class="chart-card chart-card--small" *ngIf="(dashboardDistribucion?.gastosPorConcepto?.length ?? 0) > 0">
+                <canvas
+                  baseChart
+                  [type]="distribucionChartType"
+                  [data]="distribucionGastoChartData"
+                  [options]="distribucionChartOptions"
+                ></canvas>
+              </div>
+              <div class="categoria-row" *ngFor="let item of dashboardDistribucion?.gastosPorConcepto ?? []; trackBy: trackByCategoria">
+                <div class="categoria-row__head">
+                  <span>{{ formatearEtiqueta(item.categoria) }}</span>
+                  <strong>{{ formatearMoneda(item.monto) }}</strong>
+                </div>
+              </div>
+            </section>
+          </div>
+        </article>
+
+        <article class="panel-card panel-card--full">
+          <header>
+            <h3>Alertas recientes</h3>
+            <p>Prioriza seguimiento de casos pendientes</p>
+          </header>
+
+          <div class="alertas-list" *ngIf="(dashboardAlertas?.items?.length ?? 0) > 0; else sinAlertas">
+            <article class="alerta-item" *ngFor="let item of dashboardAlertas?.items ?? []; trackBy: trackByAlerta">
+              <div class="alerta-item__top">
+                <span class="alerta-chip" [class.alerta-chip--alta]="item.severidad === 'ALTA'">
+                  {{ formatearEtiqueta(item.severidad) }}
+                </span>
+                <strong>{{ formatearEtiqueta(item.tipo) }}</strong>
+                <span>{{ formatearFecha(item.fechaReferencia) }}</span>
+              </div>
+
+              <p>{{ item.mensaje }}</p>
+              <small>
+                Reserva: {{ item.codigoReserva?.trim() || '-' }} | Estancia: {{ item.codigoEstancia?.trim() || '-' }}
+              </small>
+            </article>
+          </div>
+          <ng-template #sinAlertas>
+            <p class="panel-empty">No hay alertas recientes para la ventana seleccionada.</p>
+          </ng-template>
+        </article>
+      </section>
+    </div>
+  </section>
+
   <section class="dashboard__filtros">
       <div class="dashboard__filtros-head">
         <h2>Filtros de busqueda</h2>

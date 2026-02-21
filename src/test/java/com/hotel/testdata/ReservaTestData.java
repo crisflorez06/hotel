@@ -9,6 +9,7 @@ import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class ReservaTestData {
@@ -28,7 +29,7 @@ public final class ReservaTestData {
         reserva.setEstado(estadoReserva);
         reserva.setCanalReserva(CanalReserva.MOSTRADOR);
         reserva.setNotas("prueba para nota de reserva");
-        reserva.setHabitaciones(habitaciones);
+        reserva.setHabitaciones(habitaciones == null ? null : new ArrayList<>(habitaciones));
         reserva.setEstancia(estancia);
 
         return reserva;

@@ -6,7 +6,6 @@ import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoReserva;
-import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.ReservaRepository;
 import com.hotel.resolvers.UnidadHabitacionResolver;
@@ -15,9 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static com.hotel.models.enums.EstadoEstancia.EXCEDIDA;
 
@@ -26,53 +23,81 @@ public class DisponibilidadService {
 
     private static final Logger logger = LoggerFactory.getLogger(DisponibilidadService.class);
 
-    private final UnidadHabitacionResolver unidadHabitacionResolver;
     private final EstanciaRepository estanciaRepository;
     private final ReservaRepository reservaRepository;
 
-    public DisponibilidadService(UnidadHabitacionResolver unidadHabitacionResolver,
-                                 EstanciaRepository estanciaRepository,
+    public DisponibilidadService(EstanciaRepository estanciaRepository,
                                 ReservaRepository reservaRepository)
     {
-        this.unidadHabitacionResolver = unidadHabitacionResolver;
         this.estanciaRepository = estanciaRepository;
         this.reservaRepository = reservaRepository;
     }
 
 
-    public String verificarDisponibilidad(Estancia estancia, Reserva reserva, String codigo, TipoUnidad tipoUnidad, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
+    public String verificarDisponibilidadNuevo(List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
 
-        logger.info("[DisponibilidadService.verificarDisponiblidad] Verificando disponibilidad para reserva con codigo: {} y tipoUnidad: {} en el rango de fechas: {} - {}", codigo, tipoUnidad, fechaIncioReserva, fechaFinReserva);
-        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-        List<Habitacion> habitacionesConReserva = new ArrayList<>();
-        if(reserva == null) {
-            logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Si el codigo de reserva no es nulo, se omite la verificación de reservas para las habitaciones");
+        logger.info("[DisponibilidadService.verificarDisponiblidad] Verificando reserva para las habitaciones en el rango de fechas: {} - {}", fechaIncioReserva, fechaFinReserva);
+        List<Reserva> reservas = listaReservaPorHabitacion(habitaciones, fechaIncioReserva, fechaFinReserva);
 
-        } else {
-            logger.info("[DisponibilidadService.verificarDisponiblidad] Se encontró una reserva asociada para codigo: {} y tipoUnidad: {}, se procede a verificar reservas activas en el rango de fechas", codigo, tipoUnidad);
-            habitacionesConReserva = verificarReservaPorHabitacion(reserva.getCodigo(), habitaciones, fechaIncioReserva, fechaFinReserva);
-        }
 
-        logger.info("[DisponibilidadService.verificarDisponiblidad] Habitaciones con reserva encontradas: {}", habitacionesConReserva.size());
-        if(!habitacionesConReserva.isEmpty()) {
+        logger.info("[DisponibilidadService.verificarDisponiblidad] Habitaciones con reserva encontradas: {}", reservas.size());
+        if(!reservas.isEmpty()) {
+            List<Habitacion> habitacionesConReserva = reservas.stream()
+                    .flatMap(reserva -> reserva.getHabitaciones().stream())
+                    .toList();
             return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        if(estancia != null) {
-            logger.info("[DisponibilidadService.verificarDisponiblidad] si la estancia no es nula, se omite la verificación de disponibilidad de habitaciones para estancia con codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-            return "";
-        }
-
         if (!tieneDisponiblidadHabitaciones(habitaciones)){
-            logger.info("[DisponibilidadService.verificarDisponiblidad] No hay disponibilidad para estancia con codigo: {} y tipoUnidad: {}", codigo, tipoUnidad);
-            List<Habitacion> habitacionesConEstancia = existeEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva);
-            if(!habitacionesConEstancia.isEmpty()) {
+            logger.info("[DisponibilidadService.verificarDisponiblidad] No hay disponibilidad por estado operativo, verificando estancias activas o excedidas");
+            List<Estancia> estancias = listaEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva);
+            if(!estancias.isEmpty()) {
+                List<Habitacion> habitacionesConEstancia = estancias.stream()
+                        .flatMap(estancia -> estancia.getHabitaciones().stream())
+                        .toList();
                 return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
             }
         }
 
         return "";
 
+    }
+
+    public String verificarDisponibilidadEditar(Reserva reserva, Estancia estancia ,List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
+        logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para edición de reserva o estancia");
+        if(reserva != null) {
+            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para reserva con codigo: {}", reserva.getCodigo());
+            List<Reserva> reservas = listaReservaPorHabitacion(habitaciones, fechaIncioReserva, fechaFinReserva)
+                    .stream()
+                    .filter(r -> !r.getCodigo().equals(reserva.getCodigo()))
+                    .toList();
+
+            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con reserva encontradas: {}", reservas.size());
+            if(!reservas.isEmpty()) {
+                List<Habitacion> habitacionesConReserva = reservas.stream()
+                        .flatMap(r -> r.getHabitaciones().stream())
+                        .toList();
+                return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
+            }
+        }
+
+        if(estancia != null) {
+            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para estancia con codigo: {}", estancia.getCodigoFolio());
+            List<Estancia> estancias = listaEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva)
+                    .stream()
+                    .filter(e -> !e.getCodigoFolio().equals(estancia.getCodigoFolio()))
+                    .toList();
+
+            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con estancia encontradas: {}", estancias.size());
+            if(!estancias.isEmpty()) {
+                List<Habitacion> habitacionesConEstancia = estancias.stream()
+                        .flatMap(e -> e.getHabitaciones().stream())
+                        .toList();
+                return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
+            }
+        }
+
+        return "";
     }
 
     private Boolean tieneDisponiblidadHabitaciones(List<Habitacion> habitaciones) {
@@ -90,53 +115,47 @@ public class DisponibilidadService {
 
     }
 
-    private List<Habitacion> verificarReservaPorHabitacion(String codigoReserva ,List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
-        logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Verificando reservas para las habitaciones en el rango de fechas: {} - {}", fechaIncioReserva, fechaFinReserva);
-        List<Habitacion> habitacionesConReserva = new ArrayList<>();
-        if(reservaRepository.existsByCodigo(codigoReserva)){
-            logger.info("[DisponibilidadService.verificarReservaPorHabitacion] se encontró una reserva con el codigo: {}, se omite la verificación de reservas para las habitaciones", codigoReserva);
-            return habitacionesConReserva;
+    private List<Reserva> listaReservaPorHabitacion(List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
+        logger.info("[DisponibilidadService.listaReservaPorHabitacion] Verificando reservas para las habitaciones en el rango de fechas: {} - {}", fechaIncioReserva, fechaFinReserva);
+        if (habitaciones == null || habitaciones.isEmpty()) {
+            return List.of();
         }
 
+        List<Long> habitacionIds = habitaciones.stream()
+                .map(Habitacion::getId)
+                .toList();
 
-        for (Habitacion habitacion : habitaciones) {
-            boolean existeReserva = reservaRepository.existsReservaByHabitacionAndRango(
-                    habitacion.getId(),
-                    fechaIncioReserva,
-                    fechaFinReserva,
-                    List.of(EstadoReserva.CONFIRMADA)
-            );
-            if (existeReserva) {
-                logger.info("[DisponibilidadService.verificarReservaPorHabitacion] Existe una reserva activa para la habitacion con codigo: {} en el rango de fechas: {} - {}", habitacion.getCodigo(), fechaIncioReserva, fechaFinReserva);
-                habitacionesConReserva.add(habitacion);
-            }
-        }
-
-        return habitacionesConReserva;
+        return reservaRepository.findReservasSolapadasPorHabitacionesYFechas(
+                habitacionIds,
+                fechaIncioReserva,
+                fechaFinReserva,
+                List.of(EstadoReserva.CONFIRMADA)
+        );
     }
 
-    private List<Habitacion> existeEstanciaActivaOExcedidaPorHabitacion(
+    private List<Estancia> listaEstanciaActivaOExcedidaPorHabitacion(
             List<Habitacion> habitaciones,
             LocalDateTime fechaInicioReserva
     ) {
-        logger.info("[DisponibilidadService.existeEstanciaActivaOExcedidaPorHabitacion] Verificando estancias activas o excedidas para las habitaciones");
-
-        List<Habitacion> habitacionesConEstancia = new ArrayList<>();
-
-        for (Habitacion habitacion : habitaciones) {
-            estanciaRepository
-                    .findActivaOExcedidaPorHabitacionId(habitacion.getId())
-                    .ifPresent(estancia -> {
-
-                        if (fechaInicioReserva.isBefore(estancia.getSalidaEstimada()) || estancia.getEstado() == EXCEDIDA) {
-                            logger.info("[DisponibilidadService.verificarDisponibilidad] Existe una estancia activa/excedida que se solapa para codigo: {}", habitacion.getCodigo());
-                            habitacionesConEstancia.add(habitacion);
-                        }
-
-                    });
+        logger.info("[DisponibilidadService.listaEstanciaActivaOExcedidaPorHabitacion] Verificando estancias activas o excedidas para las habitaciones");
+        if (habitaciones == null || habitaciones.isEmpty()) {
+            return List.of();
         }
 
-        return habitacionesConEstancia;
+        List<Long> habitacionIds = habitaciones.stream()
+                .map(Habitacion::getId)
+                .toList();
+
+        return estanciaRepository.findActivasOExcedidasPorHabitaciones(
+                        habitacionIds,
+                        List.of(EstadoEstancia.ACTIVA, EstadoEstancia.EXCEDIDA)
+                ).stream()
+                .filter(estancia ->
+                        estancia.getEstado() == EXCEDIDA
+                                || (estancia.getSalidaEstimada() != null
+                                && fechaInicioReserva.isBefore(estancia.getSalidaEstimada()))
+                )
+                .toList();
     }
 
 

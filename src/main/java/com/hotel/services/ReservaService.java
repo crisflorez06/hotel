@@ -70,12 +70,13 @@ public class ReservaService {
 
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
+        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
         LocalDateTime entradaEstimada = request.getEntradaEstimada();
         LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
 
         logger.info("[crearReserva] Verificando disponibilidad para la unidad o habitacion con codigo: {}", request.getCodigo());
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(null, null, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
+        String existeDisponibilidad = disponibilidadService.verificarDisponibilidadNuevo(habitaciones, entradaEstimada, salidaEstimada);
         if (!existeDisponibilidad.isEmpty()) {
             throw new IllegalArgumentException("No es posible crear la reserva: " + existeDisponibilidad);
         }
@@ -94,7 +95,6 @@ public class ReservaService {
         reserva.setCliente(determinarCliente(request.getIdOcupante()));
 
         logger.info("[crearReserva] Asignando habitaciones a la reserva");
-        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(request.getCodigo(), request.getTipoUnidad());
         reserva.setHabitaciones(habitaciones);
 
         logger.info("[crearReserva] Creando estancia asociada a la reserva");
@@ -133,6 +133,7 @@ public class ReservaService {
 
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
+        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
         LocalDateTime entradaEstimada = request.getEntradaEstimada();
         LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
@@ -150,7 +151,7 @@ public class ReservaService {
             throw new IllegalArgumentException("No es posible editar la reserva: " + fechaConflicto);
         }
 
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidad(null, reserva, codigo, tipoUnidad, entradaEstimada, salidaEstimada);
+        String existeDisponibilidad = disponibilidadService.verificarDisponibilidadEditar(reserva, null ,habitaciones, entradaEstimada, salidaEstimada);
         if (!existeDisponibilidad.isEmpty()) {
             throw new IllegalArgumentException("No es posible editar la reserva: " + existeDisponibilidad);
         }

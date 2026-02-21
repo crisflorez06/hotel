@@ -2,6 +2,7 @@ package com.hotel.repositories;
 
 import com.hotel.models.Estancia;
 import com.hotel.models.enums.EstadoEstancia;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -38,4 +39,47 @@ public interface EstanciaRepository extends JpaRepository<Estancia, Long>, JpaSp
     Optional<Estancia> findActivaOExcedidaPorHabitacionId(
             @Param("habitacionId") Long habitacionId
     );
+
+    @Query("""
+           select distinct e
+           from Estancia e
+           join e.habitaciones h
+           where h.id in :habitacionIds
+             and e.estado in :estados
+           """)
+    List<Estancia> findActivasOExcedidasPorHabitaciones(
+            @Param("habitacionIds") List<Long> habitacionIds,
+            @Param("estados") List<EstadoEstancia> estados
+    );
+
+    long countByEstadoIn(List<EstadoEstancia> estados);
+
+    long countByEstado(EstadoEstancia estado);
+
+    @Query("""
+           select count(distinct h.id)
+           from Estancia e
+           join e.habitaciones h
+           where e.estado in :estados
+           """)
+    long countHabitacionesOcupadasPorEstados(@Param("estados") List<EstadoEstancia> estados);
+
+    @Query("""
+           select e
+           from Estancia e
+           left join fetch e.reserva r
+           where e.estado = :estado
+           order by e.salidaEstimada asc
+           """)
+    List<Estancia> findByEstadoConReserva(@Param("estado") EstadoEstancia estado);
+
+    @Query("""
+           select count(e)
+           from Estancia e
+           where e.estado = :estado
+             and e.salidaEstimada < :momento
+           """)
+    long countByEstadoAndSalidaEstimadaBefore(
+            @Param("estado") EstadoEstancia estado,
+            @Param("momento") LocalDateTime momento);
 }

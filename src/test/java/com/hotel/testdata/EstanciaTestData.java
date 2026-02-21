@@ -10,6 +10,7 @@ import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 public final class EstanciaTestData {
@@ -29,12 +30,36 @@ public final class EstanciaTestData {
         estancia.setCodigoFolio(TestDataUtils.randomCodigo("EST-"));
         estancia.setReserva(reserva);
         estancia.setOcupantes(ocupantes);
-        estancia.setEntradaReal(LocalDateTime.now());
+        estancia.setEntradaReal(LocalDateTime.now().plusDays(-1));
         estancia.setSalidaEstimada(estancia.getEntradaReal().plusDays(2));
         estancia.setModoOcupacion(modoOcupacion);
         estancia.setEstado(estadoEstancia);
         estancia.setNotas("Estancia de prueba");
-        estancia.setHabitaciones(habitaciones);
+        estancia.setHabitaciones(habitaciones == null ? null : new ArrayList<>(habitaciones));
+        estancia.setPagos(pagos);
+
+        return estancia;
+    }
+
+    public static Estancia estanciaReservaData(
+            Reserva reserva,
+            List<Ocupante> ocupantes,
+            ModoOcupacion modoOcupacion,
+            EstadoEstancia estadoEstancia,
+            List<Habitacion> habitaciones,
+            List<Pago> pagos
+    ) {
+        Estancia estancia = new Estancia();
+
+        estancia.setCodigoFolio(TestDataUtils.randomCodigo("EST-"));
+        estancia.setReserva(reserva);
+        estancia.setOcupantes(ocupantes);
+        estancia.setEntradaReal(null);
+        estancia.setSalidaEstimada(null);
+        estancia.setModoOcupacion(modoOcupacion);
+        estancia.setEstado(estadoEstancia);
+        estancia.setNotas("Estancia reserva de prueba");
+        estancia.setHabitaciones(habitaciones == null ? null : new ArrayList<>(habitaciones));
         estancia.setPagos(pagos);
 
         return estancia;
@@ -43,12 +68,17 @@ public final class EstanciaTestData {
     public static EstanciaRequestDTO estanciaRequestDTO(TipoUnidad tipoUnidad, String codigo, Ocupante cliente, List<Ocupante> acompanantes, LocalDateTime fecha, PagoNuevoRequestDTO pago) {
         EstanciaRequestDTO request = new EstanciaRequestDTO();
 
-        List<Long> acompanantesIds = acompanantes.stream()
-                .map(Ocupante::getId)
-                .toList();
-
         request.setTipoUnidad(tipoUnidad);
         request.setCodigo(codigo);
+
+        if(acompanantes != null) {
+            List<Long> acompanantesIds = acompanantes.stream()
+                    .map(Ocupante::getId)
+                    .toList();
+            request.setIdAcompanantes(acompanantesIds);
+        } else {
+            request.setIdAcompanantes(null);
+        }
 
         request.setIdCliente(cliente.getId());
 
@@ -62,7 +92,18 @@ public final class EstanciaTestData {
         }
         request.setNotas("Estancia de prueba");
         request.setPago(pago);
-        request.setIdAcompanantes(acompanantesIds);
+        return request;
+    }
+
+    public static EstanciaRequestDTO errorFechasEstanciaRequestDTO(Unidad unidad) {
+        EstanciaRequestDTO request = new EstanciaRequestDTO();
+        request.setTipoUnidad(unidad.getTipo());
+        request.setCodigo(unidad.getCodigo());
+
+        LocalDateTime entrada = LocalDateTime.now();
+        request.setEntradaReal(entrada.plusDays(3));
+        request.setSalidaEstimada(entrada);
+
         return request;
     }
 

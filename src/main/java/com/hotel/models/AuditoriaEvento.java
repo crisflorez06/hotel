@@ -39,7 +39,7 @@ public class AuditoriaEvento {
     @Column(nullable = false, length = 30)
     private TipoEvento tipoEvento;
 
-    @Column(columnDefinition = "JSON")
+    @Column(columnDefinition = "TEXT")
     private String detalle;
 
     @Column(nullable = false)

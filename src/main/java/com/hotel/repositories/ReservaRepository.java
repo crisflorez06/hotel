@@ -25,17 +25,18 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
     List<Reserva> findByClienteNumeroDocumentoIn(
             @Param("documentos") Set<String> documentos);
 
+
     @Query("""
-           select count(r) > 0
+           select distinct r
            from Reserva r
            join r.habitaciones h
-           where h.id = :habitacionId
+           where h.id in :habitacionIds
              and r.entradaEstimada <= :hasta
              and r.salidaEstimada >= :desde
              and r.estado in :estados
            """)
-    boolean existsReservaByHabitacionAndRango(
-            @Param("habitacionId") Long habitacionId,
+    List<Reserva> findReservasSolapadasPorHabitacionesYFechas(
+            @Param("habitacionIds") List<Long> habitacionIds,
             @Param("desde") LocalDateTime desde,
             @Param("hasta") LocalDateTime hasta,
             @Param("estados") List<EstadoReserva> estados);
@@ -79,6 +80,22 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
              and r.estancia is null
            """)
     List<Reserva> findReservasExpiradas(
+            @Param("estados") List<EstadoReserva> estados,
+            @Param("momento") LocalDateTime momento);
+
+    long countByEstadoAndEntradaEstimadaLessThanEqualAndSalidaEstimadaGreaterThanEqual(
+            EstadoReserva estado,
+            LocalDateTime hasta,
+            LocalDateTime desde);
+
+    @Query("""
+           select count(r)
+           from Reserva r
+           where r.estado in :estados
+             and r.salidaEstimada < :momento
+             and r.estancia is null
+           """)
+    long countReservasExpiradas(
             @Param("estados") List<EstadoReserva> estados,
             @Param("momento") LocalDateTime momento);
 }

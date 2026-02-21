@@ -1,15 +1,21 @@
 package com.hotel.testutils;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 public final class AssertionsHelper {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
 
     private AssertionsHelper() {
     }
@@ -87,6 +93,21 @@ public final class AssertionsHelper {
         }
     }
 
+    public static void comprobarHabitacionesDb(List<Habitacion> habitaciones, Estancia estancia) {
+        if (habitaciones != null) {
+            List<Long> idsHabitacionesEsperadas = habitaciones.stream()
+                    .map(Habitacion::getId)
+                    .toList();
+
+            List<Long> idsHabitacionesActuales = estancia.getHabitaciones().stream()
+                    .map(Habitacion::getId)
+                    .toList();
+
+            assertThat(idsHabitacionesActuales).hasSameSizeAs(idsHabitacionesEsperadas);
+            assertThat(idsHabitacionesActuales).containsExactlyInAnyOrderElementsOf(idsHabitacionesEsperadas);
+        }
+    }
+
     public static void comprobarUnidadYHabitacionesDb(
             Unidad unidad,
             EstadoOperativo estadoOperativo,
@@ -144,10 +165,42 @@ public final class AssertionsHelper {
         assertThat(reserva.getEstancia()).isNotNull();
     }
 
+    public static void comprobarOcupantesDb(
+            List<Ocupante> ocupantes,
+            Ocupante clienteEsperado,
+            List<Ocupante> acompanantesEsperados
+    ) {
+        Long idClienteEsperado = clienteEsperado.getId();
+        List<Long> idsAcompanantesEsperados = acompanantesEsperados.stream()
+                .map(Ocupante::getId)
+                .toList();
+
+        assertThat(ocupantes).isNotNull();
+        assertThat(ocupantes).allMatch(ocupante -> ocupante.getId() != null);
+
+        List<Ocupante> clientes = ocupantes.stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .toList();
+
+
+        assertThat(clientes).hasSize(1);
+        assertThat(clientes.getFirst().getId()).isEqualTo(idClienteEsperado);
+
+        List<Long> idsAcompanantesActuales = ocupantes.stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.ACOMPANANTE)
+                .map(Ocupante::getId)
+                .toList();
+
+
+        assertThat(idsAcompanantesActuales).hasSameSizeAs(idsAcompanantesEsperados);
+        assertThat(idsAcompanantesActuales).containsExactlyInAnyOrderElementsOf(idsAcompanantesEsperados);
+
+    }
+
     public static void comprobarPagosDb(
             List<Pago> pagos,
-            double montoExitoso,
-            double montoNulo,
+            BigDecimal montoExitoso,
+            BigDecimal montoNulo,
             EstadoPago estadoPago1,
             int totalEstadosPago1,
             EstadoPago estadoPago2,
@@ -174,14 +227,14 @@ public final class AssertionsHelper {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
 
-        assertThat(exitoso).isEqualByComparingTo(BigDecimal.valueOf(montoExitoso));
+        assertThat(exitoso).isEqualByComparingTo(montoExitoso);
 
         BigDecimal nulo = pagos.stream()
                 .filter(p -> p.getEstado() == EstadoPago.ELIMINADO || p.getEstado() == EstadoPago.MODIFICADO)
                 .map(Pago::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        assertThat(nulo).isEqualByComparingTo(BigDecimal.valueOf(montoNulo));
+        assertThat(nulo).isEqualByComparingTo(montoNulo);
 
         Long tipoPagoEstanciaCompletada = pagos.stream()
                 .filter(p -> p.getTipoPago() == TipoPago.ESTANCIA_COMPLETADA)
@@ -201,5 +254,102 @@ public final class AssertionsHelper {
 
         assertThat(tipoPagoReserva).isEqualTo(totalTipoPagoReserva);
 
+    }
+
+    public static void comprobarEventoDb(
+            AuditoriaEvento evento,
+            TipoEvento tipoEvento,
+            String codigoEstancia,
+            String codigoReserva
+    ) {
+        assertThat(evento.getTipoEvento()).isEqualTo(tipoEvento);
+
+        switch (tipoEvento) {
+            case CREACION_ESTANCIA:
+                comprobarJson(evento.getDetalle(), 4);
+                assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.ESTANCIA);
+                break;
+            case MODIFICACION_ESTANCIA:
+                comprobarJson(evento.getDetalle(), 5);
+                assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.ESTANCIA);
+                break;
+            case ELIMINACION_ESTANCIA:
+                assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.ESTANCIA);
+                break;
+            case CREACION_PAGO:
+            case MODIFICACION_PAGO:
+            case ELIMINACION_PAGO:
+                assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.PAGO);
+                break;
+            default:
+                throw new IllegalArgumentException("Tipo de evento no esperado en esta comprobación: " + tipoEvento);
+        }
+
+
+
+        if(codigoEstancia == null) {
+            assertThat(evento.getCodigoEstancia()).isNull();
+        } else {
+            assertThat(evento.getCodigoEstancia()).isEqualTo(codigoEstancia);
+        }
+
+        if(codigoReserva == null) {
+            assertThat(evento.getCodigoReserva()).isNull();
+        } else {
+            assertThat(evento.getCodigoReserva()).isEqualTo(codigoReserva);
+        }
+    }
+
+    private static void comprobarJson(String json, int cantidadPropiedades) {
+        assertThat(json).isNotBlank();
+        assertThat(cantidadPropiedades).isGreaterThan(0);
+
+        try {
+            JsonNode root = OBJECT_MAPPER.readTree(json);
+            assertThat(root.isObject()).isTrue();
+            assertThat(root.size()).isEqualTo(cantidadPropiedades);
+
+            Iterator<Map.Entry<String, JsonNode>> fields = root.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                assertThat(field.getKey()).isNotBlank();
+                assertThat(valorJsonConContenido(field.getValue())).isTrue();
+            }
+        } catch (Exception e) {
+            throw new AssertionError("JSON inválido o no cumple la estructura esperada: " + json, e);
+        }
+    }
+
+    private static boolean valorJsonConContenido(JsonNode value) {
+        if (value == null || value.isNull()) {
+            return false;
+        }
+        if (value.isObject()) {
+            if (value.size() == 0) {
+                return false;
+            }
+            Iterator<Map.Entry<String, JsonNode>> fields = value.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                if (field.getKey() == null || field.getKey().isBlank()) {
+                    return false;
+                }
+                if (!valorJsonConContenido(field.getValue())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return valorConContenido(value);
+    }
+
+    private static boolean valorConContenido(JsonNode value) {
+        if (value == null || value.isNull()) {
+            return false;
+        }
+        if (value.isTextual()) {
+            return !value.asText().isBlank();
+        }
+        return true;
     }
 }
