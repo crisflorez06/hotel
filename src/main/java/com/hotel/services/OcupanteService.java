@@ -174,6 +174,13 @@ public class OcupanteService {
         return cliente.getNombres() + " " + cliente.getApellidos();
     }
 
+    public String obtenerNombresAcompanantes(Set<Long> idOcupantes) {
+        return idOcupantes.stream()
+                .map(this::buscarPorId)
+                .map(ocupante -> ocupante.getNombres() + " " + ocupante.getApellidos())
+                .collect(Collectors.joining(", "));
+    }
+
     private ClienteTablaDTO mapearClienteTablaDTO(
             List<Ocupante> ocupantes,
             Map<String, List<Reserva>> reservasPorDocumento,

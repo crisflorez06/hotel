@@ -42,7 +42,7 @@ public class Pago {
     private BigDecimal monto;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "medio_pago", nullable = false, length = 20)
+    @Column(name = "medio_pago", length = 20)
     private MedioPago medioPago;
 
     @Column(nullable = false)

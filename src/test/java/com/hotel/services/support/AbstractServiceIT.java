@@ -97,8 +97,8 @@ public abstract class AbstractServiceIT {
         return unidad;
     }
 
-    protected void crearPagoInicialEnEstancia(Estancia estancia, TipoPago tipoPago) {
-        pagoRepository.save(pagoData(estancia, tipoPago));
+    protected Pago crearPagoInicialEnEstancia(Estancia estancia, TipoPago tipoPago) {
+        return pagoRepository.save(pagoData(estancia, tipoPago));
     }
 
     protected Ocupante crearCliente(Ocupante cliente) {
@@ -113,7 +113,7 @@ public abstract class AbstractServiceIT {
         return ocupanteRepository.saveAll(acompanantesDataConCliente());
     }
 
-    protected Estancia crearEstanciaExistente(List<Habitacion> habitaciones){
+    protected Estancia crearEstanciaExistente(List<Habitacion> habitaciones, boolean conPago){
 
         ModoOcupacion modoOcupacion;
         if(habitaciones.size() == 1) {
@@ -136,13 +136,17 @@ public abstract class AbstractServiceIT {
 
         Estancia estancia = estanciaRepository.save(estanciaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
+        if(conPago) {
+            Pago pago = crearPagoInicialEnEstancia(estanciaExistente, TipoPago.ANTICIPO_ESTANCIA);
+            estanciaExistente.setPagos(new ArrayList<>(List.of(pago)));
+            estanciaRepository.save(estanciaExistente);
+        }
 
         return estancia;
 
     }
 
-    protected Estancia crearEstanciaConReservaExistente(List<Habitacion> habitaciones){
+    protected Estancia crearEstanciaConReservaExistente(List<Habitacion> habitaciones, boolean conPagoEstancia, boolean conPagoReserva){
 
         Ocupante cliente = crearCliente(clienteData());
 
@@ -158,24 +162,36 @@ public abstract class AbstractServiceIT {
 
         Estancia estancia = estanciaData(
                 reservaExistente,
-                List.of(cliente),
+                new ArrayList<>(List.of(cliente)),
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.ACTIVA,
                 habitaciones,
                 null
         );
 
+        if(conPagoEstancia  && conPagoReserva) {
+            Pago pagoEstancia = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
+            Pago pagoReserva = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+            estancia.setPagos(new ArrayList<>(List.of(pagoEstancia, pagoReserva)));
+        } else if(conPagoEstancia) {
+            Pago pagoEstancia = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
+            estancia.setPagos(new ArrayList<>(List.of(pagoEstancia)));
+        } else if(conPagoReserva) {
+            Pago pagoReserva = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+            estancia.setPagos(new ArrayList<>(List.of(pagoReserva)));
+        }
+
         reservaExistente.setEstancia(estancia);
         estanciaRepository.save(estancia);
         reservaRepository.save(reservaExistente);
 
-        crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+
 
         return estancia;
 
     }
 
-    protected Reserva crearReservaExistente(List<Habitacion> habitaciones){
+    protected Reserva crearReservaExistente(List<Habitacion> habitaciones, boolean conPago){
         Ocupante cliente = crearCliente(clienteData());
 
         Reserva reservaExistente = reservaRepository.save(
@@ -188,10 +204,21 @@ public abstract class AbstractServiceIT {
                 )
         );
 
+        ModoOcupacion modoOcupacion;
+        if(habitaciones.size() == 1) {
+            if(habitaciones.getFirst().getUnidad().getTipo().equals(TipoUnidad.APARTAESTUDIO)){
+                modoOcupacion = ModoOcupacion.COMPLETO;
+            } else {
+                modoOcupacion = ModoOcupacion.INDIVIDUAL;
+            }
+        } else {
+            modoOcupacion = ModoOcupacion.COMPLETO;
+        }
+
         Estancia estanciaDeReserva = estanciaReservaData(
                 reservaExistente,
-                List.of(cliente),
-                ModoOcupacion.COMPLETO,
+                new ArrayList<>(List.of(cliente)),
+                modoOcupacion,
                 EstadoEstancia.RESERVADA,
                 habitaciones,
                 null
@@ -201,7 +228,11 @@ public abstract class AbstractServiceIT {
         estanciaRepository.save(estanciaDeReserva);
         Reserva reserva = reservaRepository.save(reservaExistente);
 
-        crearPagoInicialEnEstancia(estanciaDeReserva, TipoPago.ANTICIPO_RESERVA);
+        if(conPago) {
+            Pago pago = crearPagoInicialEnEstancia(estanciaDeReserva, TipoPago.ANTICIPO_RESERVA);
+            estanciaDeReserva.setPagos(new ArrayList<>(List.of(pago)));
+            estanciaRepository.save(estanciaDeReserva);
+        }
 
         return reserva;
 

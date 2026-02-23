@@ -28,7 +28,7 @@ public class PagoResolver {
         this.tarifaBaseService = tarifaBaseService;
     }
 
-    public double calcularEstimacionPago(CalcularPagoDTO request) {
+    public BigDecimal calcularEstimacionPago(CalcularPagoDTO request) {
         logger.info("[PagoResolver.calcularTotalPagos] Calculando total de pagos para el request: {}", request);
 
         logger.info("[PagoResolver.calcularTotalPagos] verificando si existe pago anterior en la reserva");
@@ -79,7 +79,7 @@ public class PagoResolver {
                 .subtract(BigDecimal.valueOf(pagoEstancia));
         logger.info("[PagoResolver.calcularTotalPagos] total pago calculado: {}", totalPago);
 
-        return totalPago.doubleValue();
+        return totalPago;
 
     }
 

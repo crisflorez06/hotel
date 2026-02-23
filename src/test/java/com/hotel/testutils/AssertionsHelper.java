@@ -55,7 +55,11 @@ public final class AssertionsHelper {
         } else {
         assertThat(estancia.getEntradaReal()).isEqualToIgnoringNanos(entradaReal);
         }
+        if(salidaEstimada == null) {
+            assertThat(estancia.getSalidaEstimada()).isNull();
+        } else {
         assertThat(estancia.getSalidaEstimada()).isEqualToIgnoringNanos(salidaEstimada);
+        }
         if(fechaSalidaReal == null) {
             assertThat(estancia.getSalidaReal()).isNull();
         } else {
@@ -171,9 +175,24 @@ public final class AssertionsHelper {
             List<Ocupante> acompanantesEsperados
     ) {
         Long idClienteEsperado = clienteEsperado.getId();
-        List<Long> idsAcompanantesEsperados = acompanantesEsperados.stream()
-                .map(Ocupante::getId)
-                .toList();
+        if(acompanantesEsperados != null) {
+            List<Long> idsAcompanantesEsperados = acompanantesEsperados.stream()
+                    .map(Ocupante::getId)
+                    .toList();
+
+            List<Long> idsAcompanantesActuales = ocupantes.stream()
+                    .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.ACOMPANANTE)
+                    .map(Ocupante::getId)
+                    .toList();
+            assertThat(idsAcompanantesActuales).hasSameSizeAs(idsAcompanantesEsperados);
+            assertThat(idsAcompanantesActuales).containsExactlyInAnyOrderElementsOf(idsAcompanantesEsperados);
+        } else {
+            List<Ocupante> acompanantesActuales = ocupantes.stream()
+                    .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.ACOMPANANTE)
+                    .toList();
+            assertThat(acompanantesActuales).isEmpty();
+        }
+
 
         assertThat(ocupantes).isNotNull();
         assertThat(ocupantes).allMatch(ocupante -> ocupante.getId() != null);
@@ -186,14 +205,10 @@ public final class AssertionsHelper {
         assertThat(clientes).hasSize(1);
         assertThat(clientes.getFirst().getId()).isEqualTo(idClienteEsperado);
 
-        List<Long> idsAcompanantesActuales = ocupantes.stream()
-                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.ACOMPANANTE)
-                .map(Ocupante::getId)
-                .toList();
 
 
-        assertThat(idsAcompanantesActuales).hasSameSizeAs(idsAcompanantesEsperados);
-        assertThat(idsAcompanantesActuales).containsExactlyInAnyOrderElementsOf(idsAcompanantesEsperados);
+
+
 
     }
 
@@ -260,20 +275,17 @@ public final class AssertionsHelper {
             AuditoriaEvento evento,
             TipoEvento tipoEvento,
             String codigoEstancia,
-            String codigoReserva
+            String codigoReserva,
+            Integer cantidadPropiedadesJson
     ) {
         assertThat(evento.getTipoEvento()).isEqualTo(tipoEvento);
 
         switch (tipoEvento) {
+            case FINALIZACION_ESTANCIA:
             case CREACION_ESTANCIA:
-                comprobarJson(evento.getDetalle(), 4);
-                assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.ESTANCIA);
-                break;
             case MODIFICACION_ESTANCIA:
-                comprobarJson(evento.getDetalle(), 5);
-                assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.ESTANCIA);
-                break;
             case ELIMINACION_ESTANCIA:
+            case ACTIVACION_ESTANCIA:
                 assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.ESTANCIA);
                 break;
             case CREACION_PAGO:
@@ -284,6 +296,8 @@ public final class AssertionsHelper {
             default:
                 throw new IllegalArgumentException("Tipo de evento no esperado en esta comprobación: " + tipoEvento);
         }
+
+        comprobarJson(evento.getDetalle(), cantidadPropiedadesJson);
 
 
 
@@ -325,7 +339,7 @@ public final class AssertionsHelper {
             return false;
         }
         if (value.isObject()) {
-            if (value.size() == 0) {
+            if (value.isEmpty()) {
                 return false;
             }
             Iterator<Map.Entry<String, JsonNode>> fields = value.fields();

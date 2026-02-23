@@ -17,7 +17,7 @@ import lombok.ToString;
 @Entity
 @Table(name = "reservas",
         indexes = {
-                @Index(name = "idx_reservas_ocupante", columnList = "id_ocupante")
+                @Index(name = "idx_reservas_cliente", columnList = "id_cliente")
         }
 )
 @Getter

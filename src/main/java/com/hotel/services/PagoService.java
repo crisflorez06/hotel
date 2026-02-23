@@ -85,6 +85,47 @@ public class PagoService {
     }
 
     @Transactional
+    public Pago crearPagoPorCambioUnidad(Estancia estancia, TipoUnidad tipoUnidad) {
+        if (estancia == null || tipoUnidad == null) {
+            logger.info("[crearPagoPorCambioUnidad] No se proporcionó información de estancia o tipo de unidad");
+            throw new IllegalArgumentException("No se proporcionó información de estancia o tipo de unidad");
+        }
+
+        logger.info("[crearPagoPorCambioUnidad] Creando pago por cambio de unidad para estancia con codigo: {} y nuevo tipo de unidad: {}", estancia.getCodigoFolio(), tipoUnidad);
+        Integer totalOcupantes = estancia.getOcupantes().size();
+        LocalDateTime fechaEntrada = estancia.getEntradaReal();
+        LocalDateTime fechaFinalizacion = LocalDateTime.now();
+
+        logger.info("[crearPagoPorCambioUnidad] Preparando datos para cálculo de pago por cambio de unidad. Total ocupantes: {}, Fecha entrada: {}, Fecha finalización: {}", totalOcupantes, fechaEntrada, fechaFinalizacion);
+        CalcularPagoDTO calcularPagoDTO = PagoMapper.entityToCalcularPagoDTO(tipoUnidad, totalOcupantes, fechaEntrada, fechaFinalizacion);
+
+        BigDecimal monto = obtenerEstimacionPago(calcularPagoDTO);
+
+        logger.info("[crearPagoPorCambioUnidad] Monto calculado para pago por cambio de unidad: {}", monto);
+        Pago pago = PagoMapper.cambioUnidadToEntity(monto, fechaFinalizacion, estancia);
+
+        EventoNuevoJsonBuilder nuevoPagoJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estancia.getCodigoFolio())
+                .agregarProp("tipoPago", pago.getTipoPago())
+                .agregarProp("monto", monto);
+
+
+        Pago pagoCreado = pagoRepository.save(pago);
+
+        eventoService.crearEvento(
+                TipoEvento.CREACION_PAGO,
+                TipoEntidad.PAGO,
+                pagoCreado.getId(),
+                nuevoPagoJson.build(),
+                estancia.getCodigoFolio(),
+                estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null
+        );
+
+
+        return pagoCreado;
+    }
+
+    @Transactional
     public Pago reemplazarPago(PagoNuevoRequestDTO request, Pago pagoAnterior, Estancia estancia) {
         if (request == null) {
             logger.info("[reemplazarPago] No se proporcionó información de pago. Se omite el reemplazo.");
@@ -158,7 +199,7 @@ public class PagoService {
         return pagos.map(this::mapearPagoDTOConCodigo);
     }
 
-    public Double obtenerEstimacionPago(CalcularPagoDTO request) {
+    public BigDecimal obtenerEstimacionPago(CalcularPagoDTO request) {
         logger.info("[obtenerEstimacionPago] Calculando estimación de pago para el request: {}", request);
         return pagoResolver.calcularEstimacionPago(request);
     }

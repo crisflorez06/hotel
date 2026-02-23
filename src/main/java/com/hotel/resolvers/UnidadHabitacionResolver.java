@@ -48,4 +48,18 @@ public class UnidadHabitacionResolver {
 
     }
 
+    public TipoUnidad determinarTipoUnidad(List<Habitacion> habitaciones) {
+        Unidad unidadPrincipal = habitaciones.getFirst().getUnidad();
+
+        if (unidadPrincipal.getTipo() == TipoUnidad.APARTAESTUDIO) {
+            return TipoUnidad.APARTAESTUDIO;
+        }
+
+        if (habitaciones.size() == 1) {
+            return TipoUnidad.HABITACION;
+        }
+
+        return TipoUnidad.APARTAMENTO;
+    }
+
 }

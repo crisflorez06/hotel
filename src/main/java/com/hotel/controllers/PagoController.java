@@ -6,6 +6,8 @@ import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.MedioPago;
 import com.hotel.models.enums.TipoPago;
 import com.hotel.services.PagoService;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.domain.Page;
@@ -42,7 +44,7 @@ public class PagoController {
     }
 
     @PostMapping("/total")
-    public double calcularTotal(@RequestBody CalcularPagoDTO request) {
+    public BigDecimal calcularTotal(@RequestBody CalcularPagoDTO request) {
         return pagoService.obtenerEstimacionPago(request);
     }
 }

@@ -33,8 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class EstanciaService {
@@ -93,7 +93,7 @@ public class EstanciaService {
         estancia.setHabitaciones(habitaciones);
 
         logger.info("[crearEstanciaNueva] Estableciendo modo de ocupacion para la estancia");
-        estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
+        estancia.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
 
         logger.info("[crearEstanciaNueva] Determinando estado inicial de la estancia");
         estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
@@ -130,25 +130,30 @@ public class EstanciaService {
     @Transactional
     public Estancia activarEstancia(ActivarEstanciaDTO request) {
 
+        if(request.getIdReserva() == null) {
+            throw new IllegalArgumentException("El id de reserva no puede ser nulo para activar una estancia");
+        }
         Reserva reserva = ERService.buscarReservaPorIdDesdeEstancia(request.getIdReserva());
         Estancia estancia = reserva.getEstancia();
+        LocalDateTime entradaReal = request.getEntradaReal();
+        LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
         logger.info("[activarEstancia] Validando reglas de negocio para activar estancia desde reserva con id: {}", request.getIdReserva());
-        validarActivacionEstancia(reserva, estancia);
-
-        logger.info("[activarEstancia] validando fechas de entrada y salida de la estancia");
-        validarFechasEstancia(request.getEntradaReal(), request.getSalidaEstimada());
+        validarActivacionEstancia(reserva, estancia, entradaReal, salidaEstimada);
 
         // 3) Aplicar cambios a la estancia
         logger.info("[activarEstancia] Actualizando estancia a ACTIVA");
-        estancia.setEntradaReal(request.getEntradaReal());
-        estancia.setSalidaEstimada(request.getSalidaEstimada());
+        estancia.setEntradaReal(entradaReal);
+        estancia.setSalidaEstimada(salidaEstimada);
 
         logger.info("[activarEstancia] Determinando ocupantes de la estancia");
         estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
 
         logger.info("[activarEstancia] Determinando estado inicial de la estancia");
         estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
+
+        logger.info("[activarEstancia] Agregando notas de activación a la estancia");
+        estancia.setNotas(estancia.getNotas() + " | Notas de activación: " + request.getNotas());
 
         logger.info("[activarEstancia] Guardando estancia en la base de datos");
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
@@ -165,7 +170,7 @@ public class EstanciaService {
         logger.info("[activarEstancia] Registrando evento de creación de nueva estancia para codigo: {}", estanciaGuardada.getCodigoFolio());
         EventoNuevoJsonBuilder nuevaEstancia = new EventoNuevoJsonBuilder()
                 .agregarProp("codigoEstancia", estanciaGuardada.getCodigoFolio())
-                .agregarProp("unidad", unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()))
+                .agregarProp("unidad", unidadHabitacionResolver.determinarCodigoUnidad(estanciaGuardada.getHabitaciones()))
                 .agregarProp("fechaEntrada", estanciaGuardada.getEntradaReal())
                 .agregarProp("fechaSalida", estanciaGuardada.getSalidaEstimada());
 
@@ -213,11 +218,10 @@ public class EstanciaService {
 
         logger.info("[editarEstancia] Verificando si hubo cambio de codigo o tipo de unidad asignada a la estancia");
 
-        estanciaModificadaJson.agregarCambio("unidad",
-                unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()),
-                codigo);
-
         if(cambioCodigo){
+            estanciaModificadaJson.agregarCambio("unidad",
+                    unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()),
+                    codigo);
 
             alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
 
@@ -225,11 +229,18 @@ public class EstanciaService {
             alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.OCUPADO);
 
             logger.info("[editarEstancia] Estableciendo modo de ocupacion para la estancia");
-            estancia.setModoOcupacion(determinarModoOcupacion(request.getTipoUnidad()));
+            estancia.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+
+            logger.info("[editarEstancia] Creando pago asociado al cambio de unidad de la estancia");
+
+            TipoUnidad tipoUnidadAnterior = unidadHabitacionResolver.determinarTipoUnidad(habitaciones);
+            pagoService.crearPagoPorCambioUnidad(estancia, tipoUnidadAnterior);
+
         }
 
         logger.info("[editarEstancia] Verificando si hubo cambio de fechas");
         if(cambioFechas) {
+            logger.info("[editarEstancia] Cambio de fechas detectado, actualizando fechas de entrada y salida de la estancia");
             estanciaModificadaJson.agregarCambio("entradaReal", estancia.getEntradaReal(), entradaReal);
             estancia.setEntradaReal(entradaReal);
 
@@ -237,7 +248,7 @@ public class EstanciaService {
             estancia.setSalidaEstimada(salidaEstimada);
 
             estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
-
+            pagoService.crearPago(request.getPago(), estancia);
         }
 
         logger.info("[editarEstancia] Determinando ocupantes de la estancia");
@@ -250,14 +261,30 @@ public class EstanciaService {
                     ocupanteService.obtenerNombre(request.getIdCliente()));
         }
 
-        Integer ocupantesAntes = estancia.getOcupantes() != null ? estancia.getOcupantes().size() - 1 : 0;
-        Integer ocupantesDespues = request.getIdAcompanantes() != null ? request.getIdAcompanantes().size() : 0;
+        Set<Long> idsAntes = estancia.getOcupantes()
+                .stream()
+                .map(Ocupante::getId)
+                .filter(id -> !Objects.equals(id, cliente.getId()))
+                .collect(Collectors.toSet());
 
-        if(!ocupantesAntes.equals(ocupantesDespues)) {
-            estanciaModificadaJson.agregarCambio("cantidadAcompanantes",
-                    estancia.getOcupantes() != null ? estancia.getOcupantes().size() - 1 : 0,
-                    request.getIdAcompanantes() != null ? request.getIdAcompanantes().size() : 0);
+        if(request.getIdAcompanantes() == null) {
+            request.setIdAcompanantes(new ArrayList<>());
+                if(!idsAntes.isEmpty()) {
+                    estanciaModificadaJson.agregarCambio("acompanantes",
+                            representarAcompanantesParaAuditoria(idsAntes),
+                            "Sin acompanantes");
+                }
+        } else {
+            Set<Long> idsDespues = new HashSet<>(request.getIdAcompanantes());
+
+            if(!idsAntes.equals(idsDespues)) {
+
+                estanciaModificadaJson.agregarCambio("acompanantes",
+                        representarAcompanantesParaAuditoria(idsAntes),
+                        representarAcompanantesParaAuditoria(idsDespues));
+            }
         }
+
 
         estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
 
@@ -280,12 +307,15 @@ public class EstanciaService {
 
     }
 
-
     @Transactional
     public Void eliminarEstancia(Long idEstancia) {
         logger.info("[eliminarEstancia] Eliminando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+
+        if(estancia.getEstado() != EstadoEstancia.ACTIVA && estancia.getEstado() != EstadoEstancia.EXCEDIDA) {
+            throw new IllegalStateException("Solo se pueden eliminar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
+        }
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
 
@@ -384,13 +414,17 @@ public class EstanciaService {
 
     //verificar reglas de negocio para finalizar estancia
     @Transactional
-    public void finalizarEstancia(SalidaEstanciaDTO request) {
+    public Void finalizarEstancia(SalidaEstanciaDTO request) {
 
         Long idEstancia = request.getIdEstancia();
 
         logger.info("[finalizarEstancia] Finalizando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+
+        if(estancia.getEstado() != EstadoEstancia.ACTIVA && estancia.getEstado() != EstadoEstancia.EXCEDIDA) {
+            throw new IllegalStateException("Solo se pueden finalizar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
+        }
 
         estancia.setEstado(EstadoEstancia.FINALIZADA);
         estancia.setSalidaReal(request.getFechaSalidaReal());
@@ -411,7 +445,9 @@ public class EstanciaService {
                 .agregarProp("codigoEstancia", estanciaFinalizada.getCodigoFolio())
                 .agregarProp("unidad", unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()))
                 .agregarProp("fechaEntrada", estanciaFinalizada.getEntradaReal())
-                .agregarProp("fechaSalida", estanciaFinalizada.getSalidaReal());
+                .agregarProp("fechaSalida", estanciaFinalizada.getSalidaReal())
+                .agregarProp("precioTotal", estanciaFinalizada.getPrecioTotal());
+
 
         eventoService.crearEvento(
                 TipoEvento.FINALIZACION_ESTANCIA,
@@ -423,6 +459,8 @@ public class EstanciaService {
         );
 
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
+
+        return null;
     }
 
     private void modificarPagoEstancia(Estancia estancia, PagoNuevoRequestDTO request) {
@@ -452,15 +490,9 @@ public class EstanciaService {
     private boolean codigoHaCambiado(List<Habitacion> habitacionesAhora, Estancia estancia) {
         logger.info("[codigoHaCambiado] Validando que no se cambie el codigo de la unidad asignada a la estancia");
 
-        List<String> codigosAhora = habitacionesAhora.stream()
-                .map(Habitacion::getCodigo)
-                .sorted()
-                .toList();
+        String codigosAhora = unidadHabitacionResolver.determinarCodigoUnidad(habitacionesAhora);
 
-        List<String> codigosAntes = estancia.getHabitaciones().stream()
-                .map(Habitacion::getCodigo)
-                .sorted()
-                .toList();
+        String codigosAntes = unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones());
 
         return !codigosAhora.equals(codigosAntes);
     }
@@ -471,11 +503,18 @@ public class EstanciaService {
                 || !estancia.getSalidaEstimada().isEqual(salidaEstimada);
     }
 
-    private void validarActivacionEstancia(Reserva reserva, Estancia estancia) {
+    private String representarAcompanantesParaAuditoria(Set<Long> idsAcompanantes) {
+        if (idsAcompanantes == null || idsAcompanantes.isEmpty()) {
+            return "Sin acompanantes";
+        }
+        return ocupanteService.obtenerNombresAcompanantes(idsAcompanantes);
+    }
+
+    private void validarActivacionEstancia(Reserva reserva, Estancia estancia, LocalDateTime entradaReal, LocalDateTime salidaEstimada) {
 
         logger.info("[validarActivacionEstancia] Validando estado de reserva");
         if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
-            throw new IllegalStateException("La reserva debe estar CONFIRMADA para hacer check-in");
+            throw new IllegalStateException("La reserva debe estar CONFIRMADA para activar la estancia. Estado actual: " + reserva.getEstado());
         }
 
         logger.info("[validarActivacionEstancia] Validando existencia de estancia asociada");
@@ -485,7 +524,28 @@ public class EstanciaService {
 
         logger.info("[validarActivacionEstancia] Validando estado de estancia");
         if (estancia.getEstado() != EstadoEstancia.RESERVADA) {
-            throw new IllegalStateException("La estancia debe estar en estado RESERVADA para hacer check-in");
+            throw new IllegalStateException("La estancia debe estar en estado RESERVADA para activarla. Estado actual: " + estancia.getEstado());
+        }
+
+        logger.info("[validarActivacionEstancia] Validando fechas de entrada y salida de la estancia");
+        validarFechasEstancia(entradaReal, salidaEstimada);
+
+        List<Habitacion> habitacionesActivacion = estancia.getHabitaciones();
+        if (habitacionesActivacion == null || habitacionesActivacion.isEmpty()) {
+            throw new IllegalStateException("La estancia no tiene habitaciones asociadas para activar");
+        }
+
+        logger.info("[validandoActivacionEstancia] Verificando disponibilidad");
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadEditar(
+                reserva,
+                estancia,
+                habitacionesActivacion,
+                entradaReal,
+                salidaEstimada
+        );
+
+        if (!detalleNoDisponible.isEmpty()) {
+            throw new IllegalStateException("No se puede activar la estancia: " + detalleNoDisponible);
         }
 
     }

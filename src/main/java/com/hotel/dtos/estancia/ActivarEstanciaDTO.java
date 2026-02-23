@@ -26,4 +26,6 @@ public class ActivarEstanciaDTO {
 
     private List<Long> idAcompanantes;
 
+    private String notas;
+
 }

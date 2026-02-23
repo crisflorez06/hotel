@@ -65,27 +65,28 @@ public class DisponibilidadService {
 
     public String verificarDisponibilidadEditar(Reserva reserva, Estancia estancia ,List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
         logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para edición de reserva o estancia");
-        if(reserva != null) {
-            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para reserva con codigo: {}", reserva.getCodigo());
-            List<Reserva> reservas = listaReservaPorHabitacion(habitaciones, fechaIncioReserva, fechaFinReserva)
-                    .stream()
-                    .filter(r -> !r.getCodigo().equals(reserva.getCodigo()))
-                    .toList();
+        Long reservaId = reserva != null ? reserva.getId() : null;
+        Long estanciaId = estancia != null ? estancia.getId() : null;
 
-            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con reserva encontradas: {}", reservas.size());
-            if(!reservas.isEmpty()) {
-                List<Habitacion> habitacionesConReserva = reservas.stream()
-                        .flatMap(r -> r.getHabitaciones().stream())
-                        .toList();
-                return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
-            }
+        logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para reserva con id: {}", reservaId);
+        List<Reserva> reservas = listaReservaPorHabitacion(habitaciones, fechaIncioReserva, fechaFinReserva)
+                .stream()
+                .filter(r -> !r.getId().equals(reservaId))
+                .toList();
+
+        logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con reserva encontradas: {}", reservas.size());
+        if(!reservas.isEmpty()) {
+            List<Habitacion> habitacionesConReserva = reservas.stream()
+                    .flatMap(r -> r.getHabitaciones().stream())
+                    .toList();
+            return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        if(estancia != null) {
-            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para estancia con codigo: {}", estancia.getCodigoFolio());
+        if(!tieneDisponiblidadHabitaciones(habitaciones)) {
+            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para estancia con id: {}", estanciaId);
             List<Estancia> estancias = listaEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva)
                     .stream()
-                    .filter(e -> !e.getCodigoFolio().equals(estancia.getCodigoFolio()))
+                    .filter(e -> !e.getId().equals(estanciaId))
                     .toList();
 
             logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con estancia encontradas: {}", estancias.size());
@@ -135,7 +136,7 @@ public class DisponibilidadService {
 
     private List<Estancia> listaEstanciaActivaOExcedidaPorHabitacion(
             List<Habitacion> habitaciones,
-            LocalDateTime fechaInicioReserva
+            LocalDateTime fechaInicio
     ) {
         logger.info("[DisponibilidadService.listaEstanciaActivaOExcedidaPorHabitacion] Verificando estancias activas o excedidas para las habitaciones");
         if (habitaciones == null || habitaciones.isEmpty()) {
@@ -153,7 +154,7 @@ public class DisponibilidadService {
                 .filter(estancia ->
                         estancia.getEstado() == EXCEDIDA
                                 || (estancia.getSalidaEstimada() != null
-                                && fechaInicioReserva.isBefore(estancia.getSalidaEstimada()))
+                                && fechaInicio.isBefore(estancia.getSalidaEstimada()))
                 )
                 .toList();
     }

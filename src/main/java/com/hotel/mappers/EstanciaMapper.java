@@ -3,7 +3,6 @@ package com.hotel.mappers;
 import com.hotel.dtos.estancia.EstanciaCalendarioDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
-import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.Ocupante;
 import com.hotel.models.Pago;

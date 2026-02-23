@@ -110,16 +110,36 @@ public final class EstanciaTestData {
     public static ActivarEstanciaDTO activarEstanciaRequestDTO(Long idReserva, Ocupante cliente, List<Ocupante> acompanantes, LocalDateTime fecha, PagoNuevoRequestDTO pago) {
         ActivarEstanciaDTO request = new ActivarEstanciaDTO();
 
-        List<Long> acompanantesIds = acompanantes.stream()
-                .map(Ocupante::getId)
-                .toList();
+
 
         request.setIdReserva(idReserva);
         request.setIdCliente(cliente.getId());
         request.setEntradaReal(fecha);
         request.setSalidaEstimada(fecha.plusDays(3));
+
+        if (acompanantes == null) {
+            request.setIdAcompanantes(null);
+        } else {
+            List<Long> acompanantesIds = acompanantes.stream()
+                    .map(Ocupante::getId)
+                    .toList();
+            request.setIdAcompanantes(acompanantesIds);
+        }
+
         request.setPago(pago);
-        request.setIdAcompanantes(acompanantesIds);
+        request.setNotas("Salida de prueba activar");
+        return request;
+    }
+
+    public static ActivarEstanciaDTO errorFechasActivarEstanciaRequestDTO(Long idReserva) {
+        ActivarEstanciaDTO request = new ActivarEstanciaDTO();
+
+        request.setIdReserva(idReserva);
+        request.setEntradaReal(LocalDateTime.now().plusDays(3));
+        request.setSalidaEstimada(LocalDateTime.now());
+
+
+        request.setNotas("Salida de prueba activar");
         return request;
     }
 
