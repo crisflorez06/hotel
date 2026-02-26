@@ -1,33 +1,17 @@
 package com.hotel.services;
 
+import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
-import com.hotel.models.Estancia;
-import com.hotel.models.Habitacion;
-import com.hotel.models.Ocupante;
-import com.hotel.models.Pago;
-import com.hotel.models.Reserva;
-import com.hotel.models.Unidad;
-import com.hotel.models.enums.CanalReserva;
-import com.hotel.models.enums.EstadoEstancia;
-import com.hotel.models.enums.EstadoOperativo;
-import com.hotel.models.enums.EstadoPago;
-import com.hotel.models.enums.EstadoReserva;
-import com.hotel.models.enums.MedioPago;
-import com.hotel.models.enums.ModoOcupacion;
-import com.hotel.models.enums.TipoPago;
-import com.hotel.models.enums.TipoUnidad;
-import com.hotel.repositories.EstanciaRepository;
-import com.hotel.repositories.HabitacionRepository;
-import com.hotel.repositories.OcupanteRepository;
-import com.hotel.repositories.PagoRepository;
-import com.hotel.repositories.ReservaRepository;
-import com.hotel.repositories.UnidadRepository;
+import com.hotel.models.*;
+import com.hotel.models.enums.*;
+import com.hotel.repositories.*;
 import com.hotel.services.support.AbstractServiceIT;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +21,11 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import static com.hotel.testdata.EstanciaTestData.estanciaData;
+import static com.hotel.testdata.EstanciaTestData.*;
+import static com.hotel.testdata.OcupanteTestData.acompanantesData;
 import static com.hotel.testdata.OcupanteTestData.clienteData;
 import static com.hotel.testdata.PagoTestData.pagoNuevoRequestDTO;
-import static com.hotel.testdata.ReservaTestData.reservaData;
+import static com.hotel.testdata.ReservaTestData.*;
 import static com.hotel.testdata.TestDataUtils.randomCodigo;
 import static com.hotel.testutils.AssertionsHelper.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,22 +58,196 @@ class ReservaServiceIT extends AbstractServiceIT {
     private EstanciaRepository estanciaRepository;
 
     @Autowired
+    private AuditoriaEventoRepository eventoRepository;
+
+    @Autowired
     private PagoRepository pagoRepository;
 
     /**
      * crearReserva(ReservaNuevaRequestDTO request)
      */
     @Test
+    void exitoCreandoReservaNuevaApartamento_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+
+        Ocupante cliente = crearCliente(clienteData());
+
+        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
+
+        // ---------- WHEN ----------
+        Reserva reserva = reservaService.crearReserva(request);
+
+        // ---------- THEN (validación real en BD) ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
+        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.RESERVA,
+                reservaDb.getId()).orElseThrow();
+
+        comprobarReservaDb(
+                reservaDb,
+                request.getNumeroPersonas(),
+                request.getEntradaEstimada(),
+                request.getSalidaEstimada(),
+                ModoOcupacion.COMPLETO,
+                EstadoReserva.CONFIRMADA,
+                request.getCanalReserva(),
+                request.getNotas(),
+                3
+        );
+
+        comprobarEstanciaDb(
+                estanciaDb,
+                reservaDb,
+                0,
+                null,
+                null,
+                null,
+                request.getNotas(),
+                ModoOcupacion.COMPLETO,
+                EstadoEstancia.RESERVADA,
+                null,
+                3,
+                0);
+
+
+        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+
+        comprobarEventoDb(eventoDb, TipoEvento.CREACION_RESERVA, null, reserva.getCodigo(), 4);
+
+    }
+
+    @Test
+    void exitoCreandoReservaNuevaApartaestudio_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
+
+        Ocupante cliente = crearCliente(clienteData());
+
+        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
+
+        // ---------- WHEN ----------
+        Reserva reserva = reservaService.crearReserva(request);
+
+        // ---------- THEN (validación real en BD) ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
+        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.RESERVA,
+                reservaDb.getId()).orElseThrow();
+
+        comprobarReservaDb(
+                reservaDb,
+                request.getNumeroPersonas(),
+                request.getEntradaEstimada(),
+                request.getSalidaEstimada(),
+                ModoOcupacion.COMPLETO,
+                EstadoReserva.CONFIRMADA,
+                request.getCanalReserva(),
+                request.getNotas(),
+                1
+        );
+
+        comprobarEstanciaDb(
+                estanciaDb,
+                reservaDb,
+                0,
+                null,
+                null,
+                null,
+                request.getNotas(),
+                ModoOcupacion.COMPLETO,
+                EstadoEstancia.RESERVADA,
+                null,
+                1,
+                0);
+
+
+        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+
+        comprobarEventoDb(eventoDb, TipoEvento.CREACION_RESERVA, null, reserva.getCodigo(), 4);
+
+    }
+
+    @Test
+    void exitoCreandoReservaNuevaHabitacion_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Habitacion habitacion = unidad.getHabitaciones().getFirst();
+
+        Ocupante cliente = crearCliente(clienteData());
+
+        ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, null, null);
+
+        // ---------- WHEN ----------
+        Reserva reserva = reservaService.crearReserva(request);
+
+        // ---------- THEN (validación real en BD) ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
+        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.RESERVA,
+                reservaDb.getId()).orElseThrow();
+
+        comprobarReservaDb(
+                reservaDb,
+                request.getNumeroPersonas(),
+                request.getEntradaEstimada(),
+                request.getSalidaEstimada(),
+                ModoOcupacion.INDIVIDUAL,
+                EstadoReserva.CONFIRMADA,
+                request.getCanalReserva(),
+                request.getNotas(),
+                1
+        );
+
+        comprobarEstanciaDb(
+                estanciaDb,
+                reservaDb,
+                0,
+                null,
+                null,
+                null,
+                request.getNotas(),
+                ModoOcupacion.INDIVIDUAL,
+                EstadoEstancia.RESERVADA,
+                null,
+                1,
+                0);
+
+
+        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+
+        comprobarEventoDb(eventoDb, TipoEvento.CREACION_RESERVA, null, reserva.getCodigo(), 4);
+
+    }
+
+    @Test
     void exitoCreandoReservaNuevaApartamentoConPago_test() {
 
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Ocupante cliente = clienteData();
+        Ocupante cliente = crearCliente(clienteData());
 
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
         PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, pagoRequest);
+        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, pagoRequest);
 
         // ---------- WHEN ----------
         Reserva reserva = reservaService.crearReserva(request);
@@ -100,6 +259,9 @@ class ReservaServiceIT extends AbstractServiceIT {
         Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
         Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.RESERVA,
+                reservaDb.getId()).orElseThrow();
 
         comprobarReservaDb(
                 reservaDb,
@@ -118,7 +280,7 @@ class ReservaServiceIT extends AbstractServiceIT {
                 reservaDb,
                 0,
                 null,
-                request.getSalidaEstimada(),
+                null,
                 null,
                 request.getNotas(),
                 ModoOcupacion.COMPLETO,
@@ -129,565 +291,155 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         comprobarPagosDb(
                 estanciaDb.getPagos(),
-                BigDecimal.valueOf( 500000),
-                BigDecimal.ZERO,
-                EstadoPago.COMPLETADO,
+                request.getPago().getMonto(),
+                BigDecimal.valueOf(0),
+                request.getPago().getEstado(),
                 1,
                 EstadoPago.MODIFICADO,
                 0,
                 0,
                 0,
-                1
-        );
-
-        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-    }
-
-    @Test
-    void exitoCreandoReservaNuevaApartaestudioConPago_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
-
-        Ocupante cliente = clienteData();
-
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, pagoRequest);
-
-        // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
-
-        // ---------- THEN (validación real en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
-        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
-        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-
-        comprobarReservaDb(
-                reservaDb,
-                request.getNumeroPersonas(),
-                request.getEntradaEstimada(),
-                request.getSalidaEstimada(),
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                request.getCanalReserva(),
-                request.getNotas(),
-                1
-        );
-
-        comprobarEstanciaDb(
-                estanciaDb,
-                reservaDb,
-                0,
-                null,
-                request.getSalidaEstimada(),
-                null,
-                request.getNotas(),
-                ModoOcupacion.COMPLETO,
-                EstadoEstancia.RESERVADA,
-                null,
-                1,
                 1);
 
-        comprobarPagosDb(
-                estanciaDb.getPagos(),
-                BigDecimal.valueOf( 500000),
-                BigDecimal.ZERO,
-                EstadoPago.COMPLETADO,
-                1,
-                EstadoPago.MODIFICADO,
-                0,
-                0,
-                0,
-                1        );
 
         assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
+
+        comprobarEventoDb(eventoDb, TipoEvento.CREACION_RESERVA, null, reserva.getCodigo(), 4);
+
     }
 
     @Test
-    void exitoCreandoReservaNuevaHabitacionConPago_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
-        Habitacion habitacion = unidad.getHabitaciones().getFirst();
-
-        Ocupante cliente = clienteData();
-
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, entrada, pagoRequest);
-
-        // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
-
-        // ---------- THEN (validación real en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
-        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
-        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-
-        comprobarReservaDb(
-                reservaDb,
-                request.getNumeroPersonas(),
-                request.getEntradaEstimada(),
-                request.getSalidaEstimada(),
-                ModoOcupacion.INDIVIDUAL,
-                EstadoReserva.CONFIRMADA,
-                request.getCanalReserva(),
-                request.getNotas(),
-                1
-        );
-
-        comprobarEstanciaDb(
-                estanciaDb,
-                reservaDb,
-                0,
-                null,
-                request.getSalidaEstimada(),
-                null,
-                request.getNotas(),
-                ModoOcupacion.INDIVIDUAL,
-                EstadoEstancia.RESERVADA,
-                null,
-                1,
-                1);
-
-        comprobarPagosDb(
-                estanciaDb.getPagos(),
-                BigDecimal.valueOf( 500000),
-                BigDecimal.ZERO,
-                EstadoPago.COMPLETADO,
-                1,
-                EstadoPago.MODIFICADO,
-                0,
-                0,
-                0,
-                1        );
-
-        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-    }
-
-    @Test
-    void exitoCreandoReservaNuevaApartamentoSinPago_test() {
+    void falloCreandoReservaNuevaPorReserva_test() {
 
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Ocupante cliente = clienteData();
+        Ocupante cliente = crearCliente(clienteData());
 
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
+        crearReservaExistente(unidad.getHabitaciones(), true);
 
-        // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
+        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
 
-        // ---------- THEN (validación real en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
 
-        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
-        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
-        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-
-        comprobarReservaDb(
-                reservaDb,
-                request.getNumeroPersonas(),
-                request.getEntradaEstimada(),
-                request.getSalidaEstimada(),
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                request.getCanalReserva(),
-                request.getNotas(),
-                3
-        );
-
-        comprobarEstanciaDb(
-                estanciaDb,
-                reservaDb,
-                0,
-                null,
-                request.getSalidaEstimada(),
-                null,
-                request.getNotas(),
-                ModoOcupacion.COMPLETO,
-                EstadoEstancia.RESERVADA,
-                null,
-                3,
-                0);
-
-        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-    }
-
-    @Test
-    void exitoCreandoReservaNuevaApartaestudioSinPago_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
-
-        Ocupante cliente = clienteData();
-
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
-
-        // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
-
-        // ---------- THEN (validación real en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
-        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
-        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-
-        comprobarReservaDb(
-                reservaDb,
-                request.getNumeroPersonas(),
-                request.getEntradaEstimada(),
-                request.getSalidaEstimada(),
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                request.getCanalReserva(),
-                request.getNotas(),
-                1
-        );
-
-        comprobarEstanciaDb(
-                estanciaDb,
-                reservaDb,
-                0,
-                null,
-                request.getSalidaEstimada(),
-                null,
-                request.getNotas(),
-                ModoOcupacion.COMPLETO,
-                EstadoEstancia.RESERVADA,
-                null,
-                1,
-                0);
-
-        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-    }
-
-    @Test
-    void exitoCreandoReservaNuevaHabitacionSinPago_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
-        Habitacion habitacion = unidad.getHabitaciones().getFirst();
-
-        Ocupante cliente = clienteData();
-
-        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, entrada, null);
-
-        // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
-
-        // ---------- THEN (validación real en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
-        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
-        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-
-        comprobarReservaDb(
-                reservaDb,
-                request.getNumeroPersonas(),
-                request.getEntradaEstimada(),
-                request.getSalidaEstimada(),
-                ModoOcupacion.INDIVIDUAL,
-                EstadoReserva.CONFIRMADA,
-                request.getCanalReserva(),
-                request.getNotas(),
-                1
-        );
-
-        comprobarEstanciaDb(
-                estanciaDb,
-                reservaDb,
-                0,
-                null,
-                request.getSalidaEstimada(),
-                null,
-                request.getNotas(),
-                ModoOcupacion.INDIVIDUAL,
-                EstadoEstancia.RESERVADA,
-                null,
-                1,
-                0);
-
-        assertThat(unidadDb.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
-    }
-
-    @Test
-    void falloCreandoReservaNuevaApartamentoConReserva_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
-        Ocupante cliente = ocupanteRepository.save(clienteData());
-
-        Reserva reservaExistente = reservaData(
-                cliente,
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                unidad.getHabitaciones(),
-                null
-        );
-        reservaRepository.save(reservaExistente);
-
-        LocalDateTime entrada = reservaExistente.getEntradaEstimada().plusDays(1);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
-
-        long reservasAntes = reservaRepository.count();
+        // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
 
-        // ---------- WHEN + THEN (excepción) ----------
+        // ---------- WHEN ----------
         assertThatThrownBy(() -> reservaService.crearReserva(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No se puede crear la reserva:")
                 .hasMessageContaining("existe una reserva para las habitaciones con codigo");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+
     }
 
     @Test
-    void falloCreandoReservaNuevaApartaestudioConReserva_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
-        Ocupante cliente = ocupanteRepository.save(clienteData());
-
-        Reserva reservaExistente = reservaData(
-                cliente,
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                unidad.getHabitaciones(),
-                null
-        );
-        reservaRepository.save(reservaExistente);
-
-        LocalDateTime entrada = reservaExistente.getEntradaEstimada().plusDays(1);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
-
-        long reservasAntes = reservaRepository.count();
-        long estanciasAntes = estanciaRepository.count();
-
-        // ---------- WHEN + THEN (excepción) ----------
-        assertThatThrownBy(() -> reservaService.crearReserva(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una reserva para las habitaciones con codigo");
-
-        // ---------- THEN (no efectos en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
-        assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
-    }
-
-    @Test
-    void falloCreandoReservaNuevaHabitacionConReserva_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
-        Habitacion habitacion = unidad.getHabitaciones().getFirst();
-
-        Ocupante cliente = clienteData();
-
-        Reserva reservaExistente = reservaData(
-                cliente,
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                unidad.getHabitaciones(),
-                null
-        );
-        reservaRepository.save(reservaExistente);
-
-        LocalDateTime entrada = reservaExistente.getEntradaEstimada().plusDays(1);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, entrada, null);
-
-        long reservasAntes = reservaRepository.count();
-        long estanciasAntes = estanciaRepository.count();
-
-        // ---------- WHEN + THEN (excepción) ----------
-        assertThatThrownBy(() -> reservaService.crearReserva(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una reserva para las habitaciones con codigo");
-
-        // ---------- THEN (no efectos en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
-        assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
-    }
-
-    @Test
-    void falloCreandoReservaNuevaApartamentoConEstancia_test() {
+    void falloCreandoReservaNuevaPorEstancia_test() {
 
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
-        Ocupante cliente = ocupanteRepository.save(clienteData());
 
-        Estancia estanciaExistente = estanciaData(
-                null,
-                null,
-                ModoOcupacion.COMPLETO,
-                EstadoEstancia.ACTIVA,
-                unidad.getHabitaciones(),
-                null);
+        Ocupante cliente = crearCliente(clienteData());
 
-        estanciaRepository.save(estanciaExistente);
+        crearEstanciaExistente(unidad.getHabitaciones(), true);
+
+        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(1), null);
 
 
-        LocalDateTime entrada = LocalDateTime.now().plusDays(1);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
-
-        long reservasAntes = reservaRepository.count();
+        // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
 
-        // ---------- WHEN + THEN (excepción) ----------
+        // ---------- WHEN ----------
         assertThatThrownBy(() -> reservaService.crearReserva(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No se puede crear la reserva:")
                 .hasMessageContaining("existe una estancia para las habitaciones con codigo");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+
     }
 
     @Test
-    void falloCreandoReservaNuevaApartaestudioConEstancia_test() {
+    void falloCreandoReservaConFechaSalidaAnteriorAEntrada_test() {
 
         // ---------- GIVEN ----------
-        Unidad unidad = crearApartaestudio(EstadoOperativo.OCUPADO);
-        Ocupante cliente = ocupanteRepository.save(clienteData());
+        // Unidad tipo APARTAMENTO con 3 habitaciones DISPONIBLES
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Estancia estanciaExistente = estanciaData(
-                null,
-                null,
-                ModoOcupacion.COMPLETO,
-                EstadoEstancia.ACTIVA,
-                unidad.getHabitaciones(),
-                null);
+        ReservaNuevaRequestDTO request = errorFechasReservaRequestDTO(unidad);
 
-        estanciaRepository.save(estanciaExistente);
 
-        LocalDateTime entrada = LocalDateTime.now().plusDays(1);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, entrada, null);
-
-        long reservasAntes = reservaRepository.count();
+        // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+
 
         // ---------- WHEN + THEN (excepción) ----------
         assertThatThrownBy(() -> reservaService.crearReserva(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una estancia para las habitaciones con codigo");
+                .hasMessageContaining("La fecha de salida estimada no puede ser anterior a la fecha de entrada");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
+
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+
     }
 
     @Test
-    void falloCreandoReservaNuevaHabitacionConEstancia_test() {
+    void falloCreandoEstanciaConFechaEntradaAnteriorAAhora_test() {
 
         // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
-        Habitacion habitacion = unidad.getHabitaciones().getFirst();
-        List<Habitacion> listaHabitacion = new ArrayList<>();
-        listaHabitacion.add(habitacion);
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Ocupante cliente = clienteData();
+        Ocupante cliente = crearCliente(clienteData());
 
-        Estancia estanciaExistente = estanciaData(
-                null,
-                null,
-                ModoOcupacion.INDIVIDUAL,
-                EstadoEstancia.ACTIVA,
-                listaHabitacion,
-                null);
+        ReservaNuevaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(-1), null);
 
-        estanciaRepository.save(estanciaExistente);
 
-        LocalDateTime entrada = LocalDateTime.now().plusDays(1);
-        ReservaNuevaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, entrada, null);
-
-        long reservasAntes = reservaRepository.count();
+        // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+
 
         // ---------- WHEN + THEN (excepción) ----------
         assertThatThrownBy(() -> reservaService.crearReserva(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No es posible crear la reserva:")
-                .hasMessageContaining("existe una estancia para las habitaciones con codigo");
+                .hasMessageContaining("La fecha de entrada debe ser posterior a la fecha actual");
 
         // ---------- THEN (no efectos en BD) ----------
         entityManager.flush();
         entityManager.clear();
 
-        assertThat(reservaRepository.count()).isEqualTo(reservasAntes);
+
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
     }
+
+
+
+
+
 
     /**
      * Metodos auxiliares para crear datos de prueba
      */
-    //falta revision
-    @Test
-    void validarCambioDeCodigoHabitacion_test() {
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
-        Habitacion habitacion = unidad.getHabitaciones().getFirst();
 
-        String nuevoCodigo = randomCodigo("HB-");
-        habitacion.setCodigo(nuevoCodigo);
-        habitacionRepository.save(habitacion);
 
-        entityManager.flush();
-        entityManager.clear();
-
-        Habitacion habitacionDb = habitacionRepository.findById(habitacion.getId()).orElseThrow();
-        assertThat(habitacionDb.getCodigo()).isEqualTo(nuevoCodigo);
-    }
-
-    private ReservaNuevaRequestDTO reservaRequestDTO(
-            TipoUnidad tipoUnidad,
-            String codigo,
-            Ocupante cliente,
-            LocalDateTime entradaEstimada,
-            PagoNuevoRequestDTO pago) {
-        ReservaNuevaRequestDTO request = new ReservaNuevaRequestDTO();
-        request.setTipoUnidad(tipoUnidad);
-        request.setCodigo(codigo);
-        request.setIdOcupante(cliente.getId());
-        request.setNumeroPersonas(2);
-        request.setEntradaEstimada(entradaEstimada);
-        request.setSalidaEstimada(entradaEstimada.plusDays(2));
-        request.setCanalReserva(CanalReserva.MOSTRADOR);
-        request.setNotas("Reserva de prueba");
-        request.setPago(pago);
-        return request;
-    }
 }

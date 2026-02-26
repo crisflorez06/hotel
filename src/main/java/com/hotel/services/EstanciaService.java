@@ -207,7 +207,7 @@ public class EstanciaService {
         }
 
         logger.info("[editarEstancia] Verificando si se ha cambiado el codigo o tipo de unidad asignada a la estancia");
-        boolean cambioCodigo = codigoHaCambiado(habitaciones, estancia);
+        boolean cambioCodigo = unidadHabitacionResolver.codigoHaCambiado(habitaciones, estancia, null);
         boolean cambioFechas = cambioFechas(entradaReal, salidaEstimada, estancia);
 
         if(cambioCodigo || cambioFechas) {
@@ -248,7 +248,6 @@ public class EstanciaService {
             estancia.setSalidaEstimada(salidaEstimada);
 
             estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
-            pagoService.crearPago(request.getPago(), estancia);
         }
 
         logger.info("[editarEstancia] Determinando ocupantes de la estancia");
@@ -487,15 +486,7 @@ public class EstanciaService {
         }
     }
 
-    private boolean codigoHaCambiado(List<Habitacion> habitacionesAhora, Estancia estancia) {
-        logger.info("[codigoHaCambiado] Validando que no se cambie el codigo de la unidad asignada a la estancia");
 
-        String codigosAhora = unidadHabitacionResolver.determinarCodigoUnidad(habitacionesAhora);
-
-        String codigosAntes = unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones());
-
-        return !codigosAhora.equals(codigosAntes);
-    }
 
     private boolean cambioFechas(LocalDateTime entradaReal, LocalDateTime salidaEstimada, Estancia estancia) {
         logger.info("[cambioFechas] Validando si se han cambiado las fechas de entrada o salida de la estancia");

@@ -13,8 +13,10 @@ import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.ReservaSpecification;
 import com.hotel.utils.EventoModificadoJsonBuilder;
 import com.hotel.utils.EventoNuevoJsonBuilder;
+import jakarta.annotation.Nonnull;
 import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import org.slf4j.Logger;
@@ -71,21 +73,12 @@ public class ReservaService {
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-        LocalDateTime entradaEstimada = request.getEntradaEstimada();
-        LocalDateTime salidaEstimada = request.getSalidaEstimada();
+        LocalDate entradaEstimada = request.getEntradaEstimada();
+        LocalDate salidaEstimada = request.getSalidaEstimada();
 
 
-        logger.info("[crearReserva] Verificando disponibilidad para la unidad o habitacion con codigo: {}", request.getCodigo());
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidadNuevo(habitaciones, entradaEstimada, salidaEstimada);
-        if (!existeDisponibilidad.isEmpty()) {
-            throw new IllegalArgumentException("No es posible crear la reserva: " + existeDisponibilidad);
-        }
-
-        logger.info("[crearReserva] Validando fechas de entrada y salida estimadas");
-        String fechaConflicto = fechaTieneConflicto(salidaEstimada, entradaEstimada);
-        if (!fechaConflicto.isEmpty()) {
-            throw new IllegalArgumentException("No es posible crear la reserva: " + fechaConflicto);
-        }
+        logger.info("[crearReserva] validar creacion de reserva para codigo de unidad: {} y tipo de unidad: {}", codigo, tipoUnidad);
+        validarCreacionReserva(habitaciones, entradaEstimada, salidaEstimada);
 
         logger.info("[crearReserva] Creando reserva para el ocupante con ID: {}", request.getIdOcupante());
         Reserva reserva = ReservaMapper.requestNuevoToEntity(request);
@@ -96,6 +89,9 @@ public class ReservaService {
 
         logger.info("[crearReserva] Asignando habitaciones a la reserva");
         reserva.setHabitaciones(habitaciones);
+
+        logger.info("[crearReserva] Determinando modo de ocupación para la reserva");
+        reserva.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
 
         logger.info("[crearReserva] Creando estancia asociada a la reserva");
         Estancia estancia = estanciaReservaResolver.crearEstanciaDesdeReserva(reserva);
@@ -110,8 +106,8 @@ public class ReservaService {
         EventoNuevoJsonBuilder nuevaReservaJson = new EventoNuevoJsonBuilder()
                 .agregarProp("codigoReserva", reservaGuardada.getCodigo())
                 .agregarProp("unidad", codigo)
-                .agregarProp("fechaEntrada", reservaGuardada.getEntradaEstimada())
-                .agregarProp("fechaSalida", reservaGuardada.getSalidaEstimada());
+                .agregarProp("fechaEntrada", reservaGuardada.getEntradaEstimada().toLocalDate())
+                .agregarProp("fechaSalida", reservaGuardada.getSalidaEstimada().toLocalDate());
 
         eventoService.crearEvento(
                 TipoEvento.CREACION_RESERVA,
@@ -125,8 +121,9 @@ public class ReservaService {
         return reservaGuardada;
     }
 
+
     @Transactional
-    public void editarReserva(ReservaNuevaRequestDTO request, Long idReserva) {
+    public void editarReserva(@Nonnull ReservaNuevaRequestDTO request, Long idReserva) {
 
         EventoModificadoJsonBuilder reservaModificaJson = new EventoModificadoJsonBuilder();
 
@@ -134,8 +131,8 @@ public class ReservaService {
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
         List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-        LocalDateTime entradaEstimada = request.getEntradaEstimada();
-        LocalDateTime salidaEstimada = request.getSalidaEstimada();
+        LocalDate entradaEstimada = request.getEntradaEstimada();
+        LocalDate salidaEstimada = request.getSalidaEstimada();
 
         logger.info("[editarReserva] Editando reserva con id: {}", idReserva);
         Reserva reserva = reservaRepository.findById(idReserva)
@@ -145,45 +142,59 @@ public class ReservaService {
             throw new IllegalStateException("Solo se puede editar una reserva en estado CONFIRMADA");
         }
 
-        logger.info("[editarReserva] Validando fechas de la reserva");
-        String fechaConflicto = fechaTieneConflicto(salidaEstimada, entradaEstimada);
-        if (!fechaConflicto.isEmpty()) {
-            throw new IllegalArgumentException("No es posible editar la reserva: " + fechaConflicto);
+        logger.info("[editarReserva] Validando edición de reserva para codigo de unidad: {} y tipo de unidad: {}", codigo, tipoUnidad);
+        boolean cambioCodigo = unidadHabitacionResolver.codigoHaCambiado(habitaciones, null, reserva);
+        boolean cambioFechas = cambioFechas(entradaEstimada, salidaEstimada, reserva);
+
+        if(cambioCodigo || cambioFechas) {
+            logger.info("[editarReserva] Se detectó un cambio en las fechas o en el código de unidad, validando disponibilidad para la edición de la reserva");
+            validarEdicionReserva(reserva, habitaciones, entradaEstimada, salidaEstimada);
         }
 
-        String existeDisponibilidad = disponibilidadService.verificarDisponibilidadEditar(reserva, null ,habitaciones, entradaEstimada, salidaEstimada);
-        if (!existeDisponibilidad.isEmpty()) {
-            throw new IllegalArgumentException("No es posible editar la reserva: " + existeDisponibilidad);
+        logger.info("[editarReserva] Verificando si cambio el codigo de unidad o las fechas para registrar cambios en el evento de modificación de reserva");
+        if(cambioCodigo) {
+            reservaModificaJson.agregarCambio("unidad",
+                    unidadHabitacionResolver.determinarCodigoUnidad(reserva.getHabitaciones()),
+                    codigo);
+
+            logger.info("[editarReserva] Actualizando habitaciones de la reserva y estancia asociada por cambio de código de unidad");
+            reserva.setHabitaciones(new ArrayList<>(habitaciones));
+            Estancia estancia = reserva.getEstancia();
+
+            if (estancia != null) {
+                estancia.setHabitaciones(new ArrayList<>(habitaciones));
+            }
+            reserva.setEstancia(estancia);
+
+            logger.info("[editarReserva] Actualizando modo de ocupación de la reserva por cambio de código de unidad");
+            reserva.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+
         }
 
-        logger.info("[editarReserva] Verificando disponibilidad excluyendo la misma reserva");
-        String conflictoDisponibilidad = verificarDisponibilidadEdicion(reserva.getId(), codigo, tipoUnidad, entradaEstimada, salidaEstimada);
-        if (!conflictoDisponibilidad.isEmpty()) {
-            throw new IllegalStateException("No se puede editar la reserva: " + conflictoDisponibilidad);
+        if(cambioFechas) {
+            logger.info("[editarReserva] Actualizando fechas de entrada o salida de la reserva y estancia asociada por cambio de fechas");
+            reservaModificaJson.agregarCambio("fechaEntrada", reserva.getEntradaEstimada().toLocalDate(), entradaEstimada);
+            reserva.setEntradaEstimada(entradaEstimada.atStartOfDay());
+
+
+            reservaModificaJson.agregarCambio("fechaSalida", reserva.getSalidaEstimada().toLocalDate(), salidaEstimada);
+             reserva.setSalidaEstimada(salidaEstimada.atStartOfDay());
         }
 
-        if(!reserva.getEntradaEstimada().isEqual(entradaEstimada)){
-            reservaModificaJson.agregarCambio("fechaEntrada", reserva.getEntradaEstimada(), entradaEstimada);
-            reserva.setEntradaEstimada(entradaEstimada);
 
-        }
 
-        if(!reserva.getSalidaEstimada().isEqual(salidaEstimada)){
-            reservaModificaJson.agregarCambio("fechaSalida", reserva.getSalidaEstimada(), salidaEstimada);
-            reserva.setSalidaEstimada(salidaEstimada);
-        }
 
-        if(!reserva.getNumeroPersonas().equals(request.getNumeroPersonas())){
+        if (!reserva.getNumeroPersonas().equals(request.getNumeroPersonas())) {
             reservaModificaJson.agregarCambio("numeroPersonas", reserva.getNumeroPersonas(), request.getNumeroPersonas());
             reserva.setNumeroPersonas(request.getNumeroPersonas());
         }
 
-        if(!reserva.getCanalReserva().equals(request.getCanalReserva())){
+        if (!reserva.getCanalReserva().equals(request.getCanalReserva())) {
             reservaModificaJson.agregarCambio("canalReserva", reserva.getCanalReserva(), request.getCanalReserva());
             reserva.setCanalReserva(request.getCanalReserva());
         }
 
-        if(!reserva.getCliente().getId().equals(request.getIdOcupante())){
+        if (!reserva.getCliente().getId().equals(request.getIdOcupante())) {
             reservaModificaJson.agregarCambio("cliente",
                     ocupanteService.obtenerNombre(reserva.getCliente().getId()),
                     ocupanteService.obtenerNombre(request.getIdOcupante()));
@@ -192,18 +203,9 @@ public class ReservaService {
 
         reserva.setNotas(reserva.getNotas() + " | Reserva editadas: " + request.getNotas());
 
-        Estancia estancia = reserva.getEstancia();
-        if (estancia != null) {
-            estancia.setSalidaEstimada(salidaEstimada);
-            estancia.setNotas(estancia.getNotas() + " | Reserva editada: " + request.getNotas());
-        }
 
         Reserva reservaGuardada = reservaRepository.save(reserva);
 
-        if (request.getPago() != null && estancia != null) {
-            logger.info("[editarReserva] Modificando o creando pago asociado a la reserva");
-            modificarPagoReserva(estancia, request.getPago());
-        }
 
         if (reservaModificaJson.tieneCambios()) {
             eventoService.crearEvento(
@@ -232,7 +234,6 @@ public class ReservaService {
         }
 
         reservaRepository.save(reserva);
-
 
 
         logger.info("[eliminarReserva] Registrando evento de eliminación de reserva para codigo: {}", reserva.getCodigo());
@@ -325,9 +326,9 @@ public class ReservaService {
     }
 
     private List<ReservaCalendarioDTO> llenarTipoYCodigoUnidad(List<ReservaCalendarioDTO> reservas) {
-        for(ReservaCalendarioDTO reservaDto : reservas) {
+        for (ReservaCalendarioDTO reservaDto : reservas) {
             Reserva reserva = buscarPorId(reservaDto.getId());
-            if(reserva.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
+            if (reserva.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
                 reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getCodigo());
                 reservaDto.setTipoUnidad(TipoUnidad.HABITACION);
             } else {
@@ -351,74 +352,63 @@ public class ReservaService {
         }
     }
 
-    private void validarCambioDeCodigo(String codigo, TipoUnidad tipoUnidad, Reserva reserva) {
-        if (tipoUnidad.equals(TipoUnidad.HABITACION)) {
-            if (!reserva.getHabitaciones().getFirst().getCodigo().equals(codigo)) {
-                throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la reserva");
-            }
-        }
-        if (tipoUnidad.equals(TipoUnidad.APARTAMENTO) || tipoUnidad.equals(TipoUnidad.APARTAESTUDIO)) {
-            if (!reserva.getHabitaciones().getFirst().getUnidad().getCodigo().equals(codigo)) {
-                throw new IllegalStateException("No se puede cambiar el codigo de la unidad asignada a la reserva");
-            }
+    private void validarCreacionReserva(List<Habitacion> habitaciones, LocalDate entradaReal, LocalDate salidaEstimada) {
+        logger.info("[validarCreacionReserva] Validando fechas de entrada y salida");
+        validarFechasReserva(entradaReal, salidaEstimada);
+
+        logger.info("[validarCreacionReserva] Verificando disponibilidad");
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadNuevo(habitaciones, entradaReal.atStartOfDay(), salidaEstimada.atStartOfDay());
+
+        if (!detalleNoDisponible.isEmpty()) {
+            throw new IllegalStateException("No se puede crear la reserva: " + detalleNoDisponible);
         }
     }
 
-    private Ocupante determinarCliente(long idCliente){
+    private void validarEdicionReserva(Reserva reserva, List<Habitacion> habitaciones, LocalDate entradaReal, LocalDate salidaEstimada) {
+        logger.info("[validarEdicionReserva] Validando fechas de entrada y salida");
+        validarFechasReserva(entradaReal, salidaEstimada);
+
+        logger.info("[validarEdicionReserva] Verificando disponibilidad");
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadEditar(reserva, null, habitaciones, entradaReal.atStartOfDay(), salidaEstimada.atStartOfDay());
+
+        if (!detalleNoDisponible.isEmpty()) {
+            throw new IllegalStateException("No se puede editar la reserva: " + detalleNoDisponible);
+        }
+    }
+
+    private boolean cambioFechas(LocalDate entradaEstimada, LocalDate salidaEstimada, Reserva reserva) {
+        logger.info("[cambioFechas] Validando si se han cambiado las fechas de entrada o salida de la reserva");
+        LocalDateTime entradaEstimadaReserva = entradaEstimada.atStartOfDay();
+        LocalDateTime salidaEstimadaReserva = salidaEstimada.atStartOfDay();
+
+        return !reserva.getEntradaEstimada().isEqual(entradaEstimadaReserva)
+                || !reserva.getSalidaEstimada().isEqual(salidaEstimadaReserva);
+    }
+
+    private Ocupante determinarCliente(long idCliente) {
         logger.info("[determinarCliente] Determinando cliente para la reserva");
         List<Ocupante> ocupantes = ocupanteService.determinarOcupantes(idCliente, null);
 
-        return  ocupantes.stream()
+        return ocupantes.stream()
                 .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No se encontró un cliente válido con id: " + idCliente));
 
     }
 
-    private String verificarDisponibilidadEdicion(
-            Long idReserva,
-            String codigo,
-            TipoUnidad tipoUnidad,
-            LocalDateTime fechaInicioReserva,
-            LocalDateTime fechaFinReserva) {
-        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-        List<Habitacion> habitacionesConReserva = new ArrayList<>();
 
-        for (Habitacion habitacion : habitaciones) {
-            boolean existeReserva = reservaRepository.existsReservaByHabitacionAndRangoAndIdNot(
-                    habitacion.getId(),
-                    idReserva,
-                    fechaInicioReserva,
-                    fechaFinReserva,
-                    List.of(EstadoReserva.CONFIRMADA)
-            );
-            if (existeReserva) {
-                habitacionesConReserva.add(habitacion);
-            }
+    private void validarFechasReserva(LocalDate entradaReal, LocalDate salidaEstimada) {
+        if (entradaReal.isBefore(LocalDate.now())) {
+            throw new IllegalArgumentException("La fecha de entrada debe ser posterior a la fecha actual");
         }
-
-        if (habitacionesConReserva.isEmpty()) {
-            return "";
+        if (salidaEstimada.isBefore(entradaReal)) {
+            throw new IllegalArgumentException("La fecha de salida estimada no puede ser anterior a la fecha de entrada");
         }
-
-        StringBuilder mensaje = new StringBuilder();
-        for (Habitacion habitacion : habitacionesConReserva) {
-            mensaje.append(habitacion.getCodigo()).append(", ");
-        }
-        mensaje.setLength(mensaje.length() - 2);
-        return "existe una reserva para las habitaciones con codigo: " + mensaje;
     }
 
+    private ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {
 
-    private String fechaTieneConflicto(LocalDateTime fechaSalidaEstimada, LocalDateTime fechaEntradaEstimada) {
-        if (fechaSalidaEstimada.isBefore(fechaEntradaEstimada) || fechaSalidaEstimada.isEqual(fechaEntradaEstimada)) {
-            return "fecha de salida estimada debe ser posterior a fecha de entrada estimada";
-        }
-        if(fechaEntradaEstimada.isBefore(LocalDateTime.now())) {
-            return "fecha de entrada estimada no puede ser anterior a la fecha actual";
-        }
-
-        return "";
+        return tipoUnidad == TipoUnidad.HABITACION ? ModoOcupacion.INDIVIDUAL : ModoOcupacion.COMPLETO;
     }
 
     private ReservaTablaDTO mapearReservaTablaDTO(Reserva reserva) {

@@ -1,6 +1,8 @@
 package com.hotel.resolvers;
 
+import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
+import com.hotel.models.Reserva;
 import com.hotel.models.Unidad;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.HabitacionService;
@@ -60,6 +62,21 @@ public class UnidadHabitacionResolver {
         }
 
         return TipoUnidad.APARTAMENTO;
+    }
+
+    public boolean codigoHaCambiado(List<Habitacion> habitacionesAhora, Estancia estancia, Reserva reserva) {
+        String codigosAhora = determinarCodigoUnidad(habitacionesAhora);
+        String codigosAntes;
+
+        if(reserva != null && reserva.getHabitaciones() != null) {
+            codigosAntes = determinarCodigoUnidad(reserva.getHabitaciones());
+        } else if(estancia != null && estancia.getHabitaciones() != null) {
+             codigosAntes = determinarCodigoUnidad(estancia.getHabitaciones());
+        } else {
+            return false;
+        }
+
+        return !codigosAhora.equals(codigosAntes);
     }
 
 }

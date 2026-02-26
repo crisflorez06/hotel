@@ -5,6 +5,8 @@ import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.TipoUnidad;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import lombok.Data;
@@ -26,10 +28,10 @@ public class ReservaNuevaRequestDTO {
     private Integer numeroPersonas;
 
     @NotNull(message = "entradaEstimada es obligatoria")
-    private LocalDateTime entradaEstimada;
+    private LocalDate entradaEstimada;
 
     @NotNull(message = "salidaEstimada es obligatoria")
-    private LocalDateTime salidaEstimada;
+    private LocalDate salidaEstimada;
 
     @NotNull(message = "canalReserva es obligatorio")
     private CanalReserva canalReserva;

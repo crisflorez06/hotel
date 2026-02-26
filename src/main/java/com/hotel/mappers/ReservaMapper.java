@@ -21,8 +21,8 @@ public class ReservaMapper {
         Reserva entity = new Reserva();
 
         entity.setFechaCreacion(LocalDateTime.now());
-        entity.setEntradaEstimada(request.getEntradaEstimada());
-        entity.setSalidaEstimada(request.getSalidaEstimada());
+        entity.setEntradaEstimada(request.getEntradaEstimada().atStartOfDay());
+        entity.setSalidaEstimada(request.getSalidaEstimada().atStartOfDay());
         entity.setNumeroPersonas(request.getNumeroPersonas());
         entity.setEstado(EstadoReserva.CONFIRMADA);
         entity.setCanalReserva(request.getCanalReserva());

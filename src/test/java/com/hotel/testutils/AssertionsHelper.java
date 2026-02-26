@@ -6,6 +6,7 @@ import com.hotel.models.*;
 import com.hotel.models.enums.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Iterator;
 import java.util.List;
@@ -130,8 +131,8 @@ public final class AssertionsHelper {
     public static void comprobarReservaDb(
             Reserva reserva,
             Integer numeroPersonas,
-            LocalDateTime entradaEstimada,
-            LocalDateTime salidaEstimada,
+            LocalDate entradaEstimada,
+            LocalDate salidaEstimada,
             ModoOcupacion modoOcupacion,
             EstadoReserva estadoReserva,
             CanalReserva canalReserva,
@@ -149,8 +150,8 @@ public final class AssertionsHelper {
 
         // ---- Fechas ----
         assertThat(reserva.getFechaCreacion()).isNotNull();
-        assertThat(reserva.getEntradaEstimada()).isEqualToIgnoringNanos(entradaEstimada);
-        assertThat(reserva.getSalidaEstimada()).isEqualToIgnoringNanos(salidaEstimada);
+        assertThat(reserva.getEntradaEstimada().toLocalDate()).isEqualTo(entradaEstimada);
+        assertThat(reserva.getSalidaEstimada().toLocalDate()).isEqualTo(salidaEstimada);
 
         // ---- Estados ----
         assertThat(reserva.getModoOcupacion()).isEqualTo(modoOcupacion);
@@ -292,6 +293,11 @@ public final class AssertionsHelper {
             case MODIFICACION_PAGO:
             case ELIMINACION_PAGO:
                 assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.PAGO);
+                break;
+            case CREACION_RESERVA:
+            case MODIFICACION_RESERVA:
+            case ELIMINACION_RESERVA:
+                 assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.RESERVA);
                 break;
             default:
                 throw new IllegalArgumentException("Tipo de evento no esperado en esta comprobación: " + tipoEvento);

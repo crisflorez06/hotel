@@ -1,13 +1,15 @@
 package com.hotel.testdata;
 
-import com.hotel.models.Estancia;
-import com.hotel.models.Habitacion;
-import com.hotel.models.Ocupante;
-import com.hotel.models.Reserva;
+import com.hotel.dtos.estancia.EstanciaRequestDTO;
+import com.hotel.dtos.pago.PagoNuevoRequestDTO;
+import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
+import com.hotel.models.*;
 import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.models.enums.ModoOcupacion;
+import com.hotel.models.enums.TipoUnidad;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,5 +36,44 @@ public final class ReservaTestData {
 
         return reserva;
 
+    }
+
+    public static ReservaNuevaRequestDTO reservaRequestDTO(
+            TipoUnidad tipoUnidad,
+            String codigo,
+            Ocupante cliente,
+            LocalDate entradaEstimada,
+            PagoNuevoRequestDTO pago) {
+        ReservaNuevaRequestDTO request = new ReservaNuevaRequestDTO();
+        request.setTipoUnidad(tipoUnidad);
+        request.setCodigo(codigo);
+        request.setIdOcupante(cliente.getId());
+        request.setNumeroPersonas(2);
+
+        if(entradaEstimada == null) {
+            request.setEntradaEstimada(LocalDate.now().plusDays(2));
+            request.setSalidaEstimada(request.getEntradaEstimada().plusDays(2));
+        } else {
+                request.setEntradaEstimada(entradaEstimada);
+                request.setSalidaEstimada(entradaEstimada.plusDays(2));
+            }
+
+
+        request.setCanalReserva(CanalReserva.MOSTRADOR);
+        request.setNotas("Reserva de prueba");
+        request.setPago(pago);
+        return request;
+    }
+
+    public static ReservaNuevaRequestDTO errorFechasReservaRequestDTO(Unidad unidad) {
+        ReservaNuevaRequestDTO request = new ReservaNuevaRequestDTO();
+        request.setTipoUnidad(unidad.getTipo());
+        request.setCodigo(unidad.getCodigo());
+
+        LocalDate entrada = LocalDate.now();
+        request.setEntradaEstimada(entrada.plusDays(3));
+        request.setSalidaEstimada(entrada);
+
+        return request;
     }
 }
