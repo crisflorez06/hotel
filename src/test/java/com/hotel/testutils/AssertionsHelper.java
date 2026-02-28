@@ -98,15 +98,25 @@ public final class AssertionsHelper {
         }
     }
 
-    public static void comprobarHabitacionesDb(List<Habitacion> habitaciones, Estancia estancia) {
+    public static void comprobarHabitacionesDb(List<Habitacion> habitaciones, Estancia estancia, Reserva reserva) {
         if (habitaciones != null) {
             List<Long> idsHabitacionesEsperadas = habitaciones.stream()
                     .map(Habitacion::getId)
                     .toList();
 
-            List<Long> idsHabitacionesActuales = estancia.getHabitaciones().stream()
-                    .map(Habitacion::getId)
-                    .toList();
+            List<Long> idsHabitacionesActuales;
+            if(estancia != null) {
+                idsHabitacionesActuales = estancia.getHabitaciones().stream()
+                        .map(Habitacion::getId)
+                        .toList();
+            } else if (reserva != null) {
+                idsHabitacionesActuales = reserva.getHabitaciones().stream()
+                        .map(Habitacion::getId)
+                        .toList();
+            } else {
+                throw new IllegalArgumentException("Para comprobar las habitaciones en base a una estancia o reserva, al menos una de ellas debe ser no nula");
+            }
+
 
             assertThat(idsHabitacionesActuales).hasSameSizeAs(idsHabitacionesEsperadas);
             assertThat(idsHabitacionesActuales).containsExactlyInAnyOrderElementsOf(idsHabitacionesEsperadas);
@@ -206,24 +216,21 @@ public final class AssertionsHelper {
         assertThat(clientes).hasSize(1);
         assertThat(clientes.getFirst().getId()).isEqualTo(idClienteEsperado);
 
-
-
-
-
-
     }
 
     public static void comprobarPagosDb(
             List<Pago> pagos,
             BigDecimal montoExitoso,
             BigDecimal montoNulo,
+            BigDecimal montoPendiente,
             EstadoPago estadoPago1,
             int totalEstadosPago1,
             EstadoPago estadoPago2,
             int totalEstadosPago2,
             int totalTipoPagoEstanciaFinalizada,
             int totalTipoPagoEstanciaAnticipada,
-            int totalTipoPagoReserva
+            int totalTipoPagoReserva,
+            int totalTipoPagoCambio
 
     ) {
         Long estado1 = pagos.stream()
@@ -252,6 +259,13 @@ public final class AssertionsHelper {
 
         assertThat(nulo).isEqualByComparingTo(montoNulo);
 
+        BigDecimal pendiente = pagos.stream()
+                .filter(p -> p.getEstado() == EstadoPago.PENDIENTE)
+                .map(Pago::getMonto)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        assertThat(pendiente).isEqualByComparingTo(montoPendiente);
+
         Long tipoPagoEstanciaCompletada = pagos.stream()
                 .filter(p -> p.getTipoPago() == TipoPago.ESTANCIA_COMPLETADA)
                 .count();
@@ -269,6 +283,12 @@ public final class AssertionsHelper {
                 .count();
 
         assertThat(tipoPagoReserva).isEqualTo(totalTipoPagoReserva);
+
+        Long tipoPagoCambio = pagos.stream()
+                .filter(p -> p.getTipoPago() == TipoPago.CAMBIO_UNIDAD)
+                .count();
+
+        assertThat(tipoPagoCambio).isEqualTo(totalTipoPagoCambio);
 
     }
 

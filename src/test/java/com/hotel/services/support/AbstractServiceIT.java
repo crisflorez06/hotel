@@ -194,16 +194,6 @@ public abstract class AbstractServiceIT {
     protected Reserva crearReservaExistente(List<Habitacion> habitaciones, boolean conPago){
         Ocupante cliente = crearCliente(clienteData());
 
-        Reserva reservaExistente = reservaRepository.save(
-                reservaData(
-                        cliente,
-                        ModoOcupacion.COMPLETO,
-                        EstadoReserva.CONFIRMADA,
-                        habitaciones,
-                        null
-                )
-        );
-
         ModoOcupacion modoOcupacion;
         if(habitaciones.size() == 1) {
             if(habitaciones.getFirst().getUnidad().getTipo().equals(TipoUnidad.APARTAESTUDIO)){
@@ -215,9 +205,20 @@ public abstract class AbstractServiceIT {
             modoOcupacion = ModoOcupacion.COMPLETO;
         }
 
+        Reserva reservaExistente = reservaRepository.save(
+                reservaData(
+                        cliente,
+                        modoOcupacion,
+                        EstadoReserva.CONFIRMADA,
+                        habitaciones,
+                        null
+                )
+        );
+
+
+
         Estancia estanciaDeReserva = estanciaReservaData(
                 reservaExistente,
-                new ArrayList<>(List.of(cliente)),
                 modoOcupacion,
                 EstadoEstancia.RESERVADA,
                 habitaciones,

@@ -223,6 +223,8 @@ public class EstanciaService {
                     unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()),
                     codigo);
 
+            TipoUnidad tipoUnidadAnterior = unidadHabitacionResolver.determinarTipoUnidad(estancia.getHabitaciones());
+
             alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
 
             estancia.setHabitaciones(new ArrayList<>(habitaciones));
@@ -233,8 +235,12 @@ public class EstanciaService {
 
             logger.info("[editarEstancia] Creando pago asociado al cambio de unidad de la estancia");
 
-            TipoUnidad tipoUnidadAnterior = unidadHabitacionResolver.determinarTipoUnidad(habitaciones);
-            pagoService.crearPagoPorCambioUnidad(estancia, tipoUnidadAnterior);
+
+
+            if(tipoUnidadAnterior != tipoUnidad) {
+                pagoService.crearPagoPorCambioUnidad(estancia, tipoUnidadAnterior);
+
+            }
 
         }
 
@@ -408,7 +414,7 @@ public class EstanciaService {
                 pageableConOrden
         );
 
-        return estancias.map(this::mapearEstanciaTablaDTO);
+        return estancias.map(EstanciaMapper::entityToTablaDTO);
     }
 
     //verificar reglas de negocio para finalizar estancia
@@ -460,17 +466,6 @@ public class EstanciaService {
         alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
 
         return null;
-    }
-
-    private void modificarPagoEstancia(Estancia estancia, PagoNuevoRequestDTO request) {
-        logger.info("[modificarPagoEstancia] Creando nuevo o editando el pago asociado a la estancia editada");
-        Pago pagoAnterior = pagoService.buscarUltimoPagoPorEstanciaYTipo(estancia.getId(), TipoPago.ANTICIPO_ESTANCIA).orElse(null);
-
-        if (pagoAnterior == null) {
-            pagoService.crearPago(request, estancia);
-        } else {
-            pagoService.reemplazarPago(request, pagoAnterior, estancia);
-        }
     }
 
 
@@ -587,61 +582,7 @@ public class EstanciaService {
         }
     }
 
-    private EstanciaTablaDTO mapearEstanciaTablaDTO(Estancia estancia) {
-        EstanciaTablaDTO dto = new EstanciaTablaDTO();
-        dto.setId(estancia.getId());
-        dto.setCodigoEstancia(estancia.getCodigoFolio());
-        dto.setEstadoEstancia(estancia.getEstado());
-        dto.setModoOcupacion(estancia.getModoOcupacion());
-        dto.setEntradaReal(estancia.getEntradaReal());
-        dto.setSalidaEstimada(estancia.getSalidaEstimada());
-        dto.setSalidaReal(estancia.getSalidaReal());
-        dto.setTotalPersonas(estancia.getOcupantes() != null ? estancia.getOcupantes().size() : 0);
-        dto.setTieneReservaAsociada(estancia.getReserva() != null);
-        dto.setIdReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getId() : null);
-        dto.setCodigoReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null);
-        dto.setTotalPagoEstancia(BigDecimal.ZERO);
-        dto.setCantidadPagosModificadosOEliminados(0);
 
-        if (estancia.getOcupantes() != null) {
-            Ocupante cliente = estancia.getOcupantes().stream()
-                    .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
-                    .findFirst()
-                    .orElse(null);
-            if (cliente != null) {
-                dto.setIdCliente(cliente.getId());
-                dto.setTipoDocumentoCliente(cliente.getTipoDocumento());
-                dto.setNumeroDocumentoCliente(cliente.getNumeroDocumento());
-                dto.setNombreCliente(String.format("%s %s", cliente.getNombres(), cliente.getApellidos()).trim());
-            }
-        }
-
-        if (estancia.getHabitaciones() != null && !estancia.getHabitaciones().isEmpty()) {
-            if (estancia.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
-                dto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getCodigo());
-                dto.setTipoUnidad(TipoUnidad.HABITACION);
-            } else if (estancia.getHabitaciones().getFirst().getUnidad() != null) {
-                dto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getCodigo());
-                dto.setTipoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getTipo());
-            }
-        }
-
-        if (estancia.getPagos() != null) {
-            dto.setTotalPagoEstancia(estancia.getPagos().stream()
-                    .filter(pago -> pago.getEstado() == EstadoPago.PENDIENTE
-                            || pago.getEstado() == EstadoPago.COMPLETADO)
-                    .map(Pago::getMonto)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add));
-
-            int cantidadPagosModificadosOEliminados = (int) estancia.getPagos().stream()
-                    .filter(pago -> pago.getEstado() == EstadoPago.MODIFICADO
-                            || pago.getEstado() == EstadoPago.ELIMINADO)
-                    .count();
-            dto.setCantidadPagosModificadosOEliminados(cantidadPagosModificadosOEliminados);
-        }
-
-        return dto;
-    }
 
 
 

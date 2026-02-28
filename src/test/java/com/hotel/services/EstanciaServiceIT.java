@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
+import com.hotel.dtos.estancia.EstanciaTablaDTO;
 import com.hotel.dtos.estancia.SalidaEstanciaDTO;
+import com.hotel.dtos.pago.CalcularPagoDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
+import com.hotel.mappers.PagoMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.*;
@@ -16,11 +19,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.hotel.services.support.AbstractServiceIT;
+import com.hotel.utils.EventoNuevoJsonBuilder;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +48,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
     @Autowired
     private EstanciaService estanciaService;
+
+    @Autowired
+    private PagoService pagoService;
 
     @Autowired
     private EstanciaRepository estanciaRepository;
@@ -106,6 +115,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3
         );
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.CREACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
     }
@@ -159,6 +170,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1
         );
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.CREACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
     }
@@ -191,6 +204,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
+        Habitacion habitacionDb = unidadDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -211,6 +227,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.PARCIALMENTE,
                 1
         );
+
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
 
         comprobarEventoDb(eventoDb, TipoEvento.CREACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
@@ -245,6 +263,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
@@ -263,14 +282,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 request.getPago().getMonto(),
-                BigDecimal.valueOf(0),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 request.getPago().getEstado(),
                 1,
                 EstadoPago.MODIFICADO,
                 0,
                 0,
                 1,
+                0,
                 0);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarEventoDb(eventoDb, TipoEvento.CREACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
     }
@@ -281,6 +304,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         // Unidad tipo APARTAMENTO con 3 habitaciones DISPONIBLES
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+
 
         // Cliente
         Ocupante cliente = crearCliente(clienteData());
@@ -322,6 +346,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3
         );
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarEventoDb(eventoDb, TipoEvento.CREACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
@@ -373,6 +399,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3
         );
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.CREACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
     }
@@ -399,6 +427,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
 
         // ---------- WHEN + THEN (excepción) ----------
@@ -415,6 +444,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // No se creó estanciaData
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
     }
 
@@ -441,6 +471,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
         long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
 
         // ---------- WHEN + THEN (excepción) ----------
@@ -458,6 +489,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // No se creó estanciaData
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
         assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
     }
 
@@ -473,6 +505,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
 
         // ---------- WHEN + THEN (excepción) ----------
@@ -488,6 +521,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // No se creó estanciaData
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
 
     }
@@ -509,6 +543,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
 
         // ---------- WHEN + THEN (excepción) ----------
@@ -524,6 +559,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // No se creó estanciaData
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
 
     }
@@ -588,6 +624,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
         comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
@@ -650,6 +688,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
     }
@@ -691,6 +731,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
+        Habitacion habitacionDb = unidadDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -710,6 +753,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 unidadDb,
                 EstadoOperativo.OCUPADO,
                 3);
+
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -771,6 +816,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
         comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
@@ -828,7 +875,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoEstancia.ACTIVA,
                 null,
                 3,
-                2);
+                1);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb1,
@@ -840,7 +887,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3);
 
-        comprobarHabitacionesDb(unidadDb2.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(unidadDb2.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -897,7 +944,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoEstancia.ACTIVA,
                 null,
                 1,
-                2);
+                1);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb1,
@@ -911,7 +958,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
-        comprobarHabitacionesDb(unidadDb2.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(unidadDb2.getHabitaciones(), estanciaDb, null);
 
         comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
 
@@ -968,7 +1015,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoEstancia.ACTIVA,
                 null,
                 1,
-                2);
+                1);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -986,7 +1033,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         assertThat(h1Db.getEstadoOperativo()).isEqualTo(EstadoOperativo.DISPONIBLE);
         assertThat(h2Db.getEstadoOperativo()).isEqualTo(EstadoOperativo.OCUPADO);
 
-        comprobarHabitacionesDb(List.of(habitacion2), estanciaDb);
+        comprobarHabitacionesDb(List.of(h2Db), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1005,6 +1052,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(apartamento.getHabitaciones(), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, apartamento.getTipo());
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 apartaestudio.getTipo(),
@@ -1031,6 +1080,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
@@ -1045,6 +1095,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb,
                 EstadoOperativo.DISPONIBLE,
@@ -1055,7 +1119,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 1);
 
-        comprobarHabitacionesDb(apartaestudioDb.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(apartaestudioDb.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1076,6 +1140,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(apartamento.getHabitaciones(), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, apartamento.getTipo());
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 TipoUnidad.HABITACION,
@@ -1097,9 +1163,13 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Estancia estanciaDb = estanciaRepository.findById(estanciaExistente.getId()).orElseThrow();
         Unidad apartamentoDb = unidadRepository.findById(apartamento.getId()).orElseThrow();
+        Habitacion habitacionDb = apartamentoDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
+
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -1115,12 +1185,26 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb,
                 EstadoOperativo.PARCIALMENTE,
                 1);
 
-        comprobarHabitacionesDb(List.of(habitacion), estanciaDb);
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1142,6 +1226,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(apartamento1.getHabitaciones(), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, apartamento1.getTipo());
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 TipoUnidad.HABITACION,
@@ -1164,7 +1250,13 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Estancia estanciaDb = estanciaRepository.findById(estanciaExistente.getId()).orElseThrow();
         Unidad apartamentoDb1 = unidadRepository.findById(apartamento1.getId()).orElseThrow();
         Unidad apartamentoDb2 = unidadRepository.findById(apartamento2.getId()).orElseThrow();
+        Habitacion habitacionDb = apartamentoDb2.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.ESTANCIA,
+                estanciaDb.getId()).orElseThrow();
+        AuditoriaEvento eventoPagoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
@@ -1182,6 +1274,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb1,
                 EstadoOperativo.DISPONIBLE,
@@ -1192,7 +1298,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.PARCIALMENTE,
                 1);
 
-        comprobarHabitacionesDb(List.of(habitacion), estanciaDb);
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1213,6 +1319,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(apartaestudio.getHabitaciones(), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, apartaestudio.getTipo());
+
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 apartamento.getTipo(),
@@ -1239,6 +1348,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
@@ -1253,6 +1363,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb,
                 EstadoOperativo.OCUPADO,
@@ -1263,7 +1387,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.DISPONIBLE,
                 0);
 
-        comprobarHabitacionesDb(apartamentoDb.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(apartamentoDb.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1285,6 +1409,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(apartaestudio.getHabitaciones(), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, apartaestudio.getTipo());
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 TipoUnidad.HABITACION,
@@ -1306,10 +1432,14 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Estancia estanciaDb = estanciaRepository.findById(estanciaExistente.getId()).orElseThrow();
         Unidad apartamentoDb = unidadRepository.findById(apartamento.getId()).orElseThrow();
+        Habitacion habitacionDb = apartamentoDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
         Unidad apartaestudioDb = unidadRepository.findById(apartaestudio.getId()).orElseThrow();
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
+
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -1325,6 +1455,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb,
                 EstadoOperativo.PARCIALMENTE,
@@ -1335,7 +1479,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.DISPONIBLE,
                 0);
 
-        comprobarHabitacionesDb(List.of(habitacion), estanciaDb);
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1356,6 +1500,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(List.of(habitacion), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, TipoUnidad.HABITACION);
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 apartamento.getTipo(),
@@ -1381,6 +1527,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
@@ -1395,12 +1542,26 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb,
                 EstadoOperativo.OCUPADO,
                 3);
 
-        comprobarHabitacionesDb(apartamentoDb.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(apartamentoDb.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1421,6 +1582,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         List<Ocupante> ocupantesNuevos = crearAcompanantesSinCliente(acompanantesDataEditar());
 
         Estancia estanciaExistente = crearEstanciaExistente(List.of(habitacion), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, TipoUnidad.HABITACION);
+
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 apartamento2.getTipo(),
@@ -1447,6 +1611,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
@@ -1461,6 +1626,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb1,
                 EstadoOperativo.DISPONIBLE,
@@ -1471,7 +1650,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3);
 
-        comprobarHabitacionesDb(apartamentoDb2.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(apartamentoDb2.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1493,6 +1672,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(List.of(habitacion), true);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioUnidad(estanciaExistente, TipoUnidad.HABITACION);
+
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 apartaestudio.getTipo(),
@@ -1519,6 +1701,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
@@ -1533,6 +1716,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 2);
 
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
+                1);
+
         comprobarUnidadYHabitacionesDb(
                 apartamentoDb,
                 EstadoOperativo.DISPONIBLE,
@@ -1543,7 +1740,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 1);
 
-        comprobarHabitacionesDb(apartaestudioDb.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(apartaestudioDb.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1611,7 +1808,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoEstancia.ACTIVA,
                 null,
                 3,
-                2);
+                1);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb1,
@@ -1623,7 +1820,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3);
 
-        comprobarHabitacionesDb(unidadDb2.getHabitaciones(), estanciaDb);
+        comprobarHabitacionesDb(unidadDb2.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1686,6 +1883,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 unidadDb,
                 EstadoOperativo.OCUPADO,
                 3);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
@@ -1752,6 +1951,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoOperativo.OCUPADO,
                 3);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, ocupantesNuevos);
 
         comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
@@ -1815,6 +2016,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), clienteNuevo, null);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 4);
 
 
@@ -1839,9 +2042,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 unidad.getCodigo(),
                 cliente,
                 ocupantes,
-                estanciaExistente.getEntradaReal(),
+                null,
                 null
         );
+
+        request.setEntradaReal(estanciaExistente.getEntradaReal());
+        request.setSalidaEstimada(estanciaExistente.getSalidaEstimada());
 
         // ---------- WHEN ----------
         Long eventosAntes = eventoRepository.count();
@@ -1856,9 +2062,6 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Estancia estanciaDb = estanciaRepository.findById(estanciaExistente.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
-                TipoEntidad.ESTANCIA,
-                estanciaDb.getId()).orElseThrow();
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -1878,6 +2081,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 unidadDb,
                 EstadoOperativo.OCUPADO,
                 3);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarOcupantesDb(estanciaDb.getOcupantes(), cliente, ocupantes);
 
@@ -1913,6 +2118,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // Snapshot BD antes
         long estanciasAntes = estanciaRepository.count();
         long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
         LocalDateTime entradaAntes = estanciaExistente.getEntradaReal();
         LocalDateTime salidaAntes = estanciaExistente.getSalidaEstimada();
         String notasAntes = estanciaExistente.getNotas();
@@ -1934,6 +2140,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
         assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -1948,6 +2155,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null,
                 3,
                 1);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -1982,6 +2191,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
 
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
         LocalDateTime entradaAntes = estanciaExistente.getEntradaReal();
         LocalDateTime salidaAntes = estanciaExistente.getSalidaEstimada();
         String notasAntes = estanciaExistente.getNotas();
@@ -2004,6 +2215,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Unidad unidadDb2 = unidadRepository.findById(unidad2.getId()).orElseThrow();
 
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -2018,6 +2231,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null,
                 3,
                 1);
+
+        comprobarHabitacionesDb(unidadDb1.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb1,
@@ -2057,6 +2272,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
 
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
         LocalDateTime entradaAntes = estanciaExistente.getEntradaReal();
         LocalDateTime salidaAntes = estanciaExistente.getSalidaEstimada();
         String notasAntes = estanciaExistente.getNotas();
@@ -2076,6 +2293,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
 
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -2090,6 +2309,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null,
                 3,
                 1);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -2112,6 +2333,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = errorFechasEstanciaRequestDTO(unidad);
 
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
         LocalDateTime entradaAntes = estanciaExistente.getEntradaReal();
         LocalDateTime salidaAntes = estanciaExistente.getSalidaEstimada();
         String notasAntes = estanciaExistente.getNotas();
@@ -2131,6 +2354,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
 
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -2145,6 +2370,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null,
                 3,
                 1);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -2169,6 +2396,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), clienteNuevo, ocupantesNuevos, LocalDateTime.now().plusDays(1),null);
 
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
         LocalDateTime entradaAntes = estanciaExistente.getEntradaReal();
         LocalDateTime salidaAntes = estanciaExistente.getSalidaEstimada();
         String notasAntes = estanciaExistente.getNotas();
@@ -2188,6 +2417,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
 
         assertThat(estanciaRepository.count()).isEqualTo(estanciasAntes);
+        assertThat(reservaRepository.count()).isEqualTo(reservaAntes);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -2202,6 +2433,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 null,
                 3,
                 1);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -2268,6 +2501,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.ACTIVACION_ESTANCIA, estanciaDb.getCodigoFolio(), reservaDb.getCodigo(), 4);
 
     }
@@ -2325,6 +2560,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 1);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.ACTIVACION_ESTANCIA, estanciaDb.getCodigoFolio(), reservaDb.getCodigo(), 4);
     }
 
@@ -2359,6 +2596,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        Habitacion habitacionDb = unidadDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
         Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
@@ -2383,6 +2623,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.PARCIALMENTE, 1);
+
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
 
         comprobarEventoDb(eventoDb, TipoEvento.ACTIVACION_ESTANCIA, estanciaDb.getCodigoFolio(), reservaDb.getCodigo(), 4);
 
@@ -2422,6 +2664,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.COMPLETADA);
 
@@ -2443,14 +2686,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 request.getPago().getMonto(),
-                BigDecimal.valueOf(0),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 request.getPago().getEstado(),
                 1,
                 EstadoPago.MODIFICADO,
                 0,
                 0,
                 1,
+                0,
                 0);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
 
@@ -2497,6 +2744,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.COMPLETADA);
 
@@ -2520,14 +2768,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
-                BigDecimal.valueOf(0),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
                 EstadoPago.MODIFICADO,
                 0,
                 0,
                 0,
-                1);
+                1,
+                0);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
 
@@ -2569,6 +2821,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.COMPLETADA);
 
@@ -2601,16 +2854,20 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 montoTotal,
-                BigDecimal.valueOf(0),
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
                 request.getPago().getEstado(),
                 2,
                 EstadoPago.MODIFICADO,
                 0,
                 0,
                 1,
-                1);
+                1,
+                0);
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         comprobarEventoDb(eventoDb, TipoEvento.ACTIVACION_ESTANCIA, estanciaDb.getCodigoFolio(), reservaDb.getCodigo(), 4);
 
@@ -2669,6 +2926,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.ACTIVACION_ESTANCIA, estanciaDb.getCodigoFolio(), reservaDb.getCodigo(), 4);
 
     }
@@ -2725,6 +2984,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEventoDb(eventoDb, TipoEvento.ACTIVACION_ESTANCIA, estanciaDb.getCodigoFolio(), reservaDb.getCodigo(), 4);
 
     }
@@ -2752,6 +3013,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalStateException.class)
@@ -2769,6 +3032,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
 
         comprobarEstanciaDb(
@@ -2786,14 +3051,16 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1
         );
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarEstanciaDb(
                 estanciaDbReserva,
                 reservaDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.RESERVADA,
                 null,
@@ -2829,6 +3096,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
         long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalStateException.class)
@@ -2848,6 +3116,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
         assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
 
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
         assertThat(reservaExistenteDb.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
@@ -2855,11 +3124,11 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDbReservaExistente,
                 reservaExistenteDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.RESERVADA,
                 null,
@@ -2867,14 +3136,16 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0
         );
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDbReservaExistente, null);
+
         comprobarEstanciaDb(
                 estanciaDbReserva,
                 reservaDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.RESERVADA,
                 null,
@@ -2911,6 +3182,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // ---------- WHEN ----------
 
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalStateException.class)
@@ -2925,16 +3198,19 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
+
 
         comprobarEstanciaDb(
                 estanciaDb,
                 reservaDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.ACTIVA,
                 null,
@@ -2971,6 +3247,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // ---------- WHEN ----------
 
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalStateException.class)
@@ -2985,16 +3263,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.COMPLETADA);
 
         comprobarEstanciaDb(
                 estanciaDb,
                 reservaDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.RESERVADA,
                 null,
@@ -3018,6 +3298,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -3033,16 +3315,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
 
         comprobarEstanciaDb(
                 estanciaDbReserva,
                 reservaDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.RESERVADA,
                 null,
@@ -3073,6 +3357,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -3088,22 +3374,26 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
         assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
 
         comprobarEstanciaDb(
                 estanciaDbReserva,
                 reservaDb,
-                1,
+                0,
                 null,
                 null,
                 null,
-                "",
+                null,
                 ModoOcupacion.COMPLETO,
                 EstadoEstancia.RESERVADA,
                 null,
                 3,
                 0
         );
+
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDbReserva, null);
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
 
@@ -3127,6 +3417,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
         );
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
+        long reservaAntes = reservaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -3140,6 +3432,9 @@ class EstanciaServiceIT extends AbstractServiceIT {
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(reservaAntes).isEqualTo(reservaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
+
 
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
 
@@ -3173,6 +3468,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         assertThat(result).isNull();
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 1);
 
@@ -3203,6 +3499,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         assertThat(result).isNull();
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 1);
     }
@@ -3230,12 +3527,15 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+        Habitacion habitacionDb = unidadDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
         assertThat(result).isNull();
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.PARCIALMENTE, 2);
         comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 1);
     }
@@ -3264,20 +3564,24 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         assertThat(estanciaDb.getPagos()).hasSize(estancia.getPagos().size());
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 BigDecimal.ZERO,
                 monto,
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 0,
                 EstadoPago.ELIMINADO,
                 1,
                 0,
                 1,
+                0,
                 0);
 
         comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 1);
@@ -3307,8 +3611,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         assertThat(estanciaDb.getPagos()).hasSize(estancia.getPagos().size());
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
 
@@ -3316,13 +3622,15 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 estanciaDb.getPagos(),
                 BigDecimal.ZERO,
                 monto,
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 0,
                 EstadoPago.ELIMINADO,
                 1,
                 0,
                 0,
-                1);
+                1,
+                0);
 
         comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 1);
     }
@@ -3351,8 +3659,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         assertThat(estanciaDb.getPagos()).hasSize(estancia.getPagos().size());
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
 
@@ -3360,13 +3670,15 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 estanciaDb.getPagos(),
                 BigDecimal.ZERO,
                 monto,
+                BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 0,
                 EstadoPago.ELIMINADO,
                 2,
                 0,
                 1,
-                1);
+                1,
+                0);
 
         comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 1);
     }
@@ -3383,6 +3695,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
 
         assertThatThrownBy(() -> estanciaService.eliminarEstancia(estancia.getId()))
@@ -3394,9 +3707,11 @@ class EstanciaServiceIT extends AbstractServiceIT {
         entityManager.clear();
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
 
         Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
 
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.FINALIZADA);
@@ -3426,6 +3741,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // ---------- THEN ----------
         assertThat(result).isNotNull();
         Estancia estanciaDb = estanciaRepository.findById(result.getId()).orElseThrow();
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3441,9 +3757,11 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 1
         );
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
@@ -3451,6 +3769,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 0,
                 1,
+                0,
                 0);
     }
 
@@ -3470,7 +3789,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         EstanciaDTO result = estanciaService.obtenerEstancia(unidad.getCodigo(), TipoUnidad.APARTAESTUDIO);
-
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
         // ---------- THEN ----------
         assertThat(result).isNotNull();
         Estancia estanciaDb = estanciaRepository.findById(result.getId()).orElseThrow();
@@ -3489,9 +3808,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 1
         );
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
@@ -3499,6 +3821,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 0,
                 1,
+                0,
                 0);
     }
 
@@ -3525,6 +3848,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
         // ---------- THEN ----------
         assertThat(result).isNotNull();
         Estancia estanciaDb = estanciaRepository.findById(result.getId()).orElseThrow();
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        Habitacion habitacionDb = unidadDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
 
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3540,9 +3867,14 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1,
                 1
         );
+
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
+
+
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
@@ -3550,7 +3882,27 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 0,
                 1,
+                0,
                 0);
+    }
+
+    @Test
+    void falloObteniendoEstanciaSinEstanciaActivaOExcedida_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> estanciaService.obtenerEstancia(unidad.getCodigo(), unidad.getTipo()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No se encontró una estancia activa o excedida para la unidad con codigo");
+
+        // ---------- THEN ----------
+        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
     }
 
     /**
@@ -3581,6 +3933,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3597,10 +3950,13 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1
         );
 
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
+
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 pagoRequest.getMonto(),
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
@@ -3608,8 +3964,10 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 1,
                 0,
+                0,
                 0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
+
     }
 
     @Test
@@ -3637,6 +3995,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 estanciaDb.getId()).orElseThrow();
 
 
+
         assertThat(result).isNull();
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3653,16 +4012,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1
         );
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
-
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 pagoRequest.getMonto(),
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
                 EstadoPago.MODIFICADO,
                 0,
                 1,
+                0,
                 0,
                 0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
@@ -3691,9 +4052,13 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
+        Habitacion habitacionDb = unidadDb.getHabitaciones().stream()
+                .filter(h -> h.getCodigo().equals(habitacion.getCodigo()))
+                .findFirst().orElseThrow();
         AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
+
 
 
         comprobarEstanciaDb(
@@ -3711,16 +4076,18 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 1
         );
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.PARCIALMENTE, 2);
-
+        comprobarHabitacionesDb(List.of(habitacionDb), estanciaDb, null);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 pagoRequest.getMonto(),
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 1,
                 EstadoPago.MODIFICADO,
                 0,
                 1,
+                0,
                 0,
                 0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
@@ -3755,6 +4122,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3770,11 +4138,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 2
         );
-
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 2,
@@ -3782,6 +4151,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 1,
                 1,
+                0,
                 0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
     }
@@ -3816,6 +4186,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3831,11 +4202,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 2
         );
-
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 2,
@@ -3843,7 +4215,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 1,
                 0,
-                1);
+                1,
+                0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
     }
 
@@ -3877,6 +4250,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 TipoEntidad.ESTANCIA,
                 estanciaDb.getId()).orElseThrow();
 
+
         assertThat(result).isNull();
         comprobarEstanciaDb(
                 estanciaDb,
@@ -3892,11 +4266,12 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 3,
                 3
         );
-
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.DISPONIBLE, 0);
         comprobarPagosDb(
                 estanciaDb.getPagos(),
                 monto,
+                BigDecimal.ZERO,
                 BigDecimal.ZERO,
                 EstadoPago.COMPLETADO,
                 3,
@@ -3904,7 +4279,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0,
                 1,
                 1,
-                1);
+                1,
+                0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
     }
 
@@ -3924,6 +4300,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
+        long eventosAntes = eventoRepository.count();
 
         assertThatThrownBy(() -> estanciaService.finalizarEstancia(request))
                 .isInstanceOf(IllegalStateException.class)
@@ -3935,14 +4312,176 @@ class EstanciaServiceIT extends AbstractServiceIT {
         entityManager.clear();
 
         assertThat(estanciasAntes).isEqualTo(estanciaRepository.count());
+        assertThat(eventosAntes).isEqualTo(eventoRepository.count());
 
         Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
 
-
+        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
 
         assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.RESERVADA);
         comprobarUnidadYHabitacionesDb(unidadDb, EstadoOperativo.OCUPADO, 3);
+
+    }
+
+    /**
+     * buscarEstanciasTabla(...)
+     */
+
+    @Test
+    void exitoBuscandoEstanciasTablaConFiltrosYMapeo_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), true);
+        Ocupante cliente = estancia.getOcupantes().stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst().orElseThrow();
+        cliente.setNombres("Valeria");
+        cliente.setApellidos("Nunez");
+        cliente.setNumeroDocumento("TABLA-EST-001");
+        ocupanteRepository.save(cliente);
+
+        BigDecimal totalPagoEsperado = estancia.getPagos().stream()
+                .filter(pago -> pago.getEstado() == EstadoPago.PENDIENTE || pago.getEstado() == EstadoPago.COMPLETADO)
+                .map(Pago::getMonto)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Unidad otraUnidad = crearApartaestudio(EstadoOperativo.OCUPADO);
+        Estancia otraEstancia = crearEstanciaExistente(otraUnidad.getHabitaciones(), false);
+        Ocupante otroCliente = otraEstancia.getOcupantes().stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst().orElseThrow();
+        otroCliente.setNumeroDocumento("OTRA-EST-999");
+        ocupanteRepository.save(otroCliente);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // ---------- WHEN ----------
+        Page<EstanciaTablaDTO> resultado = estanciaService.buscarEstanciasTabla(
+                List.of(EstadoEstancia.ACTIVA),
+                TipoUnidad.APARTAMENTO,
+                ModoOcupacion.COMPLETO,
+                estancia.getCodigoFolio(),
+                unidad.getCodigo(),
+                "Valeria Nunez",
+                "TABLA-EST",
+                cliente.getId(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                PageRequest.of(0, 10)
+        );
+
+        // ---------- THEN ----------
+        assertThat(resultado.getTotalElements()).isEqualTo(1);
+        assertThat(resultado.getContent()).hasSize(1);
+
+        EstanciaTablaDTO dto = resultado.getContent().getFirst();
+        assertThat(dto.getId()).isEqualTo(estancia.getId());
+        assertThat(dto.getCodigoEstancia()).isEqualTo(estancia.getCodigoFolio());
+        assertThat(dto.getCodigoUnidad()).isEqualTo(unidad.getCodigo());
+        assertThat(dto.getTipoUnidad()).isEqualTo(TipoUnidad.APARTAMENTO);
+        assertThat(dto.getNombreCliente()).isEqualTo("Valeria Nunez");
+        assertThat(dto.getIdCliente()).isEqualTo(cliente.getId());
+        assertThat(dto.getNumeroDocumentoCliente()).isEqualTo("TABLA-EST-001");
+        assertThat(dto.getEstadoEstancia()).isEqualTo(EstadoEstancia.ACTIVA);
+        assertThat(dto.getModoOcupacion()).isEqualTo(ModoOcupacion.COMPLETO);
+        assertThat(dto.getTieneReservaAsociada()).isFalse();
+        assertThat(dto.getIdReservaAsociada()).isNull();
+        assertThat(dto.getCodigoReservaAsociada()).isNull();
+        assertThat(dto.getTotalPersonas()).isEqualTo(estancia.getOcupantes().size());
+        assertThat(dto.getTotalPagoEstancia()).isEqualByComparingTo(totalPagoEsperado);
+        assertThat(dto.getCantidadPagosModificadosOEliminados()).isZero();
+    }
+
+    @Test
+    void exitoBuscandoEstanciasTablaConReservaAsociadaOrdenPorDefectoYPaginacion_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad1 = crearApartamento(EstadoOperativo.OCUPADO);
+        Unidad unidad2 = crearApartamento(EstadoOperativo.OCUPADO);
+        Unidad unidad3 = crearApartamento(EstadoOperativo.OCUPADO);
+
+        Estancia estanciaAntigua = crearEstanciaExistente(unidad1.getHabitaciones(), false);
+        estanciaAntigua.setEntradaReal(LocalDateTime.now().minusDays(3));
+        estanciaRepository.save(estanciaAntigua);
+
+        Estancia estanciaMedia = crearEstanciaExistente(unidad2.getHabitaciones(), false);
+        estanciaMedia.setEntradaReal(LocalDateTime.now().minusDays(2));
+        estanciaRepository.save(estanciaMedia);
+
+        Estancia estanciaConReserva = crearEstanciaConReservaExistente(unidad3.getHabitaciones(), false, true);
+        estanciaConReserva.setEntradaReal(LocalDateTime.now().minusDays(1));
+        estanciaRepository.save(estanciaConReserva);
+        BigDecimal totalPagoConReserva = estanciaConReserva.getPagos().stream()
+                .filter(pago -> pago.getEstado() == EstadoPago.PENDIENTE || pago.getEstado() == EstadoPago.COMPLETADO)
+                .map(Pago::getMonto)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // ---------- WHEN ----------
+        Page<EstanciaTablaDTO> conReserva = estanciaService.buscarEstanciasTabla(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                true,
+                PageRequest.of(0, 10)
+        );
+
+        Page<EstanciaTablaDTO> pagina0 = estanciaService.buscarEstanciasTabla(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null,
+                PageRequest.of(0, 2)
+        );
+
+        Page<EstanciaTablaDTO> pagina1 = estanciaService.buscarEstanciasTabla(
+                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null,
+                PageRequest.of(1, 2)
+        );
+
+        // ---------- THEN ----------
+        assertThat(conReserva.getContent()).hasSize(1);
+        EstanciaTablaDTO dtoConReserva = conReserva.getContent().getFirst();
+        assertThat(dtoConReserva.getId()).isEqualTo(estanciaConReserva.getId());
+        assertThat(dtoConReserva.getTieneReservaAsociada()).isTrue();
+        assertThat(dtoConReserva.getIdReservaAsociada()).isEqualTo(estanciaConReserva.getReserva().getId());
+        assertThat(dtoConReserva.getCodigoReservaAsociada()).isEqualTo(estanciaConReserva.getReserva().getCodigo());
+        assertThat(dtoConReserva.getTotalPagoEstancia()).isEqualByComparingTo(totalPagoConReserva);
+
+        assertThat(pagina0.getContent()).hasSize(2);
+        assertThat(pagina0.getContent().get(0).getId()).isEqualTo(estanciaConReserva.getId());
+        assertThat(pagina0.getContent().get(1).getId()).isEqualTo(estanciaMedia.getId());
+
+        assertThat(pagina1.getContent()).hasSize(1);
+        assertThat(pagina1.getContent().getFirst().getId()).isEqualTo(estanciaAntigua.getId());
+    }
+
+    //metodo auxiliar
+    private BigDecimal calcularMontoPendienteCambioUnidad(Estancia estancia, TipoUnidad tipoUnidadAnterior) {
+        if (estancia == null || tipoUnidadAnterior == null) {
+            throw new IllegalArgumentException("No se proporcionó información de estancia o tipo de unidad");
+        }
+
+        Integer totalOcupantes = estancia.getOcupantes().size();
+        LocalDateTime fechaEntrada = estancia.getEntradaReal();
+        LocalDateTime fechaFinalizacion = LocalDateTime.now();
+
+        CalcularPagoDTO calcularPagoDTO = PagoMapper.entityToCalcularPagoDTO(tipoUnidadAnterior, totalOcupantes, fechaEntrada, fechaFinalizacion);
+
+        return pagoService.obtenerEstimacionPago(calcularPagoDTO);
 
     }
 }

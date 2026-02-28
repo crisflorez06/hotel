@@ -1,8 +1,7 @@
 package com.hotel.testdata;
 
-import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
-import com.hotel.dtos.reserva.ReservaNuevaRequestDTO;
+import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.models.*;
 import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.EstadoReserva;
@@ -38,13 +37,13 @@ public final class ReservaTestData {
 
     }
 
-    public static ReservaNuevaRequestDTO reservaRequestDTO(
+    public static ReservaRequestDTO reservaRequestDTO(
             TipoUnidad tipoUnidad,
             String codigo,
             Ocupante cliente,
             LocalDate entradaEstimada,
             PagoNuevoRequestDTO pago) {
-        ReservaNuevaRequestDTO request = new ReservaNuevaRequestDTO();
+        ReservaRequestDTO request = new ReservaRequestDTO();
         request.setTipoUnidad(tipoUnidad);
         request.setCodigo(codigo);
         request.setIdOcupante(cliente.getId());
@@ -65,8 +64,8 @@ public final class ReservaTestData {
         return request;
     }
 
-    public static ReservaNuevaRequestDTO errorFechasReservaRequestDTO(Unidad unidad) {
-        ReservaNuevaRequestDTO request = new ReservaNuevaRequestDTO();
+    public static ReservaRequestDTO errorFechasReservaRequestDTO(Unidad unidad) {
+        ReservaRequestDTO request = new ReservaRequestDTO();
         request.setTipoUnidad(unidad.getTipo());
         request.setCodigo(unidad.getCodigo());
 

@@ -37,7 +37,7 @@ public class EstanciaReservaResolver {
         estancia.setCodigoFolio(codigoUnicoService.generarCodigoEstancia());
         estancia.setModoOcupacion(reserva.getModoOcupacion());
         estancia.setEstado(EstadoEstancia.RESERVADA);
-        estancia.setNotas("Estancia creada desde reserva: " + reserva.getNotas());
+        estancia.setNotas(null);
         estancia.setHabitaciones(reserva.getHabitaciones());
         estancia.setReserva(reserva);
         reserva.setEstancia(estancia);

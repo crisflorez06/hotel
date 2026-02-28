@@ -51,12 +51,14 @@ public class DisponibilidadService {
         if (!tieneDisponiblidadHabitaciones(habitaciones)){
             logger.info("[DisponibilidadService.verificarDisponiblidad] No hay disponibilidad por estado operativo, verificando estancias activas o excedidas");
             List<Estancia> estancias = listaEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva);
-            if(!estancias.isEmpty()) {
-                List<Habitacion> habitacionesConEstancia = estancias.stream()
-                        .flatMap(estancia -> estancia.getHabitaciones().stream())
-                        .toList();
-                return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
+            if(estancias.isEmpty()) {
+                throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
             }
+            List<Habitacion> habitacionesConEstancia = estancias.stream()
+                    .flatMap(estancia -> estancia.getHabitaciones().stream())
+                    .toList();
+            return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
+
         }
 
         return "";

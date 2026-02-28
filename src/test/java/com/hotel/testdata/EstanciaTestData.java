@@ -43,7 +43,6 @@ public final class EstanciaTestData {
 
     public static Estancia estanciaReservaData(
             Reserva reserva,
-            List<Ocupante> ocupantes,
             ModoOcupacion modoOcupacion,
             EstadoEstancia estadoEstancia,
             List<Habitacion> habitaciones,
@@ -53,12 +52,12 @@ public final class EstanciaTestData {
 
         estancia.setCodigoFolio(TestDataUtils.randomCodigo("EST-"));
         estancia.setReserva(reserva);
-        estancia.setOcupantes(ocupantes);
+        estancia.setOcupantes(null);
         estancia.setEntradaReal(null);
         estancia.setSalidaEstimada(null);
         estancia.setModoOcupacion(modoOcupacion);
         estancia.setEstado(estadoEstancia);
-        estancia.setNotas("Estancia reserva de prueba");
+        estancia.setNotas(null);
         estancia.setHabitaciones(habitaciones == null ? null : new ArrayList<>(habitaciones));
         estancia.setPagos(pagos);
 
