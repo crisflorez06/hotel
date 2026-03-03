@@ -1,6 +1,7 @@
 package com.hotel.controllers;
 
 import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
 import com.hotel.models.enums.CanalReserva;
@@ -36,9 +37,9 @@ public class ReservaController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> crearReserva(@Valid @RequestBody ReservaRequestDTO request) {
-        reservaService.crearReserva(request);
-        return ResponseEntity.status(201).build();
+    public ResponseEntity<ReservaDTO> crearReserva(@Valid @RequestBody ReservaRequestDTO request) {
+        ReservaDTO creada = reservaService.crear(request);
+        return ResponseEntity.status(201).body(creada);
     }
 
     @PutMapping("/{id}")

@@ -64,7 +64,7 @@ public final class EstanciaTestData {
         return estancia;
     }
 
-    public static EstanciaRequestDTO estanciaRequestDTO(TipoUnidad tipoUnidad, String codigo, Ocupante cliente, List<Ocupante> acompanantes, LocalDateTime fecha, PagoNuevoRequestDTO pago) {
+    public static EstanciaRequestDTO estanciaRequestDTO(TipoUnidad tipoUnidad, String codigo, Ocupante cliente, List<Ocupante> acompanantes, LocalDateTime fecha) {
         EstanciaRequestDTO request = new EstanciaRequestDTO();
 
         request.setTipoUnidad(tipoUnidad);
@@ -90,7 +90,6 @@ public final class EstanciaTestData {
             request.setSalidaEstimada(entrada.plusDays(3));
         }
         request.setNotas("Estancia de prueba");
-        request.setPago(pago);
         return request;
     }
 
@@ -106,7 +105,7 @@ public final class EstanciaTestData {
         return request;
     }
 
-    public static ActivarEstanciaDTO activarEstanciaRequestDTO(Long idReserva, Ocupante cliente, List<Ocupante> acompanantes, LocalDateTime fecha, PagoNuevoRequestDTO pago) {
+    public static ActivarEstanciaDTO activarEstanciaRequestDTO(Long idReserva, Ocupante cliente, List<Ocupante> acompanantes, LocalDateTime fecha) {
         ActivarEstanciaDTO request = new ActivarEstanciaDTO();
 
 
@@ -125,7 +124,6 @@ public final class EstanciaTestData {
             request.setIdAcompanantes(acompanantesIds);
         }
 
-        request.setPago(pago);
         request.setNotas("Salida de prueba activar");
         return request;
     }

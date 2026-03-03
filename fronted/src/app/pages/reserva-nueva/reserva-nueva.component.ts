@@ -3,7 +3,7 @@ import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FlatpickrModule } from 'angularx-flatpickr';
-import { Observable, map } from 'rxjs';
+import { Observable, concatMap, map, of } from 'rxjs';
 
 import { ReservaService } from '../../services/reserva.service';
 import { OcupanteService } from '../../services/ocupante.service';
@@ -188,9 +188,15 @@ export class ReservaNuevaComponent implements OnInit {
       return;
     }
 
+    if (this.esEdicion && this.conPago) {
+      this.error = 'El pago de la reserva debe registrarse por separado despues de guardar los cambios.';
+      return;
+    }
+
     this.guardando = true;
     this.error = '';
     this.exito = '';
+    const pago = this.conPago ? this.buildPago() : null;
 
     const request: ReservaNuevoRequest = {
       tipoUnidad: this.tipoUnidad,
@@ -201,13 +207,24 @@ export class ReservaNuevaComponent implements OnInit {
       salidaEstimada: this.normalizarFechaHora(this.salidaEstimada),
       canalReserva: this.canalReserva,
       notas: this.notas.trim() || undefined,
-      pago: this.conPago ? this.buildPago() : null,
     };
 
-    const request$ =
+    const request$: Observable<unknown> =
       this.esEdicion && this.reservaEditandoId !== null
         ? this.reservaService.editarReserva(this.reservaEditandoId, request)
-        : this.reservaService.crearReserva(request);
+        : this.reservaService.crearReserva(request).pipe(
+            concatMap((reserva) => {
+              if (!pago) {
+                return of(reserva);
+              }
+
+              if (!reserva.idEstancia) {
+                throw new Error('La reserva fue creada, pero no devolvio la estancia asociada para registrar el pago.');
+              }
+
+              return this.pagoService.crearPago(reserva.idEstancia, pago).pipe(map(() => reserva));
+            })
+          );
 
     request$.subscribe({
       next: () => {

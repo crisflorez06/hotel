@@ -29,8 +29,6 @@ public class EstanciaRequestDTO {
 
     private String notas;
 
-    private PagoNuevoRequestDTO pago;
-
     private List<Long> idAcompanantes;
 
 }

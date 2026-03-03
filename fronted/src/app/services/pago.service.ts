@@ -4,6 +4,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { PageResponse } from '../models/page.model';
 import { PagoDTO } from '../models/pago-detalle.model';
+import { PagoNuevoRequest } from '../models/pago.model';
 import { EstadoPago, MedioPago, TipoPago, TipoUnidad } from '../models/enums';
 
 export interface CalcularPagoRequest {
@@ -92,5 +93,13 @@ export class PagoService {
 
   calcularTotal(request: CalcularPagoRequest) {
     return this.http.post<number>(`${this.baseUrl}/total`, request);
+  }
+
+  crearPago(idEstancia: number, request: PagoNuevoRequest) {
+    return this.http.post<PagoDTO>(this.baseUrl, request, {
+      params: {
+        idEstancia,
+      },
+    });
   }
 }

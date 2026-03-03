@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Data
 public class PagoNuevoRequestDTO {
 
+    @NotNull(message = "tipoPago es obligatorio")
     private TipoPago tipoPago;
 
     @NotNull(message = "monto es obligatorio")
@@ -23,7 +24,7 @@ public class PagoNuevoRequestDTO {
     @NotNull(message = "fecha de registro es obligatorio")
     private LocalDateTime fecha;
 
-    @NotNull(message = "estado es obligatorio")
     private EstadoPago estado;
+
 
 }

@@ -24,7 +24,7 @@ public class PagoMapper {
         entity.setMedioPago(request.getMedioPago());
         entity.setFecha(request.getFecha());
         entity.setFechaCreacion(LocalDateTime.now());
-        entity.setEstado(request.getEstado());
+        entity.setEstado(EstadoPago.COMPLETADO);
 
         return entity;
     }
@@ -55,16 +55,14 @@ public class PagoMapper {
         return dto;
     }
 
-    public static CalcularPagoDTO entityToCalcularPagoDTO(TipoUnidad tipoUnidad, Integer numerosPersonas, LocalDateTime fechaEntrada, LocalDateTime fechaSalida) {
+    public static CalcularPagoDTO entityToCalcularPagoDTO(Long idEstancia, TipoUnidad tipoUnidad, Integer numerosPersonas, LocalDateTime fechaEntrada, LocalDateTime fechaSalida) {
         CalcularPagoDTO dto = new CalcularPagoDTO();
 
+        dto.setIdEstancia(idEstancia);
         dto.setTipoUnidad(tipoUnidad);
         dto.setNumeroPersonas(numerosPersonas);
         dto.setFechaEntrada(fechaEntrada);
         dto.setFechaSalida(fechaSalida);
-        dto.setIdPagoReserva(null);
-        dto.setIdPagoReserva(null);
-
 
         return dto;
     }

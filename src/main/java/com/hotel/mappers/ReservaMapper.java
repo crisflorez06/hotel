@@ -2,6 +2,7 @@ package com.hotel.mappers;
 
 
 import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
 import com.hotel.models.Estancia;
@@ -33,6 +34,35 @@ public class ReservaMapper {
 
 
         return entity;
+    }
+
+    public static ReservaDTO entityToDTO(Reserva reserva) {
+        ReservaDTO dto = new ReservaDTO();
+        dto.setId(reserva.getId());
+        dto.setCodigoReserva(reserva.getCodigo());
+        dto.setFechaCreacion(reserva.getFechaCreacion());
+        dto.setEntradaEstimada(reserva.getEntradaEstimada());
+        dto.setSalidaEstimada(reserva.getSalidaEstimada());
+        dto.setNumeroPersonas(reserva.getNumeroPersonas());
+        dto.setCanalReserva(reserva.getCanalReserva());
+        dto.setModoOcupacion(reserva.getModoOcupacion());
+        dto.setEstadoReserva(reserva.getEstado());
+
+        if (reserva.getCliente() != null) {
+            dto.setIdCliente(reserva.getCliente().getId());
+            dto.setNombreCliente(
+                    String.format("%s %s",
+                            reserva.getCliente().getNombres(),
+                            reserva.getCliente().getApellidos()).trim());
+        }
+
+        if (reserva.getEstancia() != null) {
+            dto.setIdEstancia(reserva.getEstancia().getId());
+            dto.setCodigoEstancia(reserva.getEstancia().getCodigoFolio());
+            dto.setEstadoEstancia(reserva.getEstancia().getEstado());
+        }
+
+        return dto;
     }
 
     public static ReservaCalendarioDTO entityToCalendarioDTO(Reserva reserva) {
@@ -119,7 +149,7 @@ public class ReservaMapper {
                     .reduce(BigDecimal.ZERO, BigDecimal::add));
 
             int cantidadPagosModificadosOEliminados = (int) reserva.getEstancia().getPagos().stream()
-                    .filter(pago -> pago.getEstado() == EstadoPago.MODIFICADO || pago.getEstado() == EstadoPago.ELIMINADO)
+                    .filter(pago ->  pago.getEstado() == EstadoPago.ELIMINADO)
                     .count();
             dto.setCantidadPagosModificadosOEliminados(cantidadPagosModificadosOEliminados);
         }

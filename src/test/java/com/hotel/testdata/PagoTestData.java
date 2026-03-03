@@ -3,6 +3,7 @@ package com.hotel.testdata;
 import com.hotel.dtos.estancia.ActivarEstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.SalidaEstanciaDTO;
+import com.hotel.dtos.pago.CalcularPagoDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.Ocupante;
@@ -47,9 +48,24 @@ public final class PagoTestData {
         pago.setMonto(java.math.BigDecimal.valueOf(500000));
         pago.setMedioPago(MedioPago.EFECTIVO);
         pago.setFecha(LocalDateTime.now());
-        pago.setEstado(EstadoPago.COMPLETADO);
 
         return pago;
+    }
+
+    public static CalcularPagoDTO calcularPagoRequestDTO(
+            Long idEstancia,
+            TipoUnidad tipoUnidad,
+            Integer numeroPersonas,
+            LocalDateTime fechaEntrada,
+            LocalDateTime fechaSalida
+    ) {
+        CalcularPagoDTO request = new CalcularPagoDTO();
+        request.setIdEstancia(idEstancia);
+        request.setTipoUnidad(tipoUnidad);
+        request.setNumeroPersonas(numeroPersonas);
+        request.setFechaEntrada(fechaEntrada);
+        request.setFechaSalida(fechaSalida);
+        return request;
     }
 
 }

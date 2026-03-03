@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Data
 public class CalcularPagoDTO {
 
+    private Long idEstancia;
 
     @NotNull(message = "El tipo de unidad es obligatorio")
     private TipoUnidad tipoUnidad;
@@ -24,8 +25,5 @@ public class CalcularPagoDTO {
     @NotNull(message = "La fecha de salida es obligatoria")
     private LocalDateTime fechaSalida;
 
-    private Long idPagoReserva;
-
-    private Long idPagoEstancia;
 
 }

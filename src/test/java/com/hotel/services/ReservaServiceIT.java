@@ -73,7 +73,7 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
+        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null);
 
         // ---------- WHEN ----------
         Reserva reserva = reservaService.crearReserva(request);
@@ -130,7 +130,7 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
+        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null);
 
         // ---------- WHEN ----------
         Reserva reserva = reservaService.crearReserva(request);
@@ -188,7 +188,7 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        ReservaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, null, null);
+        ReservaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, null);
 
         // ---------- WHEN ----------
         Reserva reserva = reservaService.crearReserva(request);
@@ -240,77 +240,6 @@ class ReservaServiceIT extends AbstractServiceIT {
 
     }
 
-    @Test
-    void exitoCreandoReservaNuevaApartamentoConPago_test() {
-
-        // ---------- GIVEN ----------
-        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
-
-        Ocupante cliente = crearCliente(clienteData());
-
-        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, pagoRequest);
-
-        // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
-
-        // ---------- THEN (validación real en BD) ----------
-        entityManager.flush();
-        entityManager.clear();
-
-        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
-        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
-        Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
-        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
-                TipoEntidad.RESERVA,
-                reservaDb.getId()).orElseThrow();
-
-        comprobarReservaDb(
-                reservaDb,
-                request.getNumeroPersonas(),
-                request.getEntradaEstimada(),
-                request.getSalidaEstimada(),
-                ModoOcupacion.COMPLETO,
-                EstadoReserva.CONFIRMADA,
-                request.getCanalReserva(),
-                request.getNotas(),
-                3
-        );
-
-        comprobarEstanciaDb(
-                estanciaDb,
-                reservaDb,
-                0,
-                null,
-                null,
-                null,
-                null,
-                ModoOcupacion.COMPLETO,
-                EstadoEstancia.RESERVADA,
-                null,
-                3,
-                1);
-
-        comprobarPagosDb(
-                estanciaDb.getPagos(),
-                request.getPago().getMonto(),
-                BigDecimal.valueOf(0),
-                BigDecimal.ZERO,
-                request.getPago().getEstado(),
-                1,
-                EstadoPago.MODIFICADO,
-                0,
-                0,
-                0,
-                1,
-                0);
-
-        comprobarHabitacionesDb(unidadDb.getHabitaciones(), null, reservaDb);
-        comprobarHabitacionesDb(unidadDb.getHabitaciones(), estanciaDb, null);
-
-        comprobarEventoDb(eventoDb, TipoEvento.CREACION_RESERVA, null, reservaDb.getCodigo(), 4);
-
-    }
 
     @Test
     void falloCreandoReservaNuevaPorReserva_test() {
@@ -320,9 +249,9 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        crearReservaExistente(unidad.getHabitaciones(), true);
+        crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
+        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null);
 
 
         // Snapshot BD antes
@@ -354,9 +283,9 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        crearEstanciaExistente(unidad.getHabitaciones(), true);
+        crearEstanciaExistente(unidad.getHabitaciones(), true, EstadoEstancia.ACTIVA);
 
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(1), null);
+        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(1));
 
 
         // Snapshot BD antes
@@ -420,7 +349,7 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(-1), null);
+        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(-1));
 
 
         // Snapshot BD antes
@@ -457,14 +386,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -531,14 +459,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -608,14 +535,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(listaHabitacion, true);
+        Reserva reservaExistente = crearReservaExistente(listaHabitacion, true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -687,14 +613,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad1.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad1.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad2.getTipo(),
                 unidad2.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -761,14 +686,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad1.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad1.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad2.getTipo(),
                 unidad2.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -838,14 +762,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(listaHabitacion, true);
+        Reserva reservaExistente = crearReservaExistente(listaHabitacion, true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion2.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -915,14 +838,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(apartamento.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(apartamento.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 apartaestudio.getTipo(),
                 apartaestudio.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -989,14 +911,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1067,14 +988,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(apartamento1.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(apartamento1.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1145,14 +1065,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(apartaestudio.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(apartaestudio.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 apartamento.getTipo(),
                 apartamento.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1220,14 +1139,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(apartaestudio.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(apartaestudio.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 TipoUnidad.HABITACION,
                 habitacion.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1297,14 +1215,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(List.of(habitacion), true);
+        Reserva reservaExistente = crearReservaExistente(List.of(habitacion), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1372,14 +1289,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(List.of(habitacion), true);
+        Reserva reservaExistente = crearReservaExistente(List.of(habitacion), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 apartamento1.getTipo(),
                 apartamento1.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1448,14 +1364,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(List.of(habitacion), true);
+        Reserva reservaExistente = crearReservaExistente(List.of(habitacion), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 apartaestudio.getTipo(),
                 apartaestudio.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1522,13 +1437,12 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad1.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad1.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad2.getTipo(),
                 unidad2.getCodigo(),
                 clienteNuevo,
-                null,
                 null
         );
 
@@ -1600,7 +1514,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         Ocupante cliente = reservaExistente.getCliente();
 
@@ -1610,7 +1524,6 @@ class ReservaServiceIT extends AbstractServiceIT {
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 cliente,
-                null,
                 null
         );
 
@@ -1677,15 +1590,14 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true);
-        crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
+        crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1720,15 +1632,14 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante clienteNuevo = crearCliente(clienteData());
 
-        crearEstanciaExistente(unidad.getHabitaciones(), true);
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        crearEstanciaExistente(unidad.getHabitaciones(), true, EstadoEstancia.ACTIVA);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = reservaRequestDTO(
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(1),
-                null
+                LocalDate.now().plusDays(1)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1763,7 +1674,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
         ReservaRequestDTO request = errorFechasReservaRequestDTO(unidad);
 
@@ -1797,9 +1708,9 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         Ocupante cliente = crearCliente(clienteData());
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
 
-        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(-1), null);
+        ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, LocalDate.now().plusDays(-1));
 
 
         // Snapshot BD antes
@@ -1832,7 +1743,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         Ocupante clienteNuevo = crearCliente(clienteEditarData());
 
 
-        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
         reservaExistente.setEstado(EstadoReserva.COMPLETADA);
         reservaRepository.save(reservaExistente);
 
@@ -1840,8 +1751,7 @@ class ReservaServiceIT extends AbstractServiceIT {
                 unidad.getTipo(),
                 unidad.getCodigo(),
                 clienteNuevo,
-                LocalDate.now().plusDays(3),
-                null
+                LocalDate.now().plusDays(3)
         );
 
         request.setCanalReserva(CanalReserva.PLATAFORMA_AIRBINB);
@@ -1880,7 +1790,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
 
         // ---------- WHEN ----------
         Void result = reservaService.eliminarReserva(reserva.getId());
@@ -1910,7 +1820,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
 
         // ---------- WHEN ----------
         Void result = reservaService.eliminarReserva(reserva.getId());
@@ -1941,7 +1851,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
         Habitacion habitacion = unidad.getHabitaciones().getFirst();
 
-        Reserva reserva = crearReservaExistente(List.of(habitacion), false);
+        Reserva reserva = crearReservaExistente(List.of(habitacion), false, EstadoReserva.CONFIRMADA);
 
         // ---------- WHEN ----------
         Void result = reservaService.eliminarReserva(reserva.getId());
@@ -1974,7 +1884,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
         BigDecimal monto = reserva.getEstancia().getPagos().stream()
                 .map(Pago::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -2021,7 +1931,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
         reserva.setEstado(EstadoReserva.COMPLETADA);
         reservaRepository.save(reserva);
 
@@ -2062,7 +1972,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
         Ocupante cliente = reserva.getCliente();
         cliente.setNumeroDocumento("CC-RESERVA-1001");
         cliente.setNombres("Mario");
@@ -2103,19 +2013,19 @@ class ReservaServiceIT extends AbstractServiceIT {
         Unidad unidadHabitacion = crearApartamento(EstadoOperativo.DISPONIBLE);
         Habitacion habitacion = unidadHabitacion.getHabitaciones().getFirst();
 
-        Reserva reservaApartamento = crearReservaExistente(apartamento.getHabitaciones(), false);
+        Reserva reservaApartamento = crearReservaExistente(apartamento.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         reservaApartamento.getCliente().setNumeroDocumento("DOC-777-APT");
         reservaApartamento.getCliente().setNombres("Laura");
         reservaApartamento.getCliente().setApellidos("Ruiz");
         ocupanteRepository.save(reservaApartamento.getCliente());
 
-        Reserva reservaApartaestudio = crearReservaExistente(apartaestudio.getHabitaciones(), false);
+        Reserva reservaApartaestudio = crearReservaExistente(apartaestudio.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         reservaApartaestudio.getCliente().setNumeroDocumento("DOC-777-AE");
         reservaApartaestudio.getCliente().setNombres("Pablo");
         reservaApartaestudio.getCliente().setApellidos("Diaz");
         ocupanteRepository.save(reservaApartaestudio.getCliente());
 
-        Reserva reservaHabitacion = crearReservaExistente(List.of(habitacion), false);
+        Reserva reservaHabitacion = crearReservaExistente(List.of(habitacion), false, EstadoReserva.CONFIRMADA);
         reservaHabitacion.getCliente().setNumeroDocumento("DOC-777-HB");
         reservaHabitacion.getCliente().setNombres("Sofia");
         reservaHabitacion.getCliente().setApellidos("Mesa");
@@ -2153,14 +2063,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         Unidad unidadConfirmada = crearApartamento(EstadoOperativo.DISPONIBLE);
         Unidad unidadCancelada = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reservaConfirmada = crearReservaExistente(unidadConfirmada.getHabitaciones(), false);
+        Reserva reservaConfirmada = crearReservaExistente(unidadConfirmada.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         reservaConfirmada.getCliente().setNumeroDocumento("FILTRO-555");
         ocupanteRepository.save(reservaConfirmada.getCliente());
 
-        Reserva reservaCancelada = crearReservaExistente(unidadCancelada.getHabitaciones(), false);
+        Reserva reservaCancelada = crearReservaExistente(unidadCancelada.getHabitaciones(), false, EstadoReserva.CANCELADA);
         reservaCancelada.getCliente().setNumeroDocumento("FILTRO-555");
         ocupanteRepository.save(reservaCancelada.getCliente());
-        reservaCancelada.setEstado(EstadoReserva.CANCELADA);
         reservaRepository.save(reservaCancelada);
 
         // ---------- WHEN ----------
@@ -2201,7 +2110,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
         Ocupante cliente = reserva.getCliente();
         cliente.setNombres("Andrea");
         cliente.setApellidos("Morales");
@@ -2215,7 +2124,7 @@ class ReservaServiceIT extends AbstractServiceIT {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         Unidad otraUnidad = crearApartaestudio(EstadoOperativo.DISPONIBLE);
-        Reserva otraReserva = crearReservaExistente(otraUnidad.getHabitaciones(), false);
+        Reserva otraReserva = crearReservaExistente(otraUnidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         otraReserva.getCliente().setNumeroDocumento("OTRO-999");
         ocupanteRepository.save(otraReserva.getCliente());
 
@@ -2275,15 +2184,15 @@ class ReservaServiceIT extends AbstractServiceIT {
         Unidad unidad2 = crearApartamento(EstadoOperativo.DISPONIBLE);
         Unidad unidad3 = crearApartamento(EstadoOperativo.DISPONIBLE);
 
-        Reserva reservaAntigua = crearReservaExistente(unidad1.getHabitaciones(), false);
+        Reserva reservaAntigua = crearReservaExistente(unidad1.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         reservaAntigua.setFechaCreacion(LocalDateTime.now().minusDays(3));
         reservaRepository.save(reservaAntigua);
 
-        Reserva reservaMedia = crearReservaExistente(unidad2.getHabitaciones(), false);
+        Reserva reservaMedia = crearReservaExistente(unidad2.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         reservaMedia.setFechaCreacion(LocalDateTime.now().minusDays(2));
         reservaRepository.save(reservaMedia);
 
-        Reserva reservaReciente = crearReservaExistente(unidad3.getHabitaciones(), false);
+        Reserva reservaReciente = crearReservaExistente(unidad3.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
         reservaReciente.setFechaCreacion(LocalDateTime.now().minusDays(1));
         reservaRepository.save(reservaReciente);
 

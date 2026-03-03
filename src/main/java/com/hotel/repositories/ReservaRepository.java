@@ -4,6 +4,7 @@ import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoReserva;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -12,6 +13,8 @@ import org.springframework.data.repository.query.Param;
 
 public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpecificationExecutor<Reserva> {
     boolean existsByCodigo(String codigo);
+
+    Optional<Reserva> findByEstancia_Id(Long estanciaId);
 
     List<Reserva> findByCliente_NumeroDocumentoContainingIgnoreCaseAndEstadoIn(
             String numeroDocumento,

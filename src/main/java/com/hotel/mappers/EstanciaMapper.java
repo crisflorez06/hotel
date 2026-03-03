@@ -124,8 +124,7 @@ public class EstanciaMapper {
                     .reduce(BigDecimal.ZERO, BigDecimal::add));
 
             int cantidadPagosModificadosOEliminados = (int) estancia.getPagos().stream()
-                    .filter(pago -> pago.getEstado() == EstadoPago.MODIFICADO
-                            || pago.getEstado() == EstadoPago.ELIMINADO)
+                    .filter(pago ->  pago.getEstado() == EstadoPago.ELIMINADO)
                     .count();
             dto.setCantidadPagosModificadosOEliminados(cantidadPagosModificadosOEliminados);
         }

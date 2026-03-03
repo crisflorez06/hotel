@@ -253,7 +253,7 @@ public final class AssertionsHelper {
         assertThat(exitoso).isEqualByComparingTo(montoExitoso);
 
         BigDecimal nulo = pagos.stream()
-                .filter(p -> p.getEstado() == EstadoPago.ELIMINADO || p.getEstado() == EstadoPago.MODIFICADO)
+                .filter(p -> p.getEstado() == EstadoPago.ELIMINADO )
                 .map(Pago::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -291,6 +291,20 @@ public final class AssertionsHelper {
         assertThat(tipoPagoCambio).isEqualTo(totalTipoPagoCambio);
 
     }
+
+    public static void comprobarPagoDb(
+            Pago pago,
+            BigDecimal monto,
+            Estancia estancia,
+            TipoPago tipoPago,
+            EstadoPago estadoPago
+    ) {
+        assertThat(pago.getMonto()).isEqualByComparingTo(monto);
+        assertThat(pago.getTipoPago()).isEqualTo(tipoPago);
+        assertThat(pago.getEstado()).isEqualTo(estadoPago);
+        assertThat(pago.getEstancia()).isNotNull();
+        assertThat(pago.getEstancia().getId()).isEqualTo(estancia.getId());
+    };
 
     public static void comprobarEventoDb(
             AuditoriaEvento evento,

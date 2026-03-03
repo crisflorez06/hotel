@@ -41,8 +41,7 @@ public final class ReservaTestData {
             TipoUnidad tipoUnidad,
             String codigo,
             Ocupante cliente,
-            LocalDate entradaEstimada,
-            PagoNuevoRequestDTO pago) {
+            LocalDate entradaEstimada) {
         ReservaRequestDTO request = new ReservaRequestDTO();
         request.setTipoUnidad(tipoUnidad);
         request.setCodigo(codigo);
@@ -60,7 +59,6 @@ public final class ReservaTestData {
 
         request.setCanalReserva(CanalReserva.MOSTRADOR);
         request.setNotas("Reserva de prueba");
-        request.setPago(pago);
         return request;
     }
 

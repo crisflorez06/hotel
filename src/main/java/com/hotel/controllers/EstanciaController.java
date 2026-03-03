@@ -29,9 +29,9 @@ public class EstanciaController {
     }
 
     @PostMapping
-    public ResponseEntity<Void> crearEstancia(@Valid @RequestBody EstanciaRequestDTO request) {
-        estanciaService.crearEstanciaNueva(request);
-        return ResponseEntity.status(201).build();
+    public ResponseEntity<EstanciaDTO> crearEstancia(@Valid @RequestBody EstanciaRequestDTO request) {
+        EstanciaDTO creada = estanciaService.crear(request);
+        return ResponseEntity.status(201).body(creada);
     }
 
     @PutMapping("/{id}")
@@ -55,9 +55,9 @@ public class EstanciaController {
     }
 
     @PutMapping("/activar")
-    public ResponseEntity<Void> activarEstancia(@Valid @RequestBody ActivarEstanciaDTO request) {
-        estanciaService.activarEstancia(request);
-        return ResponseEntity.status(201).build();
+    public ResponseEntity<EstanciaDTO> activarEstancia(@Valid @RequestBody ActivarEstanciaDTO request) {
+        EstanciaDTO activada = estanciaService.activar(request);
+        return ResponseEntity.status(201).body(activada);
     }
 
     @GetMapping("/activa")

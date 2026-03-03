@@ -1,5 +1,6 @@
 package com.hotel.repositories;
 
+import com.hotel.models.Estancia;
 import com.hotel.models.Pago;
 
 import java.math.BigDecimal;
@@ -17,6 +18,12 @@ import org.springframework.data.repository.query.Param;
 public interface PagoRepository extends JpaRepository<Pago, Long>, JpaSpecificationExecutor<Pago> {
 
     Optional<Pago> findFirstByEstanciaIdAndTipoPagoOrderByFechaCreacionDesc(Long idEstancia, TipoPago tipoPago);
+
+    List<Pago> findByEstanciaIdAndTipoPagoAndEstadoIn(
+            Long idEstancia,
+            TipoPago tipoPago,
+            List<EstadoPago> estados
+    );
 
     List<Pago> findByEstanciaId(Long idEstancia);
 

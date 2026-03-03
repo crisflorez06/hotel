@@ -4,6 +4,7 @@ import com.hotel.dtos.pago.CalcularPagoDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.Pago;
 import com.hotel.models.enums.EstadoPago;
+import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.PagoRepository;
 import com.hotel.services.TarifaBaseService;
@@ -21,36 +22,54 @@ public class PagoResolver {
 
     private final TarifaBaseService tarifaBaseService;
     private final PagoRepository pagoRepository;
+    private final EstanciaReservaResolver estanciaReservaResolver;
     private final Logger logger = org.slf4j.LoggerFactory.getLogger(PagoResolver.class);
 
-    public PagoResolver(TarifaBaseService tarifaBaseService, PagoRepository pagoRepository) {
+    public PagoResolver(TarifaBaseService tarifaBaseService, PagoRepository pagoRepository, EstanciaReservaResolver estanciaReservaResolver) {
         this.pagoRepository = pagoRepository;
         this.tarifaBaseService = tarifaBaseService;
+        this.estanciaReservaResolver = estanciaReservaResolver;
     }
 
     public BigDecimal calcularEstimacionPago(CalcularPagoDTO request) {
         logger.info("[PagoResolver.calcularTotalPagos] Calculando total de pagos para el request: {}", request);
 
-        logger.info("[PagoResolver.calcularTotalPagos] verificando si existe pago anterior en la reserva");
-        double pagoReserva = request.getIdPagoReserva() != null ?
-                pagoRepository.findById(request.getIdPagoReserva())
-                        .orElseThrow(() -> new EntityNotFoundException(
-                                "Pago no encontrado con id: " + request.getIdPagoReserva()
-                        ))
-                        .getMonto()
-                        .doubleValue() : 0.0;
-        logger.info("[PagoResolver.calcularTotalPagos] pago anterior en la reserva: {}", pagoReserva);
+        BigDecimal pagoAnticipos = BigDecimal.ZERO;
+        BigDecimal pagoPendientePorCambioUnidad = BigDecimal.ZERO;
+        BigDecimal precioPersonasAdicionales = BigDecimal.ZERO;
 
-        logger.info("[PagoResolver.calcularTotalPagos] verificando si existe pago anterior en la estancia");
-        double pagoEstancia = request.getIdPagoEstancia() != null ?
-                pagoRepository.findById(request.getIdPagoEstancia())
-                        .orElseThrow(() -> new EntityNotFoundException(
-                                "Pago no encontrado con id: " + request.getIdPagoEstancia()
-                        ))
-                        .getMonto()
-                        .doubleValue() : 0.0;
-        logger.info("[PagoResolver.calcularTotalPagos] pago anterior en la estancia: {}", pagoEstancia);
 
+        if(request.getIdEstancia() != null) {
+            logger.info("[PagoResolver.calcularTotalPagos] Verificando estancia con id: {}", request.getIdEstancia());
+            Estancia estancia = estanciaReservaResolver.buscarEstanciaPorId(request.getIdEstancia());
+            if(estancia == null) {
+                throw new EntityNotFoundException("Estancia no encontrada con id: " + request.getIdEstancia());
+            }
+            logger.info("[PagoResolver.calcularTotalPagos] Estancia encontrada: {}", estancia.getCodigoFolio());
+
+            logger.info("[PagoResolver.calcularTotalPagos] verificando si existe pago por anticipos");
+            List<Pago> pagos = pagoRepository.findByEstanciaId(request.getIdEstancia());
+
+            if(pagos == null || pagos.isEmpty()) {
+                logger.info("[PagoResolver.calcularTotalPagos] No se encontraron pagos asociados a la estancia con id: {}", request.getIdEstancia());
+
+            } else {
+                pagoAnticipos = pagos.stream()
+                                .filter(p -> (p.getTipoPago() == TipoPago.ANTICIPO_RESERVA
+                                        || p.getTipoPago() == TipoPago.ANTICIPO_ESTANCIA)
+                                        && p.getEstado() == EstadoPago.COMPLETADO)
+                                .map(Pago::getMonto)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                logger.info("[PagoResolver.calcularTotalPagos] Pago anticipos encontrado en estancia: {}", pagoAnticipos);
+
+                pagoPendientePorCambioUnidad = pagos.stream()
+                        .filter(p -> p.getTipoPago() == TipoPago.CAMBIO_UNIDAD
+                                && p.getEstado() == EstadoPago.PENDIENTE)
+                        .map(Pago::getMonto)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                logger.info("[PagoResolver.calcularTotalPagos] Pago pendiente por cambio de unidad encontrado en estancia: {}", pagoPendientePorCambioUnidad);
+            }
+        }
 
         logger.info("[PagoResolver.calcularTotalPagos] obteniendo tarifa base por tipo de unidad");
         TipoUnidad tipoUnidad = request.getTipoUnidad();
@@ -61,7 +80,6 @@ public class PagoResolver {
         Long totalDias = calcularDias(request.getFechaEntrada(), request.getFechaSalida());
 
         logger.info("[PagoResolver.calcularTotalPagos] calculando precio por personas adicionales si aplica");
-        BigDecimal precioPersonasAdicionales = BigDecimal.ZERO;
 
         if(request.getNumeroPersonas() > 2) {
             precioPersonasAdicionales = calcularPrecioPersonaAdicional(
@@ -69,14 +87,14 @@ public class PagoResolver {
                     totalDias,
                     request.getNumeroPersonas()
             );
+            logger.info("[PagoResolver.calcularTotalPagos] precio por personas adicionales: {}", precioPersonasAdicionales);
         }
-        logger.info("[PagoResolver.calcularTotalPagos] precio por personas adicionales: {}", precioPersonasAdicionales);
 
         BigDecimal totalPago = precioDia
                 .multiply(BigDecimal.valueOf(totalDias))
                 .add(precioPersonasAdicionales)
-                .subtract(BigDecimal.valueOf(pagoReserva))
-                .subtract(BigDecimal.valueOf(pagoEstancia));
+                .add(pagoPendientePorCambioUnidad)
+                .subtract(pagoAnticipos);
         logger.info("[PagoResolver.calcularTotalPagos] total pago calculado: {}", totalPago);
 
         return totalPago;

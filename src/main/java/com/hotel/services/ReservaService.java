@@ -1,6 +1,7 @@
 package com.hotel.services;
 
 import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
 import com.hotel.mappers.ReservaMapper;
@@ -95,9 +96,6 @@ public class ReservaService {
         Estancia estancia = estanciaReservaResolver.crearEstanciaDesdeReserva(reserva);
         reserva.setEstancia(estancia);
 
-        logger.info("[crearReserva] Creando pago inicial asociado a la estancia de la reserva");
-        pagoService.crearPago(request.getPago(), estancia);
-
         Reserva reservaGuardada = reservaRepository.save(reserva);
 
         logger.info("[crearReserva] Registrando evento de creación de estancia para codigo de estancia: {} y unidad: {}", estancia.getCodigoFolio(), codigo);
@@ -117,6 +115,12 @@ public class ReservaService {
         );
 
         return reservaGuardada;
+    }
+
+    @Transactional
+    public ReservaDTO crear(ReservaRequestDTO request) {
+        Reserva reservaGuardada = crearReserva(request);
+        return ReservaMapper.entityToDTO(reservaGuardada);
     }
 
 

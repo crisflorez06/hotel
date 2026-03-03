@@ -37,6 +37,5 @@ public class ReservaRequestDTO {
 
     private String notas;
 
-    private PagoNuevoRequestDTO pago;
 
 }

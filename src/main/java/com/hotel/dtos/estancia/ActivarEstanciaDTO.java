@@ -22,8 +22,6 @@ public class ActivarEstanciaDTO {
     @NotNull (message = "salidaEstimada es obligatoria")
     private LocalDateTime salidaEstimada;
 
-    private PagoNuevoRequestDTO pago;
-
     private List<Long> idAcompanantes;
 
     private String notas;

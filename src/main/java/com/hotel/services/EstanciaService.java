@@ -5,12 +5,10 @@ import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.SalidaEstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaTablaDTO;
-import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.mappers.EstanciaMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Ocupante;
-import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.EstanciaRepository;
@@ -31,7 +29,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -104,9 +101,6 @@ public class EstanciaService {
         logger.info("[crearEstanciaNueva] Actualizando estado de las habitaciones asociadas a la estancia");
         alojamientoResolver.actualizarEstadoAlojamiento(estanciaGuardada.getHabitaciones(), EstadoOperativo.OCUPADO);
 
-        logger.info("[crearEstanciaNueva] Creando pagos asociados a la estancia");
-        pagoService.crearPago(request.getPago(), estanciaGuardada);
-
         logger.info("[crearEstanciaNueva] Registrando evento de creación de nueva estancia para codigo: {}", estanciaGuardada.getCodigoFolio());
         EventoNuevoJsonBuilder nuevaEstanciaJson = new EventoNuevoJsonBuilder()
                 .agregarProp("codigoEstancia", estanciaGuardada.getCodigoFolio())
@@ -125,6 +119,12 @@ public class EstanciaService {
         );
 
         return estanciaGuardada;
+    }
+
+    @Transactional
+    public EstanciaDTO crear(EstanciaRequestDTO request) {
+        Estancia estanciaGuardada = crearEstanciaNueva(request);
+        return EstanciaMapper.entityToDTO(estanciaGuardada);
     }
 
     @Transactional
@@ -164,9 +164,6 @@ public class EstanciaService {
         logger.info("[activarEstancia] Actualizando estado de las habitaciones asociadas a la estancia");
         alojamientoResolver.actualizarEstadoAlojamiento(estanciaGuardada.getHabitaciones(), EstadoOperativo.OCUPADO);
 
-        logger.info("[activarEstancia] Creando pagos asociados a la estancia");
-        pagoService.crearPago(request.getPago(), estanciaGuardada);
-
         logger.info("[activarEstancia] Registrando evento de creación de nueva estancia para codigo: {}", estanciaGuardada.getCodigoFolio());
         EventoNuevoJsonBuilder nuevaEstancia = new EventoNuevoJsonBuilder()
                 .agregarProp("codigoEstancia", estanciaGuardada.getCodigoFolio())
@@ -185,6 +182,12 @@ public class EstanciaService {
 
         return estanciaGuardada;
 
+    }
+
+    @Transactional
+    public EstanciaDTO activar(ActivarEstanciaDTO request) {
+        Estancia estanciaGuardada = activarEstancia(request);
+        return EstanciaMapper.entityToDTO(estanciaGuardada);
     }
 
     @Transactional
@@ -431,11 +434,13 @@ public class EstanciaService {
             throw new IllegalStateException("Solo se pueden finalizar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
         }
 
+        pagoService.validarPagoEstanciaCompletadaParaFinalizacion(request.getPagoEstancia(), estancia);
+
         estancia.setEstado(EstadoEstancia.FINALIZADA);
         estancia.setSalidaReal(request.getFechaSalidaReal());
 
         logger.info("[finalizarEstancia] Creando pago asociado a la estancia finalizada");
-        pagoService.crearPago(request.getPagoEstancia(), estancia);
+        pagoService.crearPago(request.getPagoEstancia(), estancia.getId());
 
         estancia.setNotas(estancia.getNotas() + " | Notas de salida: " + request.getNotasSalida());
 

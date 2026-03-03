@@ -4,7 +4,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { DetalleCalendarioDTO } from '../models/detalle-calendario.model';
 import { ReservaCalendarioDTO } from '../models/reserva-calendario.model';
-import { ReservaNuevoRequest } from '../models/reserva.model';
+import { ReservaDTO, ReservaNuevoRequest } from '../models/reserva.model';
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../models/enums';
 import { PageResponse } from '../models/page.model';
 import { ReservaTablaFiltros, ReservaTablaItem } from '../models/reserva-tabla.model';
@@ -101,7 +101,7 @@ export class ReservaService {
   }
 
   crearReserva(request: ReservaNuevoRequest) {
-    return this.http.post<void>(this.baseUrl, request);
+    return this.http.post<ReservaDTO>(this.baseUrl, request);
   }
 
   editarReserva(id: number, request: ReservaNuevoRequest) {

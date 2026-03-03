@@ -113,7 +113,7 @@ public abstract class AbstractServiceIT {
         return ocupanteRepository.saveAll(acompanantesDataConCliente());
     }
 
-    protected Estancia crearEstanciaExistente(List<Habitacion> habitaciones, boolean conPago){
+    protected Estancia crearEstanciaExistente(List<Habitacion> habitaciones, boolean conPago, EstadoEstancia estadoEstancia){
 
         ModoOcupacion modoOcupacion;
         if(habitaciones.size() == 1) {
@@ -130,7 +130,7 @@ public abstract class AbstractServiceIT {
                 null,
                 crearAcompanantesConCliente(),
                 modoOcupacion,
-                EstadoEstancia.ACTIVA,
+                estadoEstancia,
                 habitaciones,
                 null);
 
@@ -191,7 +191,7 @@ public abstract class AbstractServiceIT {
 
     }
 
-    protected Reserva crearReservaExistente(List<Habitacion> habitaciones, boolean conPago){
+    protected Reserva crearReservaExistente(List<Habitacion> habitaciones, boolean conPago, EstadoReserva estadoReserva){
         Ocupante cliente = crearCliente(clienteData());
 
         ModoOcupacion modoOcupacion;
@@ -209,7 +209,7 @@ public abstract class AbstractServiceIT {
                 reservaData(
                         cliente,
                         modoOcupacion,
-                        EstadoReserva.CONFIRMADA,
+                        estadoReserva,
                         habitaciones,
                         null
                 )
