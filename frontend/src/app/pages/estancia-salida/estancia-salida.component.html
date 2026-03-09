@@ -1,0 +1,248 @@
+<section class="estancia-salida">
+  <div class="estancia-salida__container">
+    <header class="estancia-salida__header">
+      <div>
+        <p class="estancia-salida__eyebrow">Recepcion · Salidas</p>
+        <h1>Registrar salida</h1>
+        <p>Cierra la estancia activa y registra el pago final en un solo flujo operativo.</p>
+      </div>
+      <button type="button" class="btn-secundario estancia-salida__header-back" (click)="volver()">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>Volver</span>
+      </button>
+    </header>
+
+    <div class="estancia-salida__layout">
+      <form class="estancia-salida__form" (ngSubmit)="solicitarConfirmacionFinalizar()">
+        <section class="estancia-salida__card">
+          <div class="estancia-salida__card-head">
+            <div>
+              <h2>Datos de salida</h2>
+              <p>Confirma unidad, fechas y observaciones antes de finalizar la estancia.</p>
+            </div>
+          </div>
+
+          <div class="estancia-salida__fields">
+            <div class="campo">
+              <label>Codigo</label>
+              <input type="text" [value]="codigo" disabled />
+            </div>
+
+            <div class="campo">
+              <label>Tipo de unidad</label>
+              <input type="text" [value]="tipoUnidad" disabled />
+            </div>
+
+            <div class="campo estancia-salida__field-fecha-entrada">
+              <label>Entrada real</label>
+              <input type="text" [value]="entradaReal" disabled />
+            </div>
+
+            <div class="campo estancia-salida__field-fecha-estimada">
+              <label>Salida estimada</label>
+              <input type="text" [value]="salidaEstimada" disabled />
+            </div>
+
+            <div class="campo estancia-salida__field-fecha-real">
+              <label>Salida real *</label>
+              <input
+                type="text"
+                mwlFlatpickr
+                [(ngModel)]="fechaSalidaReal"
+                name="fechaSalidaReal"
+                (ngModelChange)="recalcularPago()"
+                [enableTime]="true"
+                [time24hr]="true"
+                [dateFormat]="'Y-m-d H:i'"
+                placeholder="YYYY-MM-DD HH:mm"
+                required
+              />
+            </div>
+
+            <div class="campo campo--full">
+              <label>Notas de salida</label>
+              <textarea rows="3" [(ngModel)]="notasSalida" name="notasSalida"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="estancia-salida__card">
+          <div class="estancia-salida__card-head">
+            <div>
+              <h2>Pago de cierre</h2>
+              <p>Calcula el saldo y registra el cobro de salida.</p>
+            </div>
+          </div>
+
+          <div class="pago pago--inline-fields">
+            <div class="calculo">
+              <div>
+                <h3>Calcular pago</h3>
+                <div class="calculo__meta" [class.calculo__meta--sin-pendiente]="!mostrarPagoCambioUnidad">
+                  <div class="calculo__meta-card">
+                    <span>Tipo de unidad</span>
+                    <strong>{{ tipoUnidad || '-' }}</strong>
+                  </div>
+                  <div class="calculo__meta-card calculo__meta-card--compact">
+                    <span>Dias</span>
+                    <strong>{{ textoDiasCalculoPago }}</strong>
+                  </div>
+                  <div class="calculo__meta-card calculo__meta-card--compact">
+                    <span>Personas</span>
+                    <strong>{{ numeroPersonas }}</strong>
+                  </div>
+                  <div
+                    class="calculo__meta-card calculo__meta-card--pendiente"
+                    *ngIf="mostrarPagoCambioUnidad"
+                  >
+                    <span>Pago pendiente</span>
+                    <strong>{{ textoPagoPendienteCambioUnidad }}</strong>
+                  </div>
+                </div>
+                <p *ngIf="calculandoPago">Calculando...</p>
+                <div class="calculo__resultado-card" *ngIf="totalCalculado !== null">
+                  <span>Total calculado</span>
+                  <strong>{{ totalCalculado | number : '1.0-0' }}</strong>
+                </div>
+                <p class="estado estado--error" *ngIf="calculoError">{{ calculoError }}</p>
+              </div>
+            </div>
+            <div class="campo pago__campo-inline">
+              <label>Monto *</label>
+              <input type="number" [(ngModel)]="monto" name="monto" />
+            </div>
+            <div class="campo pago__campo-inline">
+              <label>Medio de pago</label>
+              <select [(ngModel)]="medioPago" name="medioPago">
+                <option *ngFor="let medio of mediosPago" [value]="medio">{{ medio }}</option>
+              </select>
+            </div>
+            <div class="campo pago__campo-inline">
+              <label>Fecha pago *</label>
+              <input
+                type="text"
+                mwlFlatpickr
+                [(ngModel)]="fechaPago"
+                name="fechaPago"
+                [enableTime]="true"
+                [time24hr]="true"
+                [dateFormat]="'Y-m-d H:i'"
+                placeholder="YYYY-MM-DD HH:mm"
+              />
+            </div>
+            <div class="campo pago__campo-inline">
+              <label>Estado</label>
+              <select [(ngModel)]="estadoPago" name="estadoPago">
+                <option *ngFor="let estado of estadosPago" [value]="estado">{{ estado }}</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+        <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
+
+        <div class="estancia-salida__actions">
+          <button type="submit" [disabled]="guardando || calculandoPago || !estanciaId">
+            {{ calculandoPago ? 'Calculando pago...' : 'Confirmar salida' }}
+          </button>
+        </div>
+      </form>
+
+      <aside class="estancia-salida__summary">
+        <div class="estancia-salida__summary-card">
+          <p class="estancia-salida__summary-eyebrow">Resumen</p>
+          <h3>Resumen de salida</h3>
+          <div class="estancia-salida__summary-grid">
+            <div>
+              <span>Unidad</span>
+              <strong>{{ codigo || '-' }}</strong>
+            </div>
+            <div>
+              <span>Tipo</span>
+              <strong>{{ tipoUnidad || '-' }}</strong>
+            </div>
+            <div>
+              <span>Cliente</span>
+              <strong>{{ nombreCliente || '-' }}</strong>
+            </div>
+            <div>
+              <span>Entrada</span>
+              <strong>{{ entradaReal || '-' }}</strong>
+            </div>
+            <div>
+              <span>Salida estimada</span>
+              <strong>{{ salidaEstimada || '-' }}</strong>
+            </div>
+            <div>
+              <span>Salida real</span>
+              <strong>{{ fechaSalidaReal || '-' }}</strong>
+            </div>
+            <div>
+              <span>Personas</span>
+              <strong>{{ numeroPersonas }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="estancia-salida__summary-card">
+          <p class="estancia-salida__summary-eyebrow">Pago</p>
+          <h3>Resumen de pago</h3>
+          <div class="estancia-salida__summary-grid">
+            <div>
+              <span>Total anticipos</span>
+              <strong>{{ totalAnticiposRegistrados | number : '1.0-0' }}</strong>
+            </div>
+            <div>
+              <span>Total pago salida</span>
+              <strong>{{ totalPagoSalidaResumen | number : '1.0-0' }}</strong>
+            </div>
+            <div>
+              <span>Medio</span>
+              <strong>{{ medioPago || '-' }}</strong>
+            </div>
+            <div>
+              <span>Fecha pago</span>
+              <strong>{{ fechaPago || '-' }}</strong>
+            </div>
+            <div>
+              <span>Estado</span>
+              <strong>{{ estadoPago || '-' }}</strong>
+            </div>
+            <div>
+              <span>Gran total</span>
+              <strong>{{ totalPagadoAcumulado | number : '1.0-0' }}</strong>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<div class="modal modal--recepcion" *ngIf="mostrarModalConfirmarSalida">
+  <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalConfirmarSalida()"></div>
+  <div class="modal__panel modal__panel--recepcion modal__panel--confirm" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+    <header class="modal__header modal__header--recepcion">
+      <div>
+        <p class="modal__eyebrow">Recepcion operativa</p>
+        <h2>Confirmar salida</h2>
+        <p>Se finalizara la estancia y se registrara el pago de cierre. Esta accion no se puede deshacer.</p>
+      </div>
+    </header>
+
+    <div class="modal__actions">
+      <button type="button" class="btn-secundario" (click)="cerrarModalConfirmarSalida()" [disabled]="guardando">
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="modal__confirm-btn"
+        (click)="confirmarFinalizarEstancia()"
+        [disabled]="guardando"
+      >
+        {{ guardando ? 'Guardando...' : 'Si, finalizar estancia' }}
+      </button>
+    </div>
+  </div>
+</div>

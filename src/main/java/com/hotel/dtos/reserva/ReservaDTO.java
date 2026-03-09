@@ -25,5 +25,6 @@ public class ReservaDTO {
     private ModoOcupacion modoOcupacion;
     private EstadoReserva estadoReserva;
     private EstadoEstancia estadoEstancia;
+    private String notas;
 
 }

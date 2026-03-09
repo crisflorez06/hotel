@@ -3,6 +3,7 @@ package com.hotel.resolvers;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Unidad;
 import com.hotel.models.enums.EstadoOperativo;
+import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.UnidadService;
 import org.slf4j.Logger;
@@ -43,6 +44,11 @@ public class AlojamientoResolver {
         unidad.setHabitaciones(habitacionesUnidad);
         unidadService.cambiarEstadoUnidad(unidad);
 
+    }
+
+    public ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {
+
+        return tipoUnidad == TipoUnidad.HABITACION ? ModoOcupacion.INDIVIDUAL : ModoOcupacion.COMPLETO;
     }
 
 

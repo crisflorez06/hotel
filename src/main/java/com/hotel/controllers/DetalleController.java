@@ -33,11 +33,6 @@ public class DetalleController {
         this.detalleService = detalleService;
     }
 
-    @GetMapping("/estancia/{id}")
-    public ResponseEntity<DetalleDTO> obtenerDetallePorEstancia(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(detalleService.obtenerDetallePorEstanciaId(id));
-    }
-
     @GetMapping("/calendario")
     public ResponseEntity<DetalleCalendarioDTO> obtenerCalendario(
             @RequestParam String mes,

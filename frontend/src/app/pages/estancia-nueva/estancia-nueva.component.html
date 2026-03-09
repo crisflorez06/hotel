@@ -1,0 +1,616 @@
+<section class="estancia">
+  <div class="estancia__container">
+    <header class="estancia__header">
+      <div class="estancia__header-top">
+        <div>
+          <p class="estancia__eyebrow">Recepción · Registro</p>
+          <h1>{{ esEdicion ? 'Editar estancia' : esRegistroIngreso ? 'Registrar ingreso' : 'Nueva estancia' }}</h1>
+          <p>
+            {{
+              esEdicion
+                ? 'Actualiza la informacion de la estancia.'
+                : 'Asigna unidad, cliente y fechas de ingreso en un solo flujo operativo.'
+            }}
+          </p>
+        </div>
+        <button type="button" class="btn-secundario estancia__header-back" (click)="volver()">
+          <i class="bi bi-arrow-left" aria-hidden="true"></i>
+          <span>Volver</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="estancia__layout">
+      <form class="estancia__form" (ngSubmit)="guardar()">
+        <section class="estancia__card">
+          <div class="estancia__card-head">
+            <div>
+              <h2>Ficha de unidad</h2>
+              <p>Datos base para asignacion y ocupantes.</p>
+            </div>
+          </div>
+          <div class="estancia__fields">
+            <div class="campo">
+              <label>Tipo de unidad</label>
+              <select
+                [(ngModel)]="tipoUnidad"
+                name="tipoUnidad"
+                (ngModelChange)="onTipoUnidadChange($event)"
+              >
+                <option [ngValue]="''">Selecciona un tipo</option>
+                <option *ngFor="let tipo of tiposUnidad" [ngValue]="tipo.value">{{ tipo.label }}</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label>Codigo</label>
+              <select [(ngModel)]="codigo" name="codigo" [disabled]="!tipoUnidad || cargandoCodigos">
+                <option value="">Selecciona un codigo</option>
+                <option *ngFor="let codigoDisponible of codigosDisponibles" [value]="codigoDisponible">
+                  {{ codigoDisponible }}
+                </option>
+              </select>
+              <span class="ayuda" *ngIf="cargandoCodigos">Cargando codigos...</span>
+              <span class="estado estado--error" *ngIf="codigosError">{{ codigosError }}</span>
+            </div>
+
+            <div class="campo campo--full">
+              <label>Cliente <span *ngIf="!idReserva">*</span></label>
+              <span class="ayuda" *ngIf="idReserva">Se usara el cliente asociado a la reserva.</span>
+              <input type="hidden" [(ngModel)]="idCliente" name="idCliente" />
+              <div class="campo__inline">
+                <span class="campo__valor" *ngIf="clienteCreado; else clientePendiente">
+                  {{ clienteCreado.nombres }} {{ clienteCreado.apellidos }}
+                </span>
+                <ng-template #clientePendiente>
+                  <span class="campo__valor" *ngIf="idCliente; else clienteNoAsignado">
+                    Cliente asignado (ID: {{ idCliente }})
+                  </span>
+                  <ng-template #clienteNoAsignado>
+                    <span class="campo__valor">Sin cliente seleccionado</span>
+                  </ng-template>
+                </ng-template>
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Buscar cliente"
+                  (click)="abrirModalBusquedaCliente()"
+                >
+                  <i class="bi bi-search" aria-hidden="true"></i>
+                  <span>Buscar</span>
+                </button>
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Agregar cliente"
+                  (click)="abrirModalCliente()"
+                >
+                  <i class="bi bi-person-plus" aria-hidden="true"></i>
+                  <span>Agregar</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="campo campo--full">
+              <label>Acompanantes</label>
+              <input type="hidden" [(ngModel)]="idAcompanantes" name="idAcompanantes" />
+              <div class="campo__inline">
+                <button
+                  type="button"
+                  class="icon-button"
+                  aria-label="Buscar acompanante"
+                  (click)="abrirModalBusquedaAcompanante()"
+                >
+                  <i class="bi bi-search" aria-hidden="true"></i>
+                  <span>Buscar</span>
+                </button>
+                <button type="button" class="icon-button" (click)="abrirModalAcompanante()">
+                  <i class="bi bi-person-plus" aria-hidden="true"></i>
+                  <span>Agregar</span>
+                </button>
+              </div>
+              <div class="etiquetas" *ngIf="acompanantesCreados.length">
+                <span class="etiqueta" *ngFor="let acompanante of acompanantesCreados">
+                  {{ acompanante.nombres }} {{ acompanante.apellidos }}
+                  <button
+                    type="button"
+                    class="etiqueta__remove"
+                    (click)="quitarAcompanante(acompanante.id)"
+                    data-tooltip="Quitar acompanante"
+                    aria-label="Quitar acompanante"
+                  >
+                    x
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="estancia__card">
+          <div class="estancia__card-head">
+            <div>
+              <h2>Fechas y notas</h2>
+              <p>Define el periodo de la estancia y observaciones.</p>
+            </div>
+          </div>
+          <div class="estancia__fields">
+            <div class="campo">
+              <label>Entrada real *</label>
+              <input
+                type="text"
+                mwlFlatpickr
+                [(ngModel)]="entradaReal"
+                name="entradaReal"
+                (ngModelChange)="recalcularPago()"
+                [enableTime]="true"
+                [time24hr]="true"
+                [dateFormat]="'Y-m-d H:i'"
+                placeholder="YYYY-MM-DD HH:mm"
+                required
+              />
+            </div>
+
+            <div class="campo">
+              <label>Salida estimada *</label>
+              <input
+                type="text"
+                mwlFlatpickr
+                [(ngModel)]="salidaEstimada"
+                name="salidaEstimada"
+                (ngModelChange)="recalcularPago()"
+                [enableTime]="true"
+                [time24hr]="true"
+                [dateFormat]="'Y-m-d H:i'"
+                placeholder="YYYY-MM-DD HH:mm"
+                required
+              />
+            </div>
+
+            <div class="campo campo--full">
+              <label>Notas</label>
+              <textarea rows="3" [(ngModel)]="notas" name="notas"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="estancia__card" *ngIf="!esEdicion">
+          <div class="estancia__card-head">
+            <div>
+              <h2>{{ esEdicion ? 'Pago de estancia' : 'Pago inicial' }}</h2>
+              <p>
+                {{
+                  esEdicion
+                    ? 'Registra un pago al momento de actualizar la estancia.'
+                    : 'Registra un pago directo al momento del check-in.'
+                }}
+              </p>
+            </div>
+            <button type="button" class="estancia__toggle-btn" (click)="abrirModalPago()">
+              <i class="bi bi-cash-stack" aria-hidden="true"></i>
+              {{ textoBotonPago }}
+            </button>
+          </div>
+        </section>
+
+        <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+        <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
+
+        <div class="estancia__actions">
+          <button type="submit" [disabled]="guardando">
+            {{ esEdicion ? 'Actualizar estancia' : 'Guardar estancia' }}
+          </button>
+        </div>
+      </form>
+
+      <aside class="estancia__summary">
+        <div class="estancia__summary-card">
+          <p class="estancia__summary-eyebrow">Resumen</p>
+          <h3>Detalle de la estancia</h3>
+          <div class="estancia__summary-grid">
+            <div>
+              <span>Unidad</span>
+              <strong>{{ codigo || '-' }}</strong>
+            </div>
+            <div>
+              <span>Tipo</span>
+              <strong>{{ tipoUnidad || '-' }}</strong>
+            </div>
+            <div>
+              <span>Cliente</span>
+              <strong *ngIf="clienteCreado; else clienteResumen">{{ clienteCreado.nombres }} {{ clienteCreado.apellidos }}</strong>
+              <ng-template #clienteResumen>
+                <strong>{{ idCliente ? 'Cliente asignado' : '-' }}</strong>
+              </ng-template>
+            </div>
+            <div>
+              <span>Entrada</span>
+              <strong>{{ entradaReal || '-' }}</strong>
+            </div>
+            <div>
+              <span>Salida</span>
+              <strong>{{ salidaEstimada || '-' }}</strong>
+            </div>
+            <div>
+              <span>Personas</span>
+              <strong>{{ obtenerNumeroPersonas() }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="estancia__summary-card" *ngIf="esRegistroIngreso">
+          <p class="estancia__summary-eyebrow">Reserva</p>
+          <h3>Informacion de la reserva</h3>
+          <div class="estancia__summary-grid">
+            <div>
+              <span>Codigo reserva</span>
+              <strong>{{ codigoReserva || (idReserva ? '#' + idReserva : '-') }}</strong>
+            </div>
+            <div>
+              <span>Cliente</span>
+              <strong>{{ nombreClienteReserva || '-' }}</strong>
+            </div>
+            <div>
+              <span>Entrada reservada</span>
+              <strong>{{ entradaReserva ? formatearSoloFecha(entradaReserva) : '-' }}</strong>
+            </div>
+            <div>
+              <span>Salida reservada</span>
+              <strong>{{ salidaReserva ? formatearSoloFecha(salidaReserva) : '-' }}</strong>
+            </div>
+            <div>
+              <span>Personas reservadas</span>
+              <strong>{{ numeroPersonasReserva !== null ? numeroPersonasReserva : '-' }}</strong>
+            </div>
+            <div>
+              <span>Anticipo de reserva</span>
+              <strong>{{ totalAnticipoReserva !== null ? (totalAnticipoReserva | number : '1.0-0') : '-' }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="estancia__summary-card">
+          <p class="estancia__summary-eyebrow">Pago</p>
+          <h3>{{ conPago ? 'Pago activo' : '' }}</h3>
+          <div class="estancia__summary-grid">
+            <div *ngIf="totalAnticipoReserva !== null && !esRegistroIngreso">
+              <span>Anticipo de reserva</span>
+              <strong>{{ totalAnticipoReserva | number : '1.0-0' }}</strong>
+            </div>
+            <div>
+              <span>Anticipo en estancia</span>
+              <strong>{{ anticipoEstanciaResumen | number : '1.0-0' }}</strong>
+            </div>
+            <div>
+              <span>Total</span>
+              <strong>{{ totalPagoResumen | number : '1.0-0' }}</strong>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal modal--recepcion" *ngIf="mostrarModalCliente">
+    <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalCliente()"></div>
+    <div class="modal__panel modal__panel--recepcion" role="dialog" aria-modal="true">
+      <header class="modal__header modal__header--recepcion">
+        <div>
+          <p class="modal__eyebrow">Recepcion operativa</p>
+          <h2>Nuevo cliente</h2>
+          <p>Completa los datos para registrar al cliente.</p>
+        </div>
+      </header>
+
+      <form class="modal__form" (ngSubmit)="crearCliente()">
+        <div class="campo">
+          <label>Nombres *</label>
+          <input type="text" [(ngModel)]="clienteNuevo.nombres" name="clienteNombres" required />
+        </div>
+
+        <div class="campo">
+          <label>Apellidos *</label>
+          <input type="text" [(ngModel)]="clienteNuevo.apellidos" name="clienteApellidos" required />
+        </div>
+
+        <div class="campo">
+          <label>Tipo documento</label>
+          <select [(ngModel)]="clienteNuevo.tipoDocumento" name="clienteTipoDocumento">
+            <option [ngValue]="undefined">Selecciona una opcion</option>
+            <option *ngFor="let tipo of tiposDocumento" [ngValue]="tipo">{{ tipo }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Numero documento</label>
+          <input
+            type="text"
+            [(ngModel)]="clienteNuevo.numeroDocumento"
+            name="clienteNumeroDocumento"
+          />
+        </div>
+
+        <div class="campo">
+          <label>Telefono</label>
+          <input type="text" [(ngModel)]="clienteNuevo.telefono" name="clienteTelefono" />
+        </div>
+
+        <div class="campo">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="clienteNuevo.email" name="clienteEmail" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="clienteError">{{ clienteError }}</p>
+
+        <div class="modal__actions">
+          <button type="button" class="btn-secundario modal__btn-ghost" (click)="cerrarModalCliente()">
+            Cancelar
+          </button>
+          <button type="submit" class="modal__btn-primary" [disabled]="creandoCliente">
+            Guardar cliente
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="!esEdicion && mostrarModalPago">
+    <div class="modal__backdrop" (click)="cerrarModalPago()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header">
+        <div>
+          <h2>{{ esEdicion ? 'Pago de estancia' : 'Pago inicial' }}</h2>
+          <p>Configura el anticipo que se registrara con la estancia.</p>
+        </div>
+        <button type="button" class="btn-secundario" (click)="cerrarModalPago()">Cerrar</button>
+      </header>
+
+      <div class="pago pago--modal">
+        <div class="calculo">
+          <div>
+            <h3>Calcular pago</h3>
+            <div class="calculo__meta">
+              <div class="calculo__meta-card">
+                <span>Tipo de unidad</span>
+                <strong>{{ tipoUnidad || '-' }}</strong>
+              </div>
+              <div class="calculo__meta-card">
+                <span>Dias</span>
+                <strong>{{ textoDiasCalculoPago }}</strong>
+              </div>
+              <div class="calculo__meta-card">
+                <span>Personas</span>
+                <strong>{{ textoPersonasCalculoPago }}</strong>
+              </div>
+            </div>
+            <div
+              class="calculo__meta calculo__meta--secundaria"
+              *ngIf="totalAnticipoReserva !== null && totalAnticipoReserva > 0"
+            >
+              <div class="calculo__meta-card calculo__meta-card--anticipo">
+                <span>Total de anticipos</span>
+                <strong>- {{ totalAnticipoReserva | number : '1.0-0' }}</strong>
+              </div>
+            </div>
+            <p *ngIf="calculandoPago">Calculando...</p>
+            <div class="calculo__resultado-card" *ngIf="totalCalculado !== null">
+              <span>Total calculado</span>
+              <strong>{{ totalCalculado | number : '1.0-0' }}</strong>
+            </div>
+            <p class="estado estado--error" *ngIf="calculoError">{{ calculoError }}</p>
+          </div>
+        </div>
+
+        <div class="pago__fila">
+          <div class="campo">
+            <label>Monto *</label>
+            <input type="number" [(ngModel)]="monto" name="monto" />
+          </div>
+          <div class="campo">
+            <label>Medio de pago</label>
+            <select [(ngModel)]="medioPago" name="medioPago">
+              <option *ngFor="let medio of mediosPago" [value]="medio">{{ medio }}</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Fecha pago *</label>
+            <input
+              type="text"
+              mwlFlatpickr
+              [(ngModel)]="fechaPago"
+              name="fechaPago"
+              [enableTime]="false"
+              [dateFormat]="'Y-m-d'"
+              placeholder="YYYY-MM-DD"
+            />
+          </div>
+        </div>
+      </div>
+
+      <p class="estado estado--error" *ngIf="pagoModalError">{{ pagoModalError }}</p>
+
+      <div class="modal__actions modal__actions--split">
+        <button type="button" class="btn-secundario" (click)="quitarPago()" *ngIf="conPago">
+          Quitar pago
+        </button>
+        <button type="button" class="btn-secundario" (click)="cerrarModalPago()" *ngIf="!conPago">
+          Cancelar
+        </button>
+        <button type="button" class="estancia__modal-primary" (click)="guardarPagoModal()">
+          Guardar pago
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal modal--recepcion" *ngIf="mostrarModalBusquedaCliente">
+    <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalBusquedaCliente()"></div>
+    <div class="modal__panel modal__panel--recepcion" role="dialog" aria-modal="true">
+      <header class="modal__header modal__header--recepcion">
+        <div>
+          <p class="modal__eyebrow">Recepcion operativa</p>
+          <h2>Buscar cliente</h2>
+          <p>Ingresa la cedula para buscar clientes.</p>
+        </div>
+      </header>
+
+      <form class="modal__form modal__search-form" (ngSubmit)="buscarCliente()">
+        <div class="campo campo--full modal__search-field">
+          <label for="clienteBusquedaCedula">Cedula *</label>
+          <input id="clienteBusquedaCedula" type="text" [(ngModel)]="clienteBusquedaCedula" name="clienteBusquedaCedula" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="clienteBusquedaError">{{ clienteBusquedaError }}</p>
+
+        <button type="submit" class="modal__btn-primary modal__search-button" [disabled]="buscandoCliente">Buscar</button>
+      </form>
+
+      <div class="lista" *ngIf="clientesEncontrados.length">
+        <div class="lista__item" *ngFor="let cliente of clientesEncontrados">
+          <div>
+            <span>{{ cliente.nombres }} {{ cliente.apellidos }}</span>
+            <small>{{ cliente.tipoDocumento }} {{ cliente.numeroDocumento }}</small>
+          </div>
+          <button
+            type="button"
+            class="btn-secundario modal__btn-ghost"
+            (click)="seleccionarCliente(cliente)"
+          >
+            Seleccionar
+          </button>
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button type="button" class="btn-secundario modal__btn-ghost" (click)="cerrarModalBusquedaCliente()">
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal modal--recepcion" *ngIf="mostrarModalAcompanante">
+    <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalAcompanante()"></div>
+    <div class="modal__panel modal__panel--recepcion" role="dialog" aria-modal="true">
+      <header class="modal__header modal__header--recepcion">
+        <div>
+          <p class="modal__eyebrow">Recepcion operativa</p>
+          <h2>Nuevo acompanante</h2>
+          <p>Completa los datos para registrar al acompanante.</p>
+        </div>
+      </header>
+
+      <form class="modal__form" (ngSubmit)="crearAcompanante()">
+        <div class="campo">
+          <label>Nombres *</label>
+          <input type="text" [(ngModel)]="acompananteNuevo.nombres" name="acompananteNombres" required />
+        </div>
+
+        <div class="campo">
+          <label>Apellidos *</label>
+          <input type="text" [(ngModel)]="acompananteNuevo.apellidos" name="acompananteApellidos" required />
+        </div>
+
+        <div class="campo">
+          <label>Tipo documento</label>
+          <select [(ngModel)]="acompananteNuevo.tipoDocumento" name="acompananteTipoDocumento">
+            <option [ngValue]="undefined">Selecciona una opcion</option>
+            <option *ngFor="let tipo of tiposDocumento" [ngValue]="tipo">{{ tipo }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label>Numero documento</label>
+          <input
+            type="text"
+            [(ngModel)]="acompananteNuevo.numeroDocumento"
+            name="acompananteNumeroDocumento"
+          />
+        </div>
+
+        <div class="campo">
+          <label>Telefono</label>
+          <input type="text" [(ngModel)]="acompananteNuevo.telefono" name="acompananteTelefono" />
+        </div>
+
+        <div class="campo">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="acompananteNuevo.email" name="acompananteEmail" />
+        </div>
+
+        <p class="estado estado--error" *ngIf="acompananteError">{{ acompananteError }}</p>
+
+        <div class="modal__actions">
+          <button
+            type="button"
+            class="btn-secundario modal__btn-ghost"
+            (click)="cerrarModalAcompanante()"
+          >
+            Cancelar
+          </button>
+          <button type="submit" class="modal__btn-primary" [disabled]="creandoAcompanante">
+            Guardar acompanante
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal modal--recepcion" *ngIf="mostrarModalBusquedaAcompanante">
+    <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalBusquedaAcompanante()"></div>
+    <div class="modal__panel modal__panel--recepcion" role="dialog" aria-modal="true">
+      <header class="modal__header modal__header--recepcion">
+        <div>
+          <p class="modal__eyebrow">Recepcion operativa</p>
+          <h2>Buscar acompanante</h2>
+          <p>Ingresa el documento para buscar acompanantes.</p>
+        </div>
+      </header>
+
+      <form class="modal__form modal__search-form" (ngSubmit)="buscarAcompanante()">
+        <div class="campo campo--full modal__search-field">
+          <label for="acompananteBusquedaDocumento">Documento *</label>
+          <input
+            id="acompananteBusquedaDocumento"
+            type="text"
+            [(ngModel)]="acompananteBusquedaDocumento"
+            name="acompananteBusquedaDocumento"
+          />
+        </div>
+
+        <p class="estado estado--error" *ngIf="acompananteBusquedaError">{{ acompananteBusquedaError }}</p>
+
+        <button type="submit" class="modal__btn-primary modal__search-button" [disabled]="buscandoAcompanante">
+          Buscar
+        </button>
+      </form>
+
+      <div class="lista" *ngIf="acompanantesEncontrados.length">
+        <div class="lista__item" *ngFor="let acompanante of acompanantesEncontrados">
+          <div>
+            <span>{{ acompanante.nombres }} {{ acompanante.apellidos }}</span>
+            <small>{{ acompanante.tipoDocumento }} {{ acompanante.numeroDocumento }}</small>
+          </div>
+          <button
+            type="button"
+            class="btn-secundario modal__btn-ghost"
+            (click)="seleccionarAcompanante(acompanante)"
+            [disabled]="acompananteSeleccionado(acompanante.id)"
+          >
+            {{ acompananteSeleccionado(acompanante.id) ? 'Agregado' : 'Seleccionar' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button
+          type="button"
+          class="btn-secundario modal__btn-ghost"
+          (click)="cerrarModalBusquedaAcompanante()"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</section>

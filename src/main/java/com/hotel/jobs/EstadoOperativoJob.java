@@ -27,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 @ConditionalOnProperty(name = "jobs.estado-operativo.enabled", havingValue = "true")
 public class EstadoOperativoJob {
 
+    //recuerda que si la reserva expirada supera su fecha de salida se elimina
+
     private static final Logger logger = LoggerFactory.getLogger(EstadoOperativoJob.class);
 
     private final HabitacionRepository habitacionRepository;

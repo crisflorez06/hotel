@@ -32,6 +32,7 @@ import com.hotel.repositories.ReservaRepository;
 import com.hotel.repositories.UnidadRepository;
 import com.hotel.specifications.EstanciaSpecification;
 import com.hotel.specifications.ReservaSpecification;
+import jakarta.persistence.EntityNotFoundException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -83,27 +84,6 @@ public class DetalleService {
         this.habitacionRepository = habitacionRepository;
         this.pagoRepository = pagoRepository;
         this.gastoRepository = gastoRepository;
-    }
-
-    @Transactional(readOnly = true)
-    public DetalleDTO obtenerDetallePorEstanciaId(Long idEstancia) {
-        Estancia estancia = estanciaRepository.findById(idEstancia)
-                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
-
-        DetalleDTO detalle = new DetalleDTO();
-        detalle.setEstancia(EstanciaMapper.entityToDTO(estancia));
-
-        List<Habitacion> habitaciones = estancia.getHabitaciones();
-        if (habitaciones != null && !habitaciones.isEmpty() && habitaciones.getFirst().getUnidad() != null) {
-            detalle.setUnidad(UnidadMapper.entityToDto(habitaciones.getFirst().getUnidad()));
-        }
-
-        Reserva reserva = estancia.getReserva();
-        if (reserva != null) {
-            detalle.setReserva(ReservaMapper.entityToCalendarioDTO(reserva));
-        }
-
-        return detalle;
     }
 
     @Transactional(readOnly = true)
@@ -255,6 +235,8 @@ public class DetalleService {
                 dto.setDisponible(cantidad);
             } else if (estado == EstadoOperativo.OCUPADO) {
                 dto.setOcupado(cantidad);
+            } else if (estado == EstadoOperativo.RESERVADO) {
+                dto.setOcupado(dto.getOcupado() + cantidad);
             } else if (estado == EstadoOperativo.PARCIALMENTE) {
                 dto.setParcialmente(cantidad);
             }

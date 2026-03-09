@@ -4,6 +4,7 @@ import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Reserva;
 import com.hotel.models.Unidad;
+import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.services.HabitacionService;
 import com.hotel.services.UnidadService;
@@ -77,6 +78,17 @@ public class UnidadHabitacionResolver {
         }
 
         return !codigosAhora.equals(codigosAntes);
+    }
+
+     public List<Habitacion> obtenerHabitacionesPorEstado(EstadoOperativo estado, List<Habitacion> habitaciones) {
+        List<Habitacion> habitacionesFiltradas = new ArrayList<>();
+        for (Habitacion habitacion : habitaciones) {
+            if (habitacion.getEstadoOperativo().equals(estado)) {
+                habitacionesFiltradas.add(habitacion);
+            }
+        }
+        return habitacionesFiltradas;
+
     }
 
 }

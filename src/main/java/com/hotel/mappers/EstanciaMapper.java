@@ -35,7 +35,7 @@ public class EstanciaMapper {
         dto.setNotas(entity.getNotas());
         dto.setOcupantes(OcupanteMapper.listaOcupanteToDto(entity.getOcupantes()));
         if(entity.getPagos() != null) {
-            dto.setPagos(PagoMapper.entityListToDTOList(entity.getPagos()));
+            dto.setPagos(PagoMapper.entityListToDTOListConCodigos(entity.getPagos()));
         }
 
         return dto;

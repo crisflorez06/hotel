@@ -25,6 +25,10 @@ public class PagoSpecification {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            // Los pagos por cambio de unidad son internos del sistema y no deben aparecer
+            // en la tabla de pagos del frontend, sin importar los filtros aplicados.
+            predicates.add(criteriaBuilder.notEqual(root.get("tipoPago"), TipoPago.CAMBIO_UNIDAD));
+
             if (estados != null && !estados.isEmpty()) {
                 predicates.add(root.get("estado").in(estados));
             }

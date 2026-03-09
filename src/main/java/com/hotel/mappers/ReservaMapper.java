@@ -47,6 +47,7 @@ public class ReservaMapper {
         dto.setCanalReserva(reserva.getCanalReserva());
         dto.setModoOcupacion(reserva.getModoOcupacion());
         dto.setEstadoReserva(reserva.getEstado());
+        dto.setNotas(reserva.getNotas());
 
         if (reserva.getCliente() != null) {
             dto.setIdCliente(reserva.getCliente().getId());
@@ -80,6 +81,7 @@ public class ReservaMapper {
         dto.setNumeroPersonas(reserva.getNumeroPersonas());
         dto.setNombreCliente(reserva.getCliente().getNombres() + " " + reserva.getCliente().getApellidos());
         dto.setIdCliente(reserva.getCliente().getId());
+        dto.setIdEstancia(reserva.getEstancia() != null ? reserva.getEstancia().getId() : null);
 
         if (reserva.getEstancia() != null && reserva.getEstancia().getPagos() != null) {
             dto.setTotalAnticipo(reserva.getEstancia().getPagos().stream()

@@ -38,8 +38,14 @@ public class ReservaController {
 
     @PostMapping
     public ResponseEntity<ReservaDTO> crearReserva(@Valid @RequestBody ReservaRequestDTO request) {
-        ReservaDTO creada = reservaService.crear(request);
+        ReservaDTO creada = reservaService.crearReserva(request);
         return ResponseEntity.status(201).body(creada);
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ReservaDTO> obtenerReservaPorId(@PathVariable("id") Long id) {
+        ReservaDTO reserva = reservaService.obtenerReservaPorId(id);
+        return ResponseEntity.ok(reserva);
     }
 
     @PutMapping("/{id}")

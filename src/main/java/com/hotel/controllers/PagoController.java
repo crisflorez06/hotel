@@ -57,7 +57,7 @@ public class PagoController {
     }
 
     @PostMapping("/total")
-    public BigDecimal calcularTotal(@RequestBody CalcularPagoDTO request) {
+    public BigDecimal calcularTotal(@Valid @RequestBody CalcularPagoDTO request) {
         return pagoService.obtenerEstimacionPago(request);
     }
 

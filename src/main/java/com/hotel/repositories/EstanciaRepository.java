@@ -2,6 +2,8 @@ package com.hotel.repositories;
 
 import com.hotel.models.Estancia;
 import com.hotel.models.enums.EstadoEstancia;
+import com.hotel.models.enums.ModoOcupacion;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -39,6 +41,25 @@ public interface EstanciaRepository extends JpaRepository<Estancia, Long>, JpaSp
     Optional<Estancia> findActivaOExcedidaPorHabitacionId(
             @Param("habitacionId") Long habitacionId
     );
+
+    @Query(value = """
+            select e.*
+            from (
+                select e.id,
+                       row_number() over (
+                           partition by h.codigo, e.modo_ocupacion
+                           order by coalesce(e.entrada_real, e.salida_estimado) asc, e.id asc
+                       ) as rn
+                from estancias e
+                join estancia_habitaciones eh on eh.id_estancia = e.id
+                join habitaciones h on h.id = eh.id_habitacion
+                where e.modo_ocupacion in ('INDIVIDUAL', 'COMPLETO')
+                  and e.estado in ('ACTIVA', 'EXCEDIDA')
+            ) ult
+            join estancias e on e.id = ult.id
+            where ult.rn = 1
+            """, nativeQuery = true)
+    List<Estancia> findUltimaEstanciaPorHabitacionYTipoOcupacion();
 
     @Query("""
            select distinct e
@@ -82,4 +103,6 @@ public interface EstanciaRepository extends JpaRepository<Estancia, Long>, JpaSp
     long countByEstadoAndSalidaEstimadaBefore(
             @Param("estado") EstadoEstancia estado,
             @Param("momento") LocalDateTime momento);
+
+
 }

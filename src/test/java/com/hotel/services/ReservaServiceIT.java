@@ -1,9 +1,8 @@
 package com.hotel.services;
 
 import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
-import com.hotel.dtos.estancia.EstanciaRequestDTO;
-import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.models.*;
 import com.hotel.models.enums.*;
@@ -76,7 +75,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null);
 
         // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
+        ReservaDTO reserva = reservaService.crearReserva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -133,7 +132,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         ReservaRequestDTO request = reservaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null);
 
         // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
+        ReservaDTO reserva = reservaService.crearReserva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -191,7 +190,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         ReservaRequestDTO request = reservaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, null);
 
         // ---------- WHEN ----------
-        Reserva reserva = reservaService.crearReserva(request);
+        ReservaDTO reserva = reservaService.crearReserva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();

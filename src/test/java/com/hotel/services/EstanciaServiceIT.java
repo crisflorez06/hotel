@@ -82,7 +82,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, acompanantes, null);
 
         // ---------- WHEN ----------
-        Estancia estancia = estanciaService.crearEstanciaNueva(request);
+        EstanciaDTO estancia = estanciaService.crearEstanciaNueva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -136,7 +136,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, acompanantes, null);
 
         // ---------- WHEN ----------
-        Estancia estancia = estanciaService.crearEstanciaNueva(request);
+        EstanciaDTO estancia = estanciaService.crearEstanciaNueva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -192,7 +192,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = estanciaRequestDTO(TipoUnidad.HABITACION, habitacion.getCodigo(), cliente, acompanantes, null);
 
         // ---------- WHEN ----------
-        Estancia estancia = estanciaService.crearEstanciaNueva(request);
+        EstanciaDTO estancia = estanciaService.crearEstanciaNueva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -250,7 +250,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, acompanantes, LocalDateTime.now().plusDays(-4));
 
         // ---------- WHEN ----------
-        Estancia estancia = estanciaService.crearEstanciaNueva(request);
+        EstanciaDTO estancia = estanciaService.crearEstanciaNueva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -302,7 +302,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, null);
 
         // ---------- WHEN ----------
-        Estancia estancia = estanciaService.crearEstanciaNueva(request);
+        EstanciaDTO estancia = estanciaService.crearEstanciaNueva(request);
 
         // ---------- THEN (validación real en BD) ----------
         entityManager.flush();
@@ -2378,7 +2378,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
-        Estancia estancia = estanciaService.activarEstancia(request);
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -2436,7 +2436,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
-        Estancia estancia = estanciaService.activarEstancia(request);
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -2496,7 +2496,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
-        Estancia estancia = estanciaService.activarEstancia(request);
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -2563,7 +2563,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
-        Estancia estancia = estanciaService.activarEstancia(request);
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -2639,7 +2639,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
-        Estancia estancia = estanciaService.activarEstancia(request);
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -2696,7 +2696,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         long estanciasAntes = estanciaRepository.count();
-        Estancia estancia = estanciaService.activarEstancia(request);
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
 
         // ---------- THEN ----------
         entityManager.flush();

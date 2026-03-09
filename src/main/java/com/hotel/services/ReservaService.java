@@ -8,6 +8,7 @@ import com.hotel.mappers.ReservaMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.ReservaRepository;
+import com.hotel.resolvers.AlojamientoResolver;
 import com.hotel.resolvers.EstanciaReservaResolver;
 import com.hotel.resolvers.UnidadHabitacionResolver;
 import com.hotel.specifications.ReservaSpecification;
@@ -42,6 +43,7 @@ public class ReservaService {
     private final EstanciaReservaResolver estanciaReservaResolver;
     private final CodigoUnicoService codigoUnicoService;
     private final AuditoriaEventoService eventoService;
+        private final AlojamientoResolver alojamientoResolver;
 
     public ReservaService(ReservaRepository reservaRepository,
                           OcupanteService ocupanteService,
@@ -50,7 +52,9 @@ public class ReservaService {
                           DisponibilidadService disponibilidadService,
                           EstanciaReservaResolver estanciaReservaResolver,
                           CodigoUnicoService codigoUnicoService,
-                          AuditoriaEventoService eventoService) {
+                          AuditoriaEventoService eventoService,
+                          AlojamientoResolver alojamientoResolver) {
+        this.alojamientoResolver = alojamientoResolver;
         this.eventoService = eventoService;
         this.estanciaReservaResolver = estanciaReservaResolver;
         this.pagoService = pagoService;
@@ -66,8 +70,13 @@ public class ReservaService {
                 .orElseThrow(() -> new EntityNotFoundException("Reserva no encontrado con id: " + id));
     }
 
+    public ReservaDTO obtenerReservaPorId(Long id) {
+        Reserva reserva = buscarPorId(id);
+        return ReservaMapper.entityToDTO(reserva);
+    }
+
     @Transactional
-    public Reserva crearReserva(ReservaRequestDTO request) {
+    public ReservaDTO crearReserva(ReservaRequestDTO request) {
 
         String codigo = request.getCodigo();
         TipoUnidad tipoUnidad = request.getTipoUnidad();
@@ -84,19 +93,22 @@ public class ReservaService {
         reserva.setCodigo(codigoUnicoService.generarCodigoReserva());
 
         logger.info("[crearReserva] Buscando ocupante para asignar a la reserva");
-        reserva.setCliente(determinarCliente(request.getIdOcupante()));
+        reserva.setCliente(ocupanteService.buscarCliente(request.getIdOcupante()));
 
         logger.info("[crearReserva] Asignando habitaciones a la reserva");
         reserva.setHabitaciones(habitaciones);
 
         logger.info("[crearReserva] Determinando modo de ocupación para la reserva");
-        reserva.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+        reserva.setModoOcupacion(alojamientoResolver.determinarModoOcupacion(tipoUnidad));
 
         logger.info("[crearReserva] Creando estancia asociada a la reserva");
         Estancia estancia = estanciaReservaResolver.crearEstanciaDesdeReserva(reserva);
         reserva.setEstancia(estancia);
 
         Reserva reservaGuardada = reservaRepository.save(reserva);
+
+        logger.info("[crearReserva] Actualizando estado de las habitaciones asociadas a la estancia");
+        actualizarAlojamiento(entradaEstimada, habitaciones);
 
         logger.info("[crearReserva] Registrando evento de creación de estancia para codigo de estancia: {} y unidad: {}", estancia.getCodigoFolio(), codigo);
         EventoNuevoJsonBuilder nuevaReservaJson = new EventoNuevoJsonBuilder()
@@ -114,12 +126,6 @@ public class ReservaService {
                 reservaGuardada.getCodigo()
         );
 
-        return reservaGuardada;
-    }
-
-    @Transactional
-    public ReservaDTO crear(ReservaRequestDTO request) {
-        Reserva reservaGuardada = crearReserva(request);
         return ReservaMapper.entityToDTO(reservaGuardada);
     }
 
@@ -138,7 +144,7 @@ public class ReservaService {
 
         logger.info("[editarReserva] Editando reserva con id: {}", idReserva);
         Reserva reserva = reservaRepository.findById(idReserva)
-                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada con id: " + idReserva));
+                .orElseThrow(() -> new EntityNotFoundException("Reserva no encontrada con id: " + idReserva));
 
         if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
             throw new IllegalStateException("Solo se puede editar una reserva en estado CONFIRMADA");
@@ -159,18 +165,21 @@ public class ReservaService {
                     unidadHabitacionResolver.determinarCodigoUnidad(reserva.getHabitaciones()),
                     codigo);
 
+            logger.info("[editarReserva] Actualizando estado de alojamiento por cambio de código de unidad");
+            actualizarAlojamientoPorEdicion(entradaEstimada, reserva.getHabitaciones(), habitaciones);
+
             logger.info("[editarReserva] Actualizando habitaciones de la reserva y estancia asociada por cambio de código de unidad");
             reserva.setHabitaciones(new ArrayList<>(habitaciones));
             Estancia estancia = reserva.getEstancia();
 
             if (estancia != null) {
                 estancia.setHabitaciones(new ArrayList<>(habitaciones));
-                estancia.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+                estancia.setModoOcupacion(alojamientoResolver.determinarModoOcupacion(tipoUnidad));
             }
             reserva.setEstancia(estancia);
 
             logger.info("[editarReserva] Actualizando modo de ocupación de la reserva por cambio de código de unidad");
-            reserva.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+            reserva.setModoOcupacion(alojamientoResolver.determinarModoOcupacion(tipoUnidad));
 
         }
 
@@ -199,7 +208,7 @@ public class ReservaService {
                     ocupanteService.obtenerNombre(reserva.getCliente().getId()),
                     ocupanteService.obtenerNombre(request.getIdOcupante()));
         }
-        reserva.setCliente(determinarCliente(request.getIdOcupante()));
+        reserva.setCliente(ocupanteService.buscarCliente(request.getIdOcupante()));
 
         reserva.setNotas(reserva.getNotas() + " | Reserva editadas: " + request.getNotas());
 
@@ -223,7 +232,7 @@ public class ReservaService {
     public Void eliminarReserva(Long idReserva) {
         logger.info("[eliminarReserva] Eliminando reserva con id: {}", idReserva);
         Reserva reserva = reservaRepository.findById(idReserva)
-                .orElseThrow(() -> new IllegalArgumentException("Reserva no encontrada con id: " + idReserva));
+                .orElseThrow(() -> new EntityNotFoundException("Reserva no encontrada con id: " + idReserva));
 
         if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
             throw new IllegalStateException("Solo se puede eliminar una reserva en estado CONFIRMADA");
@@ -233,8 +242,9 @@ public class ReservaService {
 
         Estancia estancia = reserva.getEstancia();
         if (estancia != null) {
+            actualizarAlojamientoPorEliminacion(reserva.getHabitaciones());
             estancia.setEstado(EstadoEstancia.CANCELADA);
-            pagoService.eliminarPagos(estancia.getId());
+            pagoService.eliminarTodoLosPagos(estancia.getId());
         }
 
         reservaRepository.save(reserva);
@@ -373,15 +383,25 @@ public class ReservaService {
                 || !salidaEstimadaAntigua.isEqual(salidaEstimada);
     }
 
-    private Ocupante determinarCliente(long idCliente) {
-        logger.info("[determinarCliente] Determinando cliente para la reserva");
-        List<Ocupante> ocupantes = ocupanteService.determinarOcupantes(idCliente, null);
+    private void actualizarAlojamiento(LocalDate entrada, List<Habitacion> habitaciones) {
+        if(LocalDate.now().isEqual(entrada)) {
+            alojamientoResolver.actualizarEstadoAlojamiento(habitaciones, EstadoOperativo.RESERVADO);
+        }
+    }
 
-        return ocupantes.stream()
-                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No se encontró un cliente válido con id: " + idCliente));
+    private void actualizarAlojamientoPorEdicion(LocalDate entrada, List<Habitacion> habitacionesAntiguas, List<Habitacion> habitacionesNuevas) {
+        List<Habitacion> habitacionesReservadas = unidadHabitacionResolver.obtenerHabitacionesPorEstado(EstadoOperativo.RESERVADO, habitacionesAntiguas);
+        if(!habitacionesReservadas.isEmpty()) {
+            alojamientoResolver.actualizarEstadoAlojamiento(habitacionesReservadas, EstadoOperativo.DISPONIBLE);
+            actualizarAlojamiento(entrada, habitacionesNuevas);
+        }
+    }
 
+    private void actualizarAlojamientoPorEliminacion(List<Habitacion> habitaciones) {
+        List<Habitacion> habitacionesReservadas = unidadHabitacionResolver.obtenerHabitacionesPorEstado(EstadoOperativo.RESERVADO, habitaciones);
+        if (!habitacionesReservadas.isEmpty()) {
+            alojamientoResolver.actualizarEstadoAlojamiento(habitacionesReservadas, EstadoOperativo.DISPONIBLE);
+        }
     }
 
 
@@ -393,12 +413,5 @@ public class ReservaService {
             throw new IllegalArgumentException("La fecha de salida estimada no puede ser anterior a la fecha de entrada");
         }
     }
-
-    private ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {
-
-        return tipoUnidad == TipoUnidad.HABITACION ? ModoOcupacion.INDIVIDUAL : ModoOcupacion.COMPLETO;
-    }
-
-
 
 }

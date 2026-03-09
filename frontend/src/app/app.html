@@ -1,0 +1,35 @@
+<div class="app-loader" [class.app-loader--visible]="isLoading" aria-live="polite">
+  <div class="app-loader__panel" role="status" [attr.aria-busy]="isLoading">
+    <span class="app-loader__spinner" aria-hidden="true"></span>
+    <p>Cargando vista...</p>
+  </div>
+</div>
+
+<div
+  class="app-feedback-toast"
+  *ngIf="feedbackToast.toast() as toast"
+  [class.app-feedback-toast--error]="toast.type === 'error'"
+  [class.app-feedback-toast--ok]="toast.type === 'success'"
+>
+  {{ toast.message }}
+</div>
+
+<div class="app-shell" [class.app-shell--loading]="isLoading">
+  <header class="app-header">
+    <div class="app-header__brand">Hotel</div>
+    <nav class="app-header__nav">
+      <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
+      <a routerLink="/calendario" routerLinkActive="is-active">Calendario</a>
+      <a routerLink="/reservas" routerLinkActive="is-active">Reservas</a>
+      <a routerLink="/estancias" routerLinkActive="is-active">Estancias</a>
+      <a routerLink="/pagos" routerLinkActive="is-active">Pagos</a>
+      <a routerLink="/dashboard" routerLinkActive="is-active">Dashboard</a>
+      <a routerLink="/ocupantes/tabla-clientes" routerLinkActive="is-active">Clientes</a>
+      <a routerLink="/ajustes" routerLinkActive="is-active">Ajustes</a>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <router-outlet></router-outlet>
+  </main>
+</div>

@@ -101,6 +101,53 @@ public class PagoResolver {
 
     }
 
+    public BigDecimal calcularEstimacionPagoSinPagosAnteriores(CalcularPagoDTO request) {
+        logger.info("[calcularEstimacionPagoSinPagosAnteriores] Calculando total de pagos para el request: {}", request);
+
+        BigDecimal precioPersonasAdicionales = BigDecimal.ZERO;
+
+
+        if(request.getIdEstancia() != null) {
+            logger.info("[calcularEstimacionPagoSinPagosAnteriores] Verificando estancia con id: {}", request.getIdEstancia());
+            Estancia estancia = estanciaReservaResolver.buscarEstanciaPorId(request.getIdEstancia());
+            if(estancia == null) {
+                throw new EntityNotFoundException("Estancia no encontrada con id: " + request.getIdEstancia());
+            }
+            logger.info("[calcularEstimacionPagoSinPagosAnteriores] Estancia encontrada: {}", estancia.getCodigoFolio());
+
+            logger.info("[calcularEstimacionPagoSinPagosAnteriores] verificando si existe pago por anticipos");
+            List<Pago> pagos = pagoRepository.findByEstanciaId(request.getIdEstancia());
+
+        }
+
+        logger.info("[calcularEstimacionPagoSinPagosAnteriores] obteniendo tarifa base por tipo de unidad");
+        TipoUnidad tipoUnidad = request.getTipoUnidad();
+
+        BigDecimal precioDia = tarifaBaseService.obtenerPrecioDiaPorTipoUnidad(tipoUnidad);
+
+        logger.info("[calcularEstimacionPagoSinPagosAnteriores] calculando total de dias entre {} y {}", request.getFechaEntrada(), request.getFechaSalida());
+        Long totalDias = calcularDias(request.getFechaEntrada(), request.getFechaSalida());
+
+        logger.info("[calcularEstimacionPagoSinPagosAnteriores] calculando precio por personas adicionales si aplica");
+
+        if(request.getNumeroPersonas() > 2) {
+            precioPersonasAdicionales = calcularPrecioPersonaAdicional(
+                    tipoUnidad,
+                    totalDias,
+                    request.getNumeroPersonas()
+            );
+            logger.info("[calcularEstimacionPagoSinPagosAnteriores] precio por personas adicionales: {}", precioPersonasAdicionales);
+        }
+
+        BigDecimal totalPago = precioDia
+                .multiply(BigDecimal.valueOf(totalDias))
+                .add(precioPersonasAdicionales);
+        logger.info("[calcularEstimacionPagoSinPagosAnteriores] total pago calculado: {}", totalPago);
+
+        return totalPago;
+
+    }
+
     private Long calcularDias(LocalDateTime fechaEntrada, LocalDateTime fechaSalida) {
 
         logger.info("[PagoResolver.calcularDias] Calculando dias entre {} y {}", fechaEntrada, fechaSalida);

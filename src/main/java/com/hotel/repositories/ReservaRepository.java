@@ -34,8 +34,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
            from Reserva r
            join r.habitaciones h
            where h.id in :habitacionIds
-             and r.entradaEstimada <= :hasta
-             and r.salidaEstimada >= :desde
+             and r.entradaEstimada < :hasta
+             and r.salidaEstimada > :desde
              and r.estado in :estados
            """)
     List<Reserva> findReservasSolapadasPorHabitacionesYFechas(
@@ -44,22 +44,6 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
             @Param("hasta") LocalDateTime hasta,
             @Param("estados") List<EstadoReserva> estados);
 
-    @Query("""
-           select count(r) > 0
-           from Reserva r
-           join r.habitaciones h
-           where h.id = :habitacionId
-             and r.id <> :reservaId
-             and r.entradaEstimada <= :hasta
-             and r.salidaEstimada >= :desde
-             and r.estado in :estados
-           """)
-    boolean existsReservaByHabitacionAndRangoAndIdNot(
-            @Param("habitacionId") Long habitacionId,
-            @Param("reservaId") Long reservaId,
-            @Param("desde") LocalDateTime desde,
-            @Param("hasta") LocalDateTime hasta,
-            @Param("estados") List<EstadoReserva> estados);
 
     @Query("""
            select count(r) > 0
@@ -101,4 +85,23 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
     long countReservasExpiradas(
             @Param("estados") List<EstadoReserva> estados,
             @Param("momento") LocalDateTime momento);
+
+    @Query(value = """
+            select r.*
+            from (
+                select r.id,
+                       row_number() over (
+                           partition by h.codigo, r.modo_ocupacion
+                           order by r.entrada_estimada asc, r.id asc
+                       ) as rn
+                from reservas r
+                join reserva_habitaciones rh on rh.id_reserva = r.id
+                join habitaciones h on h.id = rh.id_habitacion
+                where r.modo_ocupacion in ('INDIVIDUAL', 'COMPLETO')
+                  and r.estado in ('CONFIRMADA', 'EXPIRADA')
+            ) ult
+            join reservas r on r.id = ult.id
+            where ult.rn = 1
+            """, nativeQuery = true)
+    List<Reserva> findUltimaReservaPorHabitacionYTipoOcupacion();
 }

@@ -16,10 +16,9 @@ import com.hotel.specifications.PagoSpecification;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
-import com.hotel.utils.EventoModificadoJsonBuilder;
 import com.hotel.utils.EventoNuevoJsonBuilder;
+import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.slf4j.Logger;
@@ -121,7 +120,6 @@ public class PagoService {
         }
     }
 
-
     @Transactional
     public Pago crearPagoPorCambioUnidad(Estancia estancia, TipoUnidad tipoUnidadAnterior) {
         if (estancia == null || tipoUnidadAnterior == null) {
@@ -141,7 +139,7 @@ public class PagoService {
         logger.info("[crearPagoPorCambioUnidad] Preparando datos para cálculo de pago por cambio de unidad. Total ocupantes: {}, Fecha entrada: {}, Fecha finalización: {}", totalOcupantes, fechaEntrada, fechaFinalizacion);
         CalcularPagoDTO calcularPagoDTO = PagoMapper.entityToCalcularPagoDTO(estancia.getId(), tipoUnidadAnterior, totalOcupantes, fechaEntrada, fechaFinalizacion);
 
-        BigDecimal monto = obtenerEstimacionPago(calcularPagoDTO);
+        BigDecimal monto = obtenerEstimacionPagoSinPagosAnteriores(calcularPagoDTO);
 
         logger.info("[crearPagoPorCambioUnidad] Monto calculado para pago por cambio de unidad: {}", monto);
         Pago pago = PagoMapper.cambioUnidadToEntity(monto, fechaFinalizacion, estancia);
@@ -165,14 +163,6 @@ public class PagoService {
 
 
         return pagoCreado;
-    }
-
-
-    public Optional<Pago> buscarUltimoPagoPorEstanciaYTipo(Long idEstancia, TipoPago tipoPago) {
-        if (idEstancia == null) {
-            return Optional.empty();
-        }
-        return pagoRepository.findFirstByEstanciaIdAndTipoPagoOrderByFechaCreacionDesc(idEstancia, tipoPago);
     }
 
     @Transactional(readOnly = true)
@@ -200,7 +190,12 @@ public class PagoService {
         return pagoResolver.calcularEstimacionPago(request);
     }
 
-    public void eliminarPagos(Long idEstancia) {
+    public BigDecimal obtenerEstimacionPagoSinPagosAnteriores(CalcularPagoDTO request) {
+        logger.info("[obtenerEstimacionPagoSinPagosAnteriores] Calculando estimación de pago sin considerar pagos anteriores para el request: {}", request);
+        return pagoResolver.calcularEstimacionPagoSinPagosAnteriores(request);
+    }
+
+    public void eliminarTodoLosPagos(Long idEstancia) {
         logger.info("[eliminarPagosPorEstancia] Eliminando pagos asociados a la estancia con id: {}", idEstancia);
         List<Pago> pagos = pagoRepository.findByEstanciaId(idEstancia);
         for(Pago pago : pagos) {
@@ -208,7 +203,7 @@ public class PagoService {
             Estancia estancia = pago.getEstancia();
             pago.setEstado(EstadoPago.ELIMINADO);
 
-            logger.info("[eliminarPagos] Registrando evento de eliminación de pagos para codigo de estancia: {}", estancia.getCodigoFolio());
+            logger.info("[eliminarTodoLosPagos] Registrando evento de eliminación de pagos para codigo de estancia: {}", estancia.getCodigoFolio());
 
             EventoNuevoJsonBuilder estanciaEliminada = new EventoNuevoJsonBuilder()
                     .agregarProp("codigoEstancia", estancia.getCodigoFolio());
@@ -239,7 +234,7 @@ public class PagoService {
     public void eliminarPago(Long idPago) {
         logger.info("[eliminarPago] Eliminando pago con id: {}", idPago);
         Pago pago = pagoRepository.findById(idPago)
-                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado con id: " + idPago));
+                .orElseThrow(() -> new EntityNotFoundException("Pago no encontrado con id: " + idPago));
 
         if (pago.getEstado() != EstadoPago.COMPLETADO && pago.getEstado() != EstadoPago.PENDIENTE) {
             throw new IllegalStateException("Solo se puede eliminar un pago en estado COMPLETADO o PENDIENTE. Estado actual: " + pago.getEstado());
@@ -283,7 +278,7 @@ public class PagoService {
     public void eliminarPagoEstanciaCompletada(PagoNuevoRequestDTO requestDTO, long idPago){
         logger.info("[eliminarPagoEstanciaCompletada] Eliminando pago de tipo ESTANCIA_COMPLETADA con id: {}", idPago);
         Pago pago = pagoRepository.findById(idPago)
-                .orElseThrow(() -> new IllegalArgumentException("Pago no encontrado con id: " + idPago));
+                .orElseThrow(() -> new EntityNotFoundException("Pago no encontrado con id: " + idPago));
 
         if(pago.getTipoPago() != TipoPago.ESTANCIA_COMPLETADA) {
             throw new IllegalStateException("El pago con id: " + idPago + " no es de tipo ESTANCIA_COMPLETADA, por lo tanto no se puede eliminar con este método");

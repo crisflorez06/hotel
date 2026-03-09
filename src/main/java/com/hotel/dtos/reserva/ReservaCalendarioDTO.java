@@ -13,6 +13,7 @@ import lombok.Data;
 public class ReservaCalendarioDTO {
 
     private Long id;
+    private Long idEstancia;
     private LocalDateTime inicio;
     private LocalDateTime fin;
     private String codigoReserva;

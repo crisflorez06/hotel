@@ -30,14 +30,14 @@ public class EstanciaController {
 
     @PostMapping
     public ResponseEntity<EstanciaDTO> crearEstancia(@Valid @RequestBody EstanciaRequestDTO request) {
-        EstanciaDTO creada = estanciaService.crear(request);
+        EstanciaDTO creada = estanciaService.crearEstanciaNueva(request);
         return ResponseEntity.status(201).body(creada);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Void> editarEstancia(
             @PathVariable("id") Long id,
-            @RequestBody EstanciaRequestDTO request) {
+            @Valid @RequestBody EstanciaRequestDTO request) {
         estanciaService.editarEstancia(request, id);
         return ResponseEntity.noContent().build();
     }
@@ -56,15 +56,14 @@ public class EstanciaController {
 
     @PutMapping("/activar")
     public ResponseEntity<EstanciaDTO> activarEstancia(@Valid @RequestBody ActivarEstanciaDTO request) {
-        EstanciaDTO activada = estanciaService.activar(request);
+        EstanciaDTO activada = estanciaService.activarEstancia(request);
         return ResponseEntity.status(201).body(activada);
     }
 
-    @GetMapping("/activa")
+    @GetMapping("/{id}")
     public ResponseEntity<EstanciaDTO> obtenerEstancia(
-            @RequestParam("codigo") String codigo,
-            @RequestParam("tipoUnidad") TipoUnidad tipoUnidad) {
-        return ResponseEntity.ok(estanciaService.obtenerEstancia(codigo, tipoUnidad));
+            @PathVariable("id") Long id) {
+        return ResponseEntity.ok(estanciaService.obtenerEstancia(id));
     }
 
     @GetMapping("/tabla")

@@ -5,6 +5,8 @@ import com.hotel.dtos.pago.PagoDTO;
 import com.hotel.dtos.pago.PagoNuevoRequestDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.Pago;
+import com.hotel.models.Reserva;
+import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoUnidad;
@@ -55,6 +57,28 @@ public class PagoMapper {
         return dto;
     }
 
+    public static PagoDTO entityToDTOConCodigos(Pago pago) {
+        PagoDTO dto = entityToDTO(pago);
+        Estancia estancia = pago.getEstancia();
+        if (estancia == null) {
+            return dto;
+        }
+
+        dto.setCodigoEstancia(estancia.getCodigoFolio());
+
+        Reserva reserva = estancia.getReserva();
+        if (reserva != null) {
+            dto.setCodigoReserva(reserva.getCodigo());
+        }
+
+        if (pago.getTipoPago() == TipoPago.ANTICIPO_RESERVA
+                && estancia.getEstado() == EstadoEstancia.RESERVADA) {
+            dto.setCodigoEstancia(null);
+        }
+
+        return dto;
+    }
+
     public static CalcularPagoDTO entityToCalcularPagoDTO(Long idEstancia, TipoUnidad tipoUnidad, Integer numerosPersonas, LocalDateTime fechaEntrada, LocalDateTime fechaSalida) {
         CalcularPagoDTO dto = new CalcularPagoDTO();
 
@@ -70,6 +94,12 @@ public class PagoMapper {
     public static List<PagoDTO> entityListToDTOList(List<Pago> pagos) {
         return pagos.stream()
                 .map(PagoMapper::entityToDTO)
+                .collect(Collectors.toList());
+    }
+
+    public static List<PagoDTO> entityListToDTOListConCodigos(List<Pago> pagos) {
+        return pagos.stream()
+                .map(PagoMapper::entityToDTOConCodigos)
                 .collect(Collectors.toList());
     }
 }

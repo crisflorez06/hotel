@@ -169,6 +169,15 @@ public class OcupanteService {
                 .findFirst();
     }
 
+    public Ocupante buscarCliente(long idCliente) {
+        logger.info("[buscarCliente] Determinando cliente para la reserva");
+
+        return ocupanteRepository.findById(idCliente)
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado con id: " + idCliente));
+
+    }
+
     public String obtenerNombre(Long idCliente) {
         Ocupante cliente = buscarPorId(idCliente);
         return cliente.getNombres() + " " + cliente.getApellidos();

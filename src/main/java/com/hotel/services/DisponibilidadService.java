@@ -8,15 +8,12 @@ import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoReserva;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.ReservaRepository;
-import com.hotel.resolvers.UnidadHabitacionResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.List;
-
-import static com.hotel.models.enums.EstadoEstancia.EXCEDIDA;
 
 @Component
 public class DisponibilidadService {
@@ -48,13 +45,19 @@ public class DisponibilidadService {
             return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        if (!tieneDisponiblidadHabitaciones(habitaciones)){
-            logger.info("[DisponibilidadService.verificarDisponiblidad] No hay disponibilidad por estado operativo, verificando estancias activas o excedidas");
-            List<Estancia> estancias = listaEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva);
-            if(estancias.isEmpty()) {
+        if (hayHabitacionesOcupadas(habitaciones)) {
+            logger.info("[DisponibilidadService.verificarDisponiblidad] Hay habitaciones en estado OCUPADO, verificando estancias activas o excedidas");
+            List<Estancia> estanciasAsociadas = listarEstanciasActivasOExcedidasPorHabitacion(habitaciones);
+            if(estanciasAsociadas.isEmpty()) {
                 throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
             }
-            List<Habitacion> habitacionesConEstancia = estancias.stream()
+
+            List<Estancia> estanciasBloqueantes = filtrarEstanciasQueBloqueanRango(estanciasAsociadas, fechaIncioReserva, fechaFinReserva);
+            if (estanciasBloqueantes.isEmpty()) {
+                return "";
+            }
+
+            List<Habitacion> habitacionesConEstancia = estanciasBloqueantes.stream()
                     .flatMap(estancia -> estancia.getHabitaciones().stream())
                     .toList();
             return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
@@ -84,9 +87,14 @@ public class DisponibilidadService {
             return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        if(!tieneDisponiblidadHabitaciones(habitaciones)) {
-            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para estancia con id: {}", estanciaId);
-            List<Estancia> estancias = listaEstanciaActivaOExcedidaPorHabitacion(habitaciones, fechaIncioReserva)
+        if (hayHabitacionesOcupadas(habitaciones)) {
+            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Hay habitaciones en estado OCUPADO, verificando estancias para id: {}", estanciaId);
+            List<Estancia> estanciasAsociadas = listarEstanciasActivasOExcedidasPorHabitacion(habitaciones);
+            if(estanciasAsociadas.isEmpty()) {
+                throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
+            }
+
+            List<Estancia> estancias = filtrarEstanciasQueBloqueanRango(estanciasAsociadas, fechaIncioReserva, fechaFinReserva)
                     .stream()
                     .filter(e -> !e.getId().equals(estanciaId))
                     .toList();
@@ -103,25 +111,23 @@ public class DisponibilidadService {
         return "";
     }
 
-    private Boolean tieneDisponiblidadHabitaciones(List<Habitacion> habitaciones) {
-
-        logger.info("[DisponibilidadService.tieneDisponiblidadEstancia] Verificando estado operativo de las habitaciones para determinar disponibilidad de estancia");
+    private boolean hayHabitacionesOcupadas(List<Habitacion> habitaciones) {
+        logger.info("[DisponibilidadService.hayHabitacionesOcupadas] Verificando si hay habitaciones en estado OCUPADO");
         for (Habitacion habitacion : habitaciones) {
-            if (!habitacion.getEstadoOperativo().equals(EstadoOperativo.DISPONIBLE)) {
-                logger.info("[DisponibilidadService.tieneDisponiblidadEstancia] Habitacion con codigo: {} no está disponible (estado: {})", habitacion.getCodigo(), habitacion.getEstadoOperativo());
-                return false;
+            if (habitacion.getEstadoOperativo().equals(EstadoOperativo.OCUPADO)) {
+                logger.info("[DisponibilidadService.hayHabitacionesOcupadas] Habitacion con codigo: {} en estado OCUPADO", habitacion.getCodigo());
+                return true;
             }
         }
 
-        logger.info("[DisponibilidadService.tieneDisponiblidadEstancia] Todas las habitaciones están disponibles para estancia");
-        return true;
-
+        logger.info("[DisponibilidadService.hayHabitacionesOcupadas] No hay habitaciones en estado OCUPADO");
+        return false;
     }
 
     private List<Reserva> listaReservaPorHabitacion(List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
         logger.info("[DisponibilidadService.listaReservaPorHabitacion] Verificando reservas para las habitaciones en el rango de fechas: {} - {}", fechaIncioReserva, fechaFinReserva);
         if (habitaciones == null || habitaciones.isEmpty()) {
-            return List.of();
+            throw new IllegalArgumentException("La lista de habitaciones no puede ser nula o vacía");
         }
 
         List<Long> habitacionIds = habitaciones.stream()
@@ -136,13 +142,9 @@ public class DisponibilidadService {
         );
     }
 
-    private List<Estancia> listaEstanciaActivaOExcedidaPorHabitacion(
-            List<Habitacion> habitaciones,
-            LocalDateTime fechaInicio
-    ) {
-        logger.info("[DisponibilidadService.listaEstanciaActivaOExcedidaPorHabitacion] Verificando estancias activas o excedidas para las habitaciones");
+    private List<Estancia> listarEstanciasActivasOExcedidasPorHabitacion(List<Habitacion> habitaciones) {
         if (habitaciones == null || habitaciones.isEmpty()) {
-            return List.of();
+            throw new IllegalArgumentException("La lista de habitaciones no puede ser nula o vacía");
         }
 
         List<Long> habitacionIds = habitaciones.stream()
@@ -152,12 +154,27 @@ public class DisponibilidadService {
         return estanciaRepository.findActivasOExcedidasPorHabitaciones(
                         habitacionIds,
                         List.of(EstadoEstancia.ACTIVA, EstadoEstancia.EXCEDIDA)
-                ).stream()
-                .filter(estancia ->
-                        estancia.getEstado() == EXCEDIDA
-                                || (estancia.getSalidaEstimada() != null
-                                && fechaInicio.isBefore(estancia.getSalidaEstimada()))
-                )
+                );
+    }
+
+    private List<Estancia> filtrarEstanciasQueBloqueanRango(
+            List<Estancia> estancias,
+            LocalDateTime fechaInicio,
+            LocalDateTime fechaFin
+    ) {
+        return estancias.stream()
+                .filter(e -> {
+                    if (e.getEstado() == EstadoEstancia.EXCEDIDA) {
+                        return true;
+                    }
+
+                    if (e.getSalidaEstimada() == null) {
+                        return true;
+                    }
+
+                    LocalDateTime entrada = e.getEntradaReal() != null ? e.getEntradaReal() : LocalDateTime.MIN;
+                    return entrada.isBefore(fechaFin) && e.getSalidaEstimada().isAfter(fechaInicio);
+                })
                 .toList();
     }
 

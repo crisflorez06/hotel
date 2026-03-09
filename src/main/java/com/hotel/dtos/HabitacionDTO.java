@@ -11,4 +11,5 @@ public class HabitacionDTO {
     private EstadoOperativo estado;
     private Piso piso;
     private String codigoUnidad;
+    private String informacionAdicional;
 }

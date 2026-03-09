@@ -12,17 +12,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.List;
 
-import static com.hotel.testdata.OcupanteTestData.clienteData;
 import static com.hotel.testdata.PagoTestData.*;
 import static com.hotel.testutils.AssertionsHelper.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -1294,7 +1290,7 @@ class PagoServiceIT extends AbstractServiceIT {
         long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1353,7 +1349,7 @@ class PagoServiceIT extends AbstractServiceIT {
         long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1400,7 +1396,7 @@ class PagoServiceIT extends AbstractServiceIT {
         long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1443,7 +1439,7 @@ class PagoServiceIT extends AbstractServiceIT {
         long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1476,7 +1472,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1520,7 +1516,7 @@ class PagoServiceIT extends AbstractServiceIT {
         long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1563,7 +1559,7 @@ class PagoServiceIT extends AbstractServiceIT {
         long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -1598,7 +1594,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        pagoService.eliminarPagos(idEstanciaInexistente);
+        pagoService.eliminarTodoLosPagos(idEstanciaInexistente);
 
         // ---------- THEN ----------
         entityManager.flush();

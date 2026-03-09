@@ -15,4 +15,5 @@ public class UnidadDTO {
     private Piso piso;
     private EstadoOperativo estado;
     private List<HabitacionDTO> habitaciones;
+    private String informacionAdicional;
 }

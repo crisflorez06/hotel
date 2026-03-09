@@ -1,0 +1,205 @@
+app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-main {
+  flex: 1 0 auto;
+}
+
+/* Garantiza que modales/dialogs queden por encima del header fijo y el blur global */
+.cdk-overlay-container {
+  z-index: 6000 !important;
+}
+
+.modal-backdrop {
+  z-index: 6040 !important;
+}
+
+.modal {
+  z-index: 6050 !important;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+app-root > app-loader,
+app-root > main.app-main,
+app-root > app-footer {
+  transition: filter 0.25s ease;
+}
+
+body.menu-open {
+  overflow: hidden;
+}
+
+body.menu-open app-root > app-loader,
+body.menu-open app-root > main.app-main,
+body.menu-open app-root > app-footer {
+  filter: blur(6px);
+  pointer-events: none;
+  user-select: none;
+}
+
+:root {
+  --feedback-error-bg: #fff4f2;
+  --feedback-error-border: #f3c4be;
+  --feedback-error-ink: #8a261f;
+  --feedback-ok-bg: #edf8f1;
+  --feedback-ok-border: #b9dfc8;
+  --feedback-ok-ink: #1f5a3b;
+}
+
+.estado {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-weight: 600;
+  line-height: 1.35;
+  animation: feedback-enter 180ms ease-out;
+}
+
+.estado::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  margin-top: 5px;
+  flex: 0 0 auto;
+}
+
+.estado--error {
+  background: var(--feedback-error-bg);
+  border-color: var(--feedback-error-border);
+  color: var(--feedback-error-ink) !important;
+}
+
+.estado--error::before {
+  background: #d33f31;
+}
+
+.estado--ok {
+  background: var(--feedback-ok-bg);
+  border-color: var(--feedback-ok-border);
+  color: var(--feedback-ok-ink) !important;
+}
+
+.estado--ok::before {
+  background: #2f8f5b;
+}
+
+@keyframes feedback-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.inventory-dialog .dialog-btn {
+  border-radius: 0.85rem;
+  padding: 0.65rem 1.4rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.inventory-dialog .dialog-btn--compact {
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+}
+
+.inventory-dialog .dialog-btn--ghost {
+  background: rgba(15, 23, 42, 0.05);
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+
+.inventory-dialog .dialog-btn--ghost:hover {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.inventory-dialog .dialog-btn--primary {
+  background: linear-gradient(120deg, #22d3ee, #0ea5e9, #6366f1);
+  color: #fff;
+  box-shadow: 0 12px 25px rgba(14, 165, 233, 0.35);
+}
+
+.inventory-dialog .dialog-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.35);
+}
+
+.inventory-dialog .dialog-btn--danger {
+  background: linear-gradient(120deg, #fb7185, #f43f5e, #be123c);
+  color: #fff;
+  box-shadow: 0 12px 24px rgba(244, 63, 94, 0.35);
+}
+
+.inventory-dialog .dialog-btn--danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(190, 18, 60, 0.4);
+}
+
+.inventory-dialog .dialog-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+.inventory-dialog .icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 0.85rem;
+  border: none;
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, color 0.2s ease;
+}
+
+.inventory-dialog .icon-button:hover {
+  transform: translateY(-1px);
+  background: rgba(15, 23, 42, 0.12);
+}
+
+.inventory-dialog .icon-button--danger {
+  background: rgba(244, 63, 94, 0.15);
+  color: #b91c1c;
+}
+
+.inventory-dialog .icon-button--danger:hover {
+  background: rgba(244, 63, 94, 0.25);
+  color: #991b1b;
+}
+
+.inventory-dialog .icon-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

@@ -19,6 +19,7 @@ import com.hotel.specifications.EstanciaSpecification;
 import com.hotel.utils.EventoModificadoJsonBuilder;
 import com.hotel.utils.EventoNuevoJsonBuilder;
 import jakarta.annotation.Nonnull;
+import jakarta.persistence.EntityNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -70,7 +71,7 @@ public class EstanciaService {
     }
 
     @Transactional
-    public Estancia crearEstanciaNueva(EstanciaRequestDTO request) {
+    public EstanciaDTO crearEstanciaNueva(EstanciaRequestDTO request) {
 
         TipoUnidad tipoUnidad = request.getTipoUnidad();
         String codigo = request.getCodigo();
@@ -90,7 +91,7 @@ public class EstanciaService {
         estancia.setHabitaciones(habitaciones);
 
         logger.info("[crearEstanciaNueva] Estableciendo modo de ocupacion para la estancia");
-        estancia.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+        estancia.setModoOcupacion(alojamientoResolver.determinarModoOcupacion(tipoUnidad));
 
         logger.info("[crearEstanciaNueva] Determinando estado inicial de la estancia");
         estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
@@ -118,17 +119,12 @@ public class EstanciaService {
                 null
         );
 
-        return estanciaGuardada;
-    }
-
-    @Transactional
-    public EstanciaDTO crear(EstanciaRequestDTO request) {
-        Estancia estanciaGuardada = crearEstanciaNueva(request);
         return EstanciaMapper.entityToDTO(estanciaGuardada);
     }
 
+
     @Transactional
-    public Estancia activarEstancia(ActivarEstanciaDTO request) {
+    public EstanciaDTO activarEstancia(@Nonnull ActivarEstanciaDTO request) {
 
         if(request.getIdReserva() == null) {
             throw new IllegalArgumentException("El id de reserva no puede ser nulo para activar una estancia");
@@ -180,14 +176,8 @@ public class EstanciaService {
                 reserva.getCodigo()
         );
 
-        return estanciaGuardada;
-
-    }
-
-    @Transactional
-    public EstanciaDTO activar(ActivarEstanciaDTO request) {
-        Estancia estanciaGuardada = activarEstancia(request);
         return EstanciaMapper.entityToDTO(estanciaGuardada);
+
     }
 
     @Transactional
@@ -203,7 +193,7 @@ public class EstanciaService {
 
         logger.info("[editarEstancia] Editando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
-                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+                .orElseThrow(() -> new EntityNotFoundException("Estancia no encontrada con id: " + idEstancia));
 
         if (!(estancia.getEstado() == EstadoEstancia.ACTIVA || estancia.getEstado() == EstadoEstancia.EXCEDIDA)) {
             throw new IllegalStateException("Solo se pueden editar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
@@ -234,7 +224,7 @@ public class EstanciaService {
             alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.OCUPADO);
 
             logger.info("[editarEstancia] Estableciendo modo de ocupacion para la estancia");
-            estancia.setModoOcupacion(determinarModoOcupacion(tipoUnidad));
+            estancia.setModoOcupacion(alojamientoResolver.determinarModoOcupacion(tipoUnidad));
 
             logger.info("[editarEstancia] Creando pago asociado al cambio de unidad de la estancia");
 
@@ -319,7 +309,7 @@ public class EstanciaService {
     public Void eliminarEstancia(Long idEstancia) {
         logger.info("[eliminarEstancia] Eliminando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
-                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+                .orElseThrow(() -> new EntityNotFoundException("Estancia no encontrada con id: " + idEstancia));
 
         if(estancia.getEstado() != EstadoEstancia.ACTIVA && estancia.getEstado() != EstadoEstancia.EXCEDIDA) {
             throw new IllegalStateException("Solo se pueden eliminar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
@@ -331,7 +321,7 @@ public class EstanciaService {
         estancia.setEstado(EstadoEstancia.CANCELADA);
 
         logger.info("[eliminarEstancia] Eliminando pagos asociados a la estancia");
-        pagoService.eliminarPagos(estancia.getId());
+        pagoService.eliminarTodoLosPagos(estancia.getId());
 
         logger.info("[eliminarEstancia] Guardando cambios en la estancia eliminada");
         estanciaRepository.save(estancia);
@@ -353,17 +343,12 @@ public class EstanciaService {
         return null;
     }
 
-    public EstanciaDTO obtenerEstancia(String codigo, TipoUnidad tipoUnidad) {
-        logger.info("[obtenerEstanciaPorUnidad] Obteniendo estancia para la unidad con codigo: {}", codigo);
-        List<Habitacion> habitaciones = unidadHabitacionResolver.buscarListaHabitaciones(codigo, tipoUnidad);
-        Long habitacionId = habitaciones.getFirst().getId();
+    public EstanciaDTO obtenerEstancia(Long idEstancia) {
 
-        Estancia estancia = estanciaRepository.findActivaOExcedidaPorHabitacionId(habitacionId).orElseThrow(
-                () -> new IllegalArgumentException("No se encontró una estancia activa o excedida para la unidad con codigo: " + codigo)
-        );
+        logger.info("[obtenerEstancia] Obteniendo estancia con id: {}", idEstancia);
+        Estancia estancia = estanciaRepository.findById(idEstancia)
+                .orElseThrow(() -> new EntityNotFoundException("Estancia no encontrada con id: " + idEstancia));
 
-
-        logger.info("[obtenerEstanciaPorUnidad] Mapeando estancia a DTO");
         return EstanciaMapper.entityToDTO(estancia);
 
     }
@@ -428,7 +413,7 @@ public class EstanciaService {
 
         logger.info("[finalizarEstancia] Finalizando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
-                .orElseThrow(() -> new IllegalArgumentException("Estancia no encontrada con id: " + idEstancia));
+                .orElseThrow(() -> new EntityNotFoundException("Estancia no encontrada con id: " + idEstancia));
 
         if(estancia.getEstado() != EstadoEstancia.ACTIVA && estancia.getEstado() != EstadoEstancia.EXCEDIDA) {
             throw new IllegalStateException("Solo se pueden finalizar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
@@ -485,8 +470,6 @@ public class EstanciaService {
             throw new IllegalStateException("No se puede crear la estancia: " + detalleNoDisponible);
         }
     }
-
-
 
     private boolean cambioFechas(LocalDateTime entradaReal, LocalDateTime salidaEstimada, Estancia estancia) {
         logger.info("[cambioFechas] Validando si se han cambiado las fechas de entrada o salida de la estancia");
@@ -550,14 +533,6 @@ public class EstanciaService {
         }
     }
 
-
-    private ModoOcupacion determinarModoOcupacion(TipoUnidad tipoUnidad) {
-
-        return tipoUnidad == TipoUnidad.HABITACION ? ModoOcupacion.INDIVIDUAL : ModoOcupacion.COMPLETO;
-    }
-
-
-
     private EstadoEstancia determinarEstadoEstancia(LocalDateTime entrada, LocalDateTime salida) {
 
         LocalDateTime now = LocalDateTime.now();
@@ -587,10 +562,9 @@ public class EstanciaService {
         }
     }
 
-
-
-
-
-
-
+    private EstanciaDTO crearEstanciaConModoOcupacion() {
+        EstanciaDTO dto = new EstanciaDTO();
+        dto.setModoOcupacion(ModoOcupacion.INDIVIDUAL);
+        return dto;
+    }
 }

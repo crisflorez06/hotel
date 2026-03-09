@@ -1,0 +1,422 @@
+<section class="recepcion">
+  <header class="recepcion__header">
+    <div class="recepcion__hero">
+      <p class="recepcion__eyebrow">Tablero operativo</p>
+      <div class="recepcion__title-row">
+        <h1>Recepcion</h1>
+      </div>
+      <p class="recepcion__subtitle">
+        Monitorea disponibilidad, estancias activas y movimientos desde un solo panel. Haz clic
+        en una unidad para abrir su detalle y ejecutar acciones.
+      </p>
+    </div>
+    <div class="recepcion__header-actions">
+      <div class="recepcion__quickstats">
+        <article class="recepcion__quickstat" *ngIf="totalFiltrosActivos > 0">
+          <span>Filtros aplicados</span>
+          <strong>{{ totalFiltrosActivos }}</strong>
+        </article>
+      </div>
+    </div>
+  </header>
+
+  <div class="recepcion__layout">
+    <aside class="recepcion__rail">
+      <form class="recepcion__filtros">
+        <header class="filtros__head">
+          <h3 class="filtros__titulo">Busqueda operativa</h3>
+          <p class="filtros__description">Ajusta tipo, estado, piso o codigo para acotar la vista.</p>
+        </header>
+
+        <div class="filtro filtro--codigo">
+          <label for="filtro-codigo">Codigo</label>
+          <input
+            id="filtro-codigo"
+            type="text"
+            [(ngModel)]="filtroCodigo"
+            name="filtroCodigo"
+            placeholder="Ej: A-101"
+            (ngModelChange)="onCodigoChange($event)"
+          />
+        </div>
+
+        <div class="filtro filtro--tipo">
+          <label>Tipo de unidad</label>
+          <div class="filtro__segment">
+            <button
+              type="button"
+              class="segmento"
+              *ngFor="let tipo of tiposUnidad"
+              [class.segmento--activo]="esTipoSeleccionado(tipo.value)"
+              (click)="setTipo(tipo.value)"
+            >
+              {{ tipo.label }}
+            </button>
+          </div>
+        </div>
+
+        <div class="filtro filtro--estado">
+          <label>Estado</label>
+          <div class="filtro__segment filtro__segment--chips">
+            <button
+              type="button"
+              class="segmento"
+              *ngFor="let estado of estadosOperativos"
+              [ngClass]="[esEstadoSeleccionado(estado) ? 'segmento--activo' : '', claseChipEstado(estado)]"
+              (click)="toggleEstado(estado)"
+            >
+              {{ estado }}
+            </button>
+          </div>
+        </div>
+
+        <div class="filtro filtro--piso">
+          <label>Piso</label>
+          <div class="filtro__segment filtro__segment--chips">
+            <button
+              type="button"
+              class="segmento"
+              *ngFor="let piso of pisos"
+              [class.segmento--activo]="esPisoSeleccionado(piso)"
+              (click)="togglePiso(piso)"
+            >
+              {{ piso.replace('PISO_', 'Piso ') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="filtros__divider" aria-hidden="true"></div>
+
+        <article class="filtros__corner-card" aria-label="Resumen de busqueda">
+          <p class="filtros__corner-label">Total en vista</p>
+          <div class="filtros__corner-inline">
+            <strong>{{ unidades.length }}</strong>
+            <span>unidades mostradas</span>
+          </div>
+        </article>
+
+        <div class="filtro__acciones">
+          <button type="button" class="btn-secundario" (click)="limpiarFiltros()">Limpiar</button>
+        </div>
+      </form>
+
+    </aside>
+
+    <main class="recepcion__main">
+      <p class="recepcion__estado recepcion__estado--loading" *ngIf="cargando">
+        Cargando habitaciones...
+      </p>
+      <p class="recepcion__estado recepcion__estado--error estado estado--error" *ngIf="!cargando && error">
+        {{ error }}
+      </p>
+
+      <p class="recepcion__estado recepcion__estado--empty" *ngIf="!cargando && !error && !unidades.length">
+        {{
+          totalFiltrosActivos > 0
+            ? 'No se encontraron unidades con los filtros aplicados. Ajusta los filtros para continuar.'
+            : 'No hay unidades disponibles para mostrar en este momento.'
+        }}
+      </p>
+
+      <div class="recepcion__grid" *ngIf="!cargando && !error && unidades.length">
+        <article
+          class="unidad"
+          [ngClass]="estadoClass(unidad.estado)"
+          *ngFor="let unidad of unidades; trackBy: trackByUnidad"
+        >
+          <div class="unidad__band" [ngClass]="estadoClass(unidad.estado)">
+            <span class="unidad__band-label">
+              {{ unidad.estado }}
+            </span>
+            <div class="unidad__band-actions">
+              <span class="unidad__band-meta" *ngIf="esApartamento(unidad)">
+                Ocupación {{ habitacionesNoDisponibles(unidad) }}/{{ unidad.habitaciones.length }}
+              </span>
+              <span class="unidad__band-meta" *ngIf="!esApartamento(unidad)">
+                Unidad de ocupación directa
+              </span>
+              <button
+                type="button"
+                class="btn-alerta btn-alerta--band btn-proxima-reserva"
+                *ngIf="obtenerFechaProximaReservaUnidad(unidad) as fechaProximaReserva"
+                (click)="abrirModalProximaReserva(unidad.informacionAdicional, unidad.codigo, $event)"
+                data-tooltip="Proxima reserva"
+                aria-label="Ver proxima reserva"
+              >
+                <i class="bi bi-calendar-event" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="btn-alerta btn-alerta--band"
+                (click)="abrirModalAlerta(obtenerAlertaUnidad(unidad) ?? '', unidad.codigo, $event)"
+                data-tooltip="Ver alerta"
+                aria-label="Ver alerta"
+              >
+                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+              </button>
+            </div>
+          </div>
+
+          <header class="unidad__header">
+            <div
+              class="unidad__title unidad__title--link"
+              role="button"
+              tabindex="0"
+              data-tooltip="Ver mas informacion"
+              (click)="abrirDetalle(unidad)"
+              (keydown.enter)="abrirDetalle(unidad)"
+              (keydown.space)="abrirDetalle(unidad); $event.preventDefault()"
+            >
+              <div class="unidad__code">
+                <span class="unidad__icon" aria-hidden="true">
+                  <svg viewBox="0 0 64 64" role="img" aria-label="">
+                    <path
+                      d="M10 28c0-4.4 3.6-8 8-8h8c3.3 0 6 2.7 6 6v6H10v-4Z"
+                      fill="currentColor"
+                      opacity="0.3"
+                    />
+                    <path
+                      d="M10 34h44c2.2 0 4 1.8 4 4v12h-4v-6H10v6H6V20c0-2.2 1.8-4 4-4h2v18Zm28-14h10c4.4 0 8 3.6 8 8v4H38v-12Z"
+                      fill="currentColor"
+                    />
+                    <rect x="14" y="22" width="12" height="8" rx="3" fill="currentColor" />
+                  </svg>
+                </span>
+                <div>
+                  <h2>{{ unidad.codigo }}</h2>
+                  <span class="unidad__tipo">{{ unidad.tipo }}</span>
+                  <span class="unidad__piso">Piso {{ unidad.piso.replace('PISO_', '') }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="unidad__meta unidad__meta--right">
+              <ng-container *ngFor="let meta of obtenerMetaUnidad(unidad)">
+                <span
+                  class="unidad__meta-pill unidad__meta-pill--rango"
+                  *ngIf="meta.tipo === 'RANGO'"
+                  [attr.data-tooltip]="tooltipFecha(meta)"
+                >
+                  {{ formatearFechaCortaInfo(meta.fechaInicio) }} -
+                  {{ formatearFechaCortaInfo(meta.fechaFin) }}
+                </span>
+                <span
+                  class="unidad__meta-pill unidad__personas"
+                  *ngIf="meta.tipo === 'RANGO' && meta.numeroPersonas as numeroPersonas"
+                  data-tooltip="Personas"
+                >
+                  <i class="bi bi-person-fill" aria-hidden="true"></i>
+                  {{ numeroPersonas }}
+                </span>
+              </ng-container>
+            </div>
+          </header>
+
+          <div class="unidad__habitaciones" *ngIf="esApartamento(unidad)">
+            <div
+              class="habitacion-item"
+              [ngClass]="estadoClass(habitacion.estado)"
+              *ngFor="let habitacion of unidad.habitaciones; trackBy: trackByHabitacion"
+            >
+              <div class="habitacion-item__band" [ngClass]="estadoClass(habitacion.estado)">
+                <span class="habitacion-item__band-label" [attr.title]="habitacion.estado">
+                  {{ habitacion.estado }}
+                </span>
+                <div class="habitacion-item__band-actions">
+                <button
+                  type="button"
+                  class="btn-alerta btn-alerta--band btn-proxima-reserva"
+                  *ngIf="obtenerFechaProximaReservaHabitacion(habitacion) as fechaProximaReservaHabitacion"
+                  (click)="abrirModalProximaReserva(habitacion.informacionAdicional, habitacion.codigo, $event, true)"
+                  data-tooltip="Proxima reserva"
+                  aria-label="Ver proxima reserva"
+                >
+                  <i class="bi bi-calendar-event" aria-hidden="true"></i>
+                </button>
+                <button
+                  type="button"
+                  class="btn-alerta btn-alerta--band btn-alerta--habitacion"
+                  (click)="abrirModalAlerta(obtenerAlertaHabitacion(habitacion) ?? '', habitacion.codigo, $event, true)"
+                  data-tooltip="Ver alerta"
+                  aria-label="Ver alerta"
+                >
+                  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                </button>
+                </div>
+              </div>
+
+              <div class="habitacion-item__body" *ngIf="unidadDesdeHabitacion(habitacion) as unidadHabitacion">
+                <div
+                  class="habitacion-item__codigo habitacion-item__codigo--link"
+                  role="button"
+                  tabindex="0"
+                  data-tooltip="Ver mas informacion"
+                  (click)="abrirDetalleHabitacion(habitacion, $event)"
+                  (keydown.enter)="abrirDetalleHabitacion(habitacion, $event)"
+                  (keydown.space)="abrirDetalleHabitacion(habitacion, $event); $event.preventDefault()"
+                >
+                  <span class="habitacion-item__codigo-icon" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" role="img" aria-label="">
+                      <path
+                        d="M10 28c0-4.4 3.6-8 8-8h8c3.3 0 6 2.7 6 6v6H10v-4Z"
+                        fill="currentColor"
+                        opacity="0.3"
+                      />
+                      <path
+                        d="M10 34h44c2.2 0 4 1.8 4 4v12h-4v-6H10v6H6V20c0-2.2 1.8-4 4-4h2v18Zm28-14h10c4.4 0 8 3.6 8 8v4H38v-12Z"
+                        fill="currentColor"
+                      />
+                      <rect x="14" y="22" width="12" height="8" rx="3" fill="currentColor" />
+                    </svg>
+                  </span>
+                  <div>
+                    <strong>{{ habitacion.codigo }}</strong>
+                    <span class="habitacion-item__tipo">HABITACION</span>
+                  </div>
+                </div>
+
+                <div class="habitacion-item__meta" *ngIf="obtenerMetaRangoHabitacion(habitacion) as metaRango">
+                  <span
+                    class="habitacion-item__meta-pill habitacion-item__meta-pill--rango"
+                    [attr.data-tooltip]="tooltipFecha(metaRango)"
+                  >
+                    {{ formatearFechaCortaInfo(metaRango.fechaInicio) }} -
+                    {{ formatearFechaCortaInfo(metaRango.fechaFin) }}
+                  </span>
+                  <span
+                    class="habitacion-item__meta-pill habitacion-item__meta-pill--personas"
+                    *ngIf="metaRango.numeroPersonas as numeroPersonas"
+                    data-tooltip="Personas"
+                  >
+                    <i class="bi bi-person-fill" aria-hidden="true"></i>
+                    {{ numeroPersonas }}
+                  </span>
+                </div>
+                <div class="habitacion-item__meta-spacer" *ngIf="!tieneMetaHabitacion(habitacion)"></div>
+
+                <div class="habitacion-item__acciones">
+                  <button
+                    type="button"
+                    class="btn-primary btn-habitacion"
+                    (click)="crearEstanciaOSalida(unidadHabitacion, $event)"
+                    *ngIf="unidadHabitacion.estado === 'DISPONIBLE'"
+                    data-tooltip="Estancia"
+                    aria-label="Crear estancia"
+                  >
+                    <i class="bi bi-door-open" aria-hidden="true"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-reserva btn-habitacion"
+                    (click)="crearReservaOIngreso(unidadHabitacion, $event)"
+                    data-tooltip="Reserva"
+                    aria-label="Crear reserva"
+                  >
+                    <i class="bi bi-calendar-plus" aria-hidden="true"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-ghost btn-salida btn-habitacion"
+                    *ngIf="puedeDarSalida(unidadHabitacion)"
+                    (click)="finalizarEstancia(unidadHabitacion, $event)"
+                    data-tooltip="Salida"
+                    aria-label="Dar salida"
+                  >
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-ghost btn-ingreso btn-habitacion"
+                    *ngIf="puedeDarEntrada(unidadHabitacion)"
+                    (click)="darIngreso(unidadHabitacion, $event)"
+                    data-tooltip="Entrada"
+                    aria-label="Dar entrada"
+                  >
+                    <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="unidad__acciones">
+            <button
+              type="button"
+              class="btn-primary"
+              (click)="crearEstanciaOSalida(unidad, $event)"
+              *ngIf="unidad.estado === 'DISPONIBLE'"
+            >
+              <i class="bi bi-door-open" aria-hidden="true"></i>
+              Crear estancia
+            </button>
+            <button
+              type="button"
+              class="btn-reserva"
+              (click)="crearReservaOIngreso(unidad, $event)"
+            >
+              <i class="bi bi-calendar-plus" aria-hidden="true"></i>
+              Crear reserva
+            </button>
+            <button
+              type="button"
+              class="btn-ghost btn-salida"
+              *ngIf="puedeDarSalida(unidad)"
+              (click)="finalizarEstancia(unidad, $event)"
+            >
+              <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+              Dar salida
+            </button>
+            <button
+              type="button"
+              class="btn-ghost btn-ingreso"
+              *ngIf="puedeDarEntrada(unidad)"
+              (click)="darIngreso(unidad, $event)"
+            >
+              <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+              Dar entrada
+            </button>
+          </div>
+
+        </article>
+      </div>
+    </main>
+  </div>
+
+  <div class="alerta-modal" *ngIf="mostrarModalAlerta">
+    <button
+      type="button"
+      class="alerta-modal__backdrop"
+      aria-label="Cerrar modal de alerta"
+      (click)="cerrarModalAlerta()"
+    ></button>
+
+    <section
+      class="alerta-modal__panel"
+      [ngClass]="'alerta-modal__panel--' + modalAlertaVariante"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="alertaModalTitulo"
+    >
+      <header class="alerta-modal__header">
+        <div>
+          <p class="alerta-modal__eyebrow">Recepcion operativa</p>
+          <div class="alerta-modal__title-row">
+            <h3 id="alertaModalTitulo">{{ modalAlertaTitulo }}{{ modalAlertaContexto ? ' ' + modalAlertaContexto : '' }}</h3>
+          </div>
+        </div>
+      </header>
+      <p class="alerta-modal__message">{{ modalAlertaMensaje }}</p>
+      <div class="alerta-modal__detalle" *ngIf="modalAlertaDetalle.length">
+        <div class="alerta-modal__detalle-item" *ngFor="let item of modalAlertaDetalle">
+          <span>{{ item.etiqueta }}</span>
+          <strong>{{ item.valor }}</strong>
+        </div>
+      </div>
+      <footer class="alerta-modal__footer">
+        <button type="button" class="btn-ghost alerta-modal__action" (click)="cerrarModalAlerta()">
+          Cerrar
+        </button>
+      </footer>
+    </section>
+  </div>
+
+</section>
