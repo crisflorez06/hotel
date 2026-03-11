@@ -17,7 +17,13 @@ import { EstanciaService } from '../../services/estancia.service';
 import { PagoService } from '../../services/pago.service';
 import { ReservaService } from '../../services/reserva.service';
 import { catchError, map, of, switchMap } from 'rxjs';
+import { formatDateOnly, formatDateTimeNoSeconds, getCurrentDateInput } from '../../core/utils/date-time.util';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
+import { parseJsonSafe, parsePositiveId } from '../../core/utils/json.util';
+import {
+  getPreviousNavigationUrl,
+  readReturnToFromState,
+} from '../../core/utils/navigation-return.util';
 import { FeedbackToastService } from '../../core/services/feedback-toast.service';
 
 interface InformacionAdicionalUnidadPanel {
@@ -58,6 +64,7 @@ export class RecepcionPanelComponent implements OnInit {
   mostrarModalPago = false;
   guardandoPago = false;
   procesandoReserva = false;
+  mostrarModalEliminarReserva = false;
   eliminandoPagoId: number | null = null;
   pagoPendienteEliminacionId: number | null = null;
   pagoModalError = '';
@@ -321,10 +328,10 @@ export class RecepcionPanelComponent implements OnInit {
 
     for (const informacion of fuentes) {
       const info = this.parsearInformacionAdicional(informacion);
-      const idEstancia = this.parsearIdPositivo(info?.ESTANCIA?.idEstancia);
+      const idEstancia = parsePositiveId(info?.ESTANCIA?.idEstancia);
       const idReserva = usarReservaDesdeNodoReserva
-        ? this.parsearIdPositivo(info?.RESERVA?.idReserva ?? info?.RESERVA?.id)
-        : this.parsearIdPositivo(info?.ESTANCIA?.idReserva);
+        ? parsePositiveId(info?.RESERVA?.idReserva ?? info?.RESERVA?.id)
+        : parsePositiveId(info?.ESTANCIA?.idReserva);
 
       if (idEstancia || idReserva) {
         return {
@@ -335,15 +342,6 @@ export class RecepcionPanelComponent implements OnInit {
     }
 
     return { idEstancia: null, idReserva: null };
-  }
-
-  private parsearIdPositivo(valor: number | string | undefined): number | null {
-    if (valor === undefined || valor === null || valor === '') {
-      return null;
-    }
-
-    const numero = typeof valor === 'number' ? valor : Number.parseInt(valor, 10);
-    return Number.isNaN(numero) || numero <= 0 ? null : numero;
   }
 
   private construirFiltrosCliente(
@@ -384,15 +382,7 @@ export class RecepcionPanelComponent implements OnInit {
   private parsearInformacionAdicional(
     informacionAdicional: string | null | undefined
   ): InformacionAdicionalUnidadPanel | null {
-    if (!informacionAdicional?.trim()) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(informacionAdicional) as InformacionAdicionalUnidadPanel;
-    } catch {
-      return null;
-    }
+    return parseJsonSafe<InformacionAdicionalUnidadPanel>(informacionAdicional);
   }
 
   eliminarEstancia(): void {
@@ -514,15 +504,33 @@ export class RecepcionPanelComponent implements OnInit {
       return;
     }
 
+    this.mostrarModalEliminarReserva = true;
+  }
+
+  cerrarModalEliminarReserva(): void {
+    if (this.procesandoReserva) {
+      return;
+    }
+
+    this.mostrarModalEliminarReserva = false;
+  }
+
+  confirmarEliminarReserva(): void {
+    if (!this.unidad || !this.reservaDetalle || this.procesandoReserva) {
+      return;
+    }
+
     this.procesandoReserva = true;
     this.reservaService.eliminarReserva(this.reservaDetalle.id).subscribe({
       next: () => {
         this.feedbackToastService.showSuccess('Reserva eliminada con exito.');
         this.procesandoReserva = false;
+        this.mostrarModalEliminarReserva = false;
         this.cargarUnidad();
       },
       error: (errorResponse: unknown) => {
         this.procesandoReserva = false;
+        this.mostrarModalEliminarReserva = false;
         this.estanciaError = extractBackendErrorMessage(
           errorResponse,
           'No fue posible eliminar la reserva.'
@@ -700,18 +708,7 @@ export class RecepcionPanelComponent implements OnInit {
   }
 
   formatearFechaSinSegundos(fecha: string): string {
-    const fechaObj = new Date(fecha);
-    if (Number.isNaN(fechaObj.getTime())) {
-      return fecha;
-    }
-
-    return fechaObj.toLocaleString('es-CO', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    return formatDateTimeNoSeconds(fecha);
   }
 
   formatearCop(valor: number): string {
@@ -726,16 +723,7 @@ export class RecepcionPanelComponent implements OnInit {
   }
 
   formatearSoloFecha(fecha: string): string {
-    const fechaObj = new Date(fecha);
-    if (Number.isNaN(fechaObj.getTime())) {
-      return fecha;
-    }
-
-    return fechaObj.toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+    return formatDateOnly(fecha);
   }
 
   totalPagosEstancia(): number {
@@ -849,7 +837,7 @@ export class RecepcionPanelComponent implements OnInit {
   }
 
   private obtenerFechaActual(): string {
-    return new Date().toISOString().slice(0, 10);
+    return getCurrentDateInput();
   }
 
   get puedeRegistrarEntradaReserva(): boolean {
@@ -976,11 +964,9 @@ export class RecepcionPanelComponent implements OnInit {
       return;
     }
 
-    const currentNavigation = this.router.getCurrentNavigation();
-    const urlActual = currentNavigation?.finalUrl?.toString() ?? null;
-    const urlAnterior = currentNavigation?.previousNavigation?.finalUrl?.toString() ?? null;
+    const urlAnterior = getPreviousNavigationUrl(this.router, { ignoreSameAsCurrent: true });
 
-    if (!urlAnterior || (urlActual && urlAnterior === urlActual)) {
+    if (!urlAnterior) {
       return;
     }
 
@@ -989,11 +975,9 @@ export class RecepcionPanelComponent implements OnInit {
   }
 
   private actualizarRutaRetorno(): void {
-    const state = (this.router.getCurrentNavigation()?.extras.state ??
-      history.state) as Partial<Record<string, unknown>> | null;
-    const returnToState = state?.['returnTo'];
+    const returnToState = readReturnToFromState(this.router);
 
-    if (typeof returnToState === 'string' && returnToState.trim()) {
+    if (returnToState) {
       this.rutaRetorno = returnToState;
       this.retornoExplicito = true;
       return;

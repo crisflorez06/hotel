@@ -1,7 +1,8 @@
 package com.hotel.services;
 
-import com.hotel.dtos.DetalleCalendarioDTO;
-import com.hotel.dtos.DetalleDTO;
+import com.hotel.dtos.DetalleCalendarioUnidadDTO;
+import com.hotel.dtos.HabitacionDTO;
+import com.hotel.dtos.UnidadDTO;
 import com.hotel.dtos.dashboard.CategoriaMontoDTO;
 import com.hotel.dtos.dashboard.DashboardAlertaItemDTO;
 import com.hotel.dtos.dashboard.DashboardAlertasDTO;
@@ -9,20 +10,22 @@ import com.hotel.dtos.dashboard.DashboardConteoUnidadDTO;
 import com.hotel.dtos.dashboard.DashboardDistribucionFinancieraDTO;
 import com.hotel.dtos.dashboard.DashboardResumenDTO;
 import com.hotel.dtos.dashboard.DashboardSerieFinancieraDTO;
-import com.hotel.dtos.estancia.EstanciaCalendarioDTO;
-import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.estancia.EstanciaDTO;
+import com.hotel.dtos.reserva.ReservaDTO;
+import com.hotel.dtos.DetalleCalendarioHabitacionDTO;
 import com.hotel.mappers.EstanciaMapper;
+import com.hotel.mappers.HabitacionMapper;
 import com.hotel.mappers.ReservaMapper;
 import com.hotel.mappers.UnidadMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
 import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
+import com.hotel.models.Unidad;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.EstadoReserva;
-import com.hotel.models.enums.ModoOcupacion;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.GastoRepository;
@@ -32,24 +35,19 @@ import com.hotel.repositories.ReservaRepository;
 import com.hotel.repositories.UnidadRepository;
 import com.hotel.specifications.EstanciaSpecification;
 import com.hotel.specifications.ReservaSpecification;
-import jakarta.persistence.EntityNotFoundException;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.YearMonth;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -87,69 +85,193 @@ public class DetalleService {
     }
 
     @Transactional(readOnly = true)
-    public DetalleCalendarioDTO obtenerCalendario(
-            String mes,
+    public List<DetalleCalendarioUnidadDTO> obtenerCalendario(
+            LocalDateTime desde,
+            LocalDateTime hasta,
             TipoUnidad tipoUnidad,
             String codigoUnidad,
             List<EstadoReserva> estadosReserva,
             List<EstadoEstancia> estadosEstancia) {
-        if (mes == null || mes.isBlank()) {
-            throw new IllegalArgumentException("mes es obligatorio (formato YYYY-MM)");
-        }
+        validarRangoFechas(desde, hasta);
 
-        YearMonth yearMonth;
-        try {
-            yearMonth = YearMonth.parse(mes, DateTimeFormatter.ofPattern("yyyy-MM"));
-        } catch (DateTimeParseException ex) {
-            throw new IllegalArgumentException("mes debe tener formato YYYY-MM", ex);
-        }
+        List<EstadoReserva> estadosReservaFiltrados = normalizarEstadosReserva(estadosReserva);
+        List<EstadoEstancia> estadosEstanciaFiltrados = normalizarEstadosEstancia(estadosEstancia);
 
-        LocalDateTime desde = yearMonth.atDay(1).atStartOfDay();
-        LocalDateTime hasta = yearMonth.atEndOfMonth().atTime(LocalTime.MAX);
+        List<Reserva> reservas = reservaRepository.findAll(
+                ReservaSpecification.byCalendario(
+                        desde,
+                        hasta,
+                        tipoUnidad,
+                        codigoUnidad,
+                        estadosReservaFiltrados));
 
-        boolean filtrosReservaSeleccionados = estadosReserva != null && !estadosReserva.isEmpty();
-        boolean filtrosEstanciaSeleccionados = estadosEstancia != null && !estadosEstancia.isEmpty();
-        boolean consultarSoloReservas = filtrosReservaSeleccionados && !filtrosEstanciaSeleccionados;
-        boolean consultarSoloEstancias = filtrosEstanciaSeleccionados && !filtrosReservaSeleccionados;
-
-        List<Reserva> reservas = List.of();
-        if (!consultarSoloEstancias) {
-            List<EstadoReserva> estadosReservaFiltrados = normalizarEstadosReserva(estadosReserva);
-            reservas = reservaRepository.findAll(
-                    ReservaSpecification.byCalendario(
-                            desde,
-                            hasta,
-                            tipoUnidad,
-                            codigoUnidad,
-                            estadosReservaFiltrados));
-        }
-
-        List<Estancia> estancias = List.of();
-        if (!consultarSoloReservas) {
-            List<EstadoEstancia> estadosEstanciaFiltrados = normalizarEstadosEstancia(
-                    estadosEstancia,
-                    filtrosEstanciaSeleccionados);
-            if (!estadosEstanciaFiltrados.isEmpty()) {
-                estancias = estanciaRepository.findAll(
+        List<Estancia> estancias = estadosEstanciaFiltrados.isEmpty()
+                ? List.of()
+                : estanciaRepository.findAll(
                         EstanciaSpecification.byCalendario(
                                 desde,
                                 hasta,
                                 tipoUnidad,
                                 codigoUnidad,
                                 estadosEstanciaFiltrados));
-            }
+
+        List<Unidad> unidadesFiltradas = filtrarUnidadesCalendario(tipoUnidad, codigoUnidad);
+
+        Map<Long, AcumuladorUnidadCalendario> acumuladores = new LinkedHashMap<>();
+        for (Unidad unidad : unidadesFiltradas) {
+            acumuladores.put(unidad.getId(), crearAcumuladorUnidad(unidad));
         }
 
-        DetalleCalendarioDTO detalleCalendario = new DetalleCalendarioDTO();
-        detalleCalendario.setReservas(llenarTipoYCodigoUnidadReserva(
-                ReservaMapper.entityListaToCalendarioDTOList(reservas),
-                reservas));
-        detalleCalendario.setEstancias(llenarTipoYCodigoUnidadEstancia(
-                estancias.stream().map(EstanciaMapper::entityToCalendarioDTO).toList(),
-                estancias));
+        for (Reserva reserva : reservas) {
+            ReservaDTO reservaDTO = ReservaMapper.entityToDTO(reserva);
+            agregarReservaPorHabitaciones(acumuladores, reservaDTO, reserva.getHabitaciones());
+        }
 
-        return detalleCalendario;
+        for (Estancia estancia : estancias) {
+            EstanciaDTO estanciaDTO = EstanciaMapper.entityToDTO(estancia);
+            agregarEstanciaPorHabitaciones(acumuladores, estanciaDTO, estancia.getHabitaciones());
+        }
+
+        return acumuladores.values().stream()
+                .map(this::toDetalleCalendarioUnidadDTO)
+                .toList();
     }
+
+    private List<Unidad> filtrarUnidadesCalendario(TipoUnidad tipoUnidad, String codigoUnidad) {
+        String codigoUnidadNormalizado = normalizarTexto(codigoUnidad);
+        return unidadRepository.findAll().stream()
+                .filter(unidad -> tipoUnidad == null || unidad.getTipo() == tipoUnidad)
+                .filter(unidad -> coincideCodigoUnidad(unidad, codigoUnidadNormalizado))
+                .sorted(Comparator.comparing(Unidad::getCodigo, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    private boolean coincideCodigoUnidad(Unidad unidad, String codigoUnidadNormalizado) {
+        if (codigoUnidadNormalizado == null) {
+            return true;
+        }
+        if (contieneIgnoreCase(unidad.getCodigo(), codigoUnidadNormalizado)) {
+            return true;
+        }
+        if (unidad.getHabitaciones() == null) {
+            return false;
+        }
+        return unidad.getHabitaciones().stream()
+                .map(Habitacion::getCodigo)
+                .anyMatch(codigo -> contieneIgnoreCase(codigo, codigoUnidadNormalizado));
+    }
+
+    private String normalizarTexto(String valor) {
+        if (valor == null) {
+            return null;
+        }
+        String normalizado = valor.trim();
+        return normalizado.isEmpty() ? null : normalizado.toLowerCase();
+    }
+
+    private boolean contieneIgnoreCase(String valor, String patronMinuscula) {
+        return valor != null && patronMinuscula != null && valor.toLowerCase().contains(patronMinuscula);
+    }
+
+    private AcumuladorUnidadCalendario crearAcumuladorUnidad(Unidad unidad) {
+        UnidadDTO unidadDTO = UnidadMapper.entityToDto(unidad);
+        Map<Long, AcumuladorHabitacionCalendario> habitaciones = new LinkedHashMap<>();
+        if (unidad.getHabitaciones() != null) {
+            unidad.getHabitaciones().stream()
+                    .sorted(Comparator.comparing(Habitacion::getCodigo, String.CASE_INSENSITIVE_ORDER))
+                    .forEach(habitacion -> habitaciones.put(
+                            habitacion.getId(),
+                            new AcumuladorHabitacionCalendario(HabitacionMapper.entityToDto(habitacion))));
+        }
+        return new AcumuladorUnidadCalendario(unidadDTO, habitaciones);
+    }
+
+    private void agregarReservaPorHabitaciones(
+            Map<Long, AcumuladorUnidadCalendario> acumuladores,
+            ReservaDTO reservaDTO,
+            List<Habitacion> habitaciones) {
+        if (habitaciones == null || habitaciones.isEmpty()) {
+            return;
+        }
+
+        for (Habitacion habitacion : habitaciones) {
+            AcumuladorUnidadCalendario unidadAcumulada = acumuladores.get(habitacion.getUnidad().getId());
+            if (unidadAcumulada == null) {
+                continue;
+            }
+
+            unidadAcumulada.reservas().putIfAbsent(reservaDTO.getId(), reservaDTO);
+            AcumuladorHabitacionCalendario habitacionAcumulada = unidadAcumulada.habitaciones().get(habitacion.getId());
+            if (habitacionAcumulada != null) {
+                habitacionAcumulada.reservas().putIfAbsent(reservaDTO.getId(), reservaDTO);
+            }
+        }
+    }
+
+    private void agregarEstanciaPorHabitaciones(
+            Map<Long, AcumuladorUnidadCalendario> acumuladores,
+            EstanciaDTO estanciaDTO,
+            List<Habitacion> habitaciones) {
+        if (habitaciones == null || habitaciones.isEmpty()) {
+            return;
+        }
+
+        for (Habitacion habitacion : habitaciones) {
+            AcumuladorUnidadCalendario unidadAcumulada = acumuladores.get(habitacion.getUnidad().getId());
+            if (unidadAcumulada == null) {
+                continue;
+            }
+
+            unidadAcumulada.estancias().putIfAbsent(estanciaDTO.getId(), estanciaDTO);
+            AcumuladorHabitacionCalendario habitacionAcumulada = unidadAcumulada.habitaciones().get(habitacion.getId());
+            if (habitacionAcumulada != null) {
+                habitacionAcumulada.estancias().putIfAbsent(estanciaDTO.getId(), estanciaDTO);
+            }
+        }
+    }
+
+    private DetalleCalendarioUnidadDTO toDetalleCalendarioUnidadDTO(AcumuladorUnidadCalendario acumulador) {
+        DetalleCalendarioUnidadDTO dto = new DetalleCalendarioUnidadDTO();
+        dto.setUnidad(acumulador.unidad());
+        dto.setReservas(new ArrayList<>(acumulador.reservas().values()));
+        dto.setEstancias(new ArrayList<>(acumulador.estancias().values()));
+        dto.setHabitaciones(acumulador.habitaciones().values().stream()
+                .map(this::toDetalleCalendarioHabitacionDTO)
+                .toList());
+        return dto;
+    }
+
+    private DetalleCalendarioHabitacionDTO toDetalleCalendarioHabitacionDTO(
+            AcumuladorHabitacionCalendario acumulador) {
+        DetalleCalendarioHabitacionDTO dto = new DetalleCalendarioHabitacionDTO();
+        dto.setHabitacion(acumulador.habitacion());
+        dto.setReservas(new ArrayList<>(acumulador.reservas().values()));
+        dto.setEstancias(new ArrayList<>(acumulador.estancias().values()));
+        return dto;
+    }
+
+    private record AcumuladorUnidadCalendario(
+            UnidadDTO unidad,
+            Map<Long, ReservaDTO> reservas,
+            Map<Long, EstanciaDTO> estancias,
+            Map<Long, AcumuladorHabitacionCalendario> habitaciones) {
+        private AcumuladorUnidadCalendario(
+                UnidadDTO unidad,
+                Map<Long, AcumuladorHabitacionCalendario> habitaciones) {
+            this(unidad, new LinkedHashMap<>(), new LinkedHashMap<>(), habitaciones);
+        }
+    }
+
+    private record AcumuladorHabitacionCalendario(
+            HabitacionDTO habitacion,
+            Map<Long, ReservaDTO> reservas,
+            Map<Long, EstanciaDTO> estancias) {
+        private AcumuladorHabitacionCalendario(HabitacionDTO habitacion) {
+            this(habitacion, new LinkedHashMap<>(), new LinkedHashMap<>());
+        }
+    }
+
+
 
     @Transactional(readOnly = true)
     public DashboardResumenDTO obtenerDashboardResumen(LocalDateTime desde, LocalDateTime hasta) {
@@ -330,71 +452,17 @@ public class DetalleService {
 
     private List<EstadoReserva> normalizarEstadosReserva(List<EstadoReserva> estadosReserva) {
         if (estadosReserva == null || estadosReserva.isEmpty()) {
-            return List.of(EstadoReserva.CONFIRMADA);
+            return List.of();
         }
         return estadosReserva;
     }
 
-    private List<EstadoEstancia> normalizarEstadosEstancia(
-            List<EstadoEstancia> estadosEstancia,
-            boolean filtroSeleccionado) {
+    private List<EstadoEstancia> normalizarEstadosEstancia(List<EstadoEstancia> estadosEstancia) {
         if (estadosEstancia == null || estadosEstancia.isEmpty()) {
-            return List.of(EstadoEstancia.ACTIVA, EstadoEstancia.EXCEDIDA);
+            return List.of();
         }
 
-        List<EstadoEstancia> filtrados = estadosEstancia.stream()
-                .filter(estado -> estado != EstadoEstancia.RESERVADA)
-                .toList();
-
-        if (filtrados.isEmpty()) {
-            return filtroSeleccionado ? List.of() : List.of(EstadoEstancia.ACTIVA, EstadoEstancia.EXCEDIDA);
-        }
-
-        return filtrados;
-    }
-
-    private List<ReservaCalendarioDTO> llenarTipoYCodigoUnidadReserva(
-            List<ReservaCalendarioDTO> reservas,
-            List<Reserva> reservaEntities) {
-        Map<Long, Reserva> reservasPorId = reservaEntities.stream()
-                .collect(Collectors.toMap(Reserva::getId, Function.identity()));
-
-        for (ReservaCalendarioDTO reservaDto : reservas) {
-            Reserva reserva = reservasPorId.get(reservaDto.getId());
-            if (reserva == null) {
-                continue;
-            }
-            if (reserva.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
-                reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getCodigo());
-                reservaDto.setTipoUnidad(TipoUnidad.HABITACION);
-            } else {
-                reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getCodigo());
-                reservaDto.setTipoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getTipo());
-            }
-        }
-        return reservas;
-    }
-
-    private List<EstanciaCalendarioDTO> llenarTipoYCodigoUnidadEstancia(
-            List<EstanciaCalendarioDTO> estancias,
-            List<Estancia> estanciaEntities) {
-        Map<Long, Estancia> estanciasPorId = estanciaEntities.stream()
-                .collect(Collectors.toMap(Estancia::getId, Function.identity()));
-
-        for (EstanciaCalendarioDTO estanciaDto : estancias) {
-            Estancia estancia = estanciasPorId.get(estanciaDto.getId());
-            if (estancia == null) {
-                continue;
-            }
-            if (estancia.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
-                estanciaDto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getCodigo());
-                estanciaDto.setTipoUnidad(TipoUnidad.HABITACION.name());
-            } else {
-                estanciaDto.setCodigoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getCodigo());
-                estanciaDto.setTipoUnidad(estancia.getHabitaciones().getFirst().getUnidad().getTipo().name());
-            }
-        }
-        return estancias;
+        return estadosEstancia;
     }
 
     private void validarRangoFechas(LocalDateTime desde, LocalDateTime hasta) {

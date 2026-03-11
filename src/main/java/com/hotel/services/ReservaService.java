@@ -1,6 +1,5 @@
 package com.hotel.services;
 
-import com.hotel.dtos.reserva.ReservaCalendarioDTO;
 import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
@@ -266,17 +265,19 @@ public class ReservaService {
         return null;
     }
 
-    public List<ReservaCalendarioDTO> buscarReservasPorNumeroDocumento(String numeroDocumento) {
+    public List<ReservaDTO> buscarReservasPorNumeroDocumento(String numeroDocumento) {
         if (numeroDocumento == null || numeroDocumento.isBlank()) {
             throw new IllegalArgumentException("numeroDocumento es obligatorio");
         }
 
         List<Reserva> reservas = reservaRepository.findByCliente_NumeroDocumentoContainingIgnoreCaseAndEstadoIn(
                 numeroDocumento,
-                List.of(EstadoReserva.CONFIRMADA));
+                List.of(EstadoReserva.CONFIRMADA, EstadoReserva.EXPIRADA));
 
 
-        return llenarTipoYCodigoUnidad(ReservaMapper.entityListaToCalendarioDTOList(reservas));
+        return reservas.stream()
+                .map(ReservaMapper::entityToDTO)
+                .toList();
     }
 
     public Page<ReservaTablaDTO> buscarReservasTabla(
@@ -331,22 +332,6 @@ public class ReservaService {
         );
 
         return reservas.map(ReservaMapper::entityToTablaDTO);
-    }
-
-    private List<ReservaCalendarioDTO> llenarTipoYCodigoUnidad(List<ReservaCalendarioDTO> reservas) {
-        for (ReservaCalendarioDTO reservaDto : reservas) {
-            Reserva reserva = buscarPorId(reservaDto.getId());
-            if (reserva.getModoOcupacion() == ModoOcupacion.INDIVIDUAL) {
-                reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getCodigo());
-                reservaDto.setTipoUnidad(TipoUnidad.HABITACION);
-            } else {
-                reservaDto.setCodigoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getCodigo());
-                reservaDto.setTipoUnidad(reserva.getHabitaciones().getFirst().getUnidad().getTipo());
-            }
-        }
-        return reservas;
-
-
     }
 
 

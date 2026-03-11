@@ -1,261 +1,388 @@
-<section class="reserva">
-  <header class="reserva__header">
+<section class="calendario">
+  <header class="calendario__header">
     <div>
-      <h1>Calendario</h1>
-      <p>Calendario de reservas y estancias por unidad.</p>
-    </div>
-    <div class="reserva__header-acciones">
-      <button type="button" class="reserva__crear" (click)="irANuevaReserva()">
-        Crear reserva
-      </button>
-      <button type="button" class="reserva__buscar" (click)="abrirBusqueda()">
-        Buscar reserva
-      </button>
-      <span class="reserva__mes">{{ mesActivo }}</span>
+      <p class="calendario__eyebrow">Recepcion · Calendario</p>
+      <h1>Calendario operativo</h1>
+      <p>Gestiona la ocupacion diaria por unidad y habitacion, con acciones rapidas de reserva y estancia.</p>
     </div>
   </header>
 
-  <div class="reserva__panel">
-    <aside class="reserva__filtros">
+  <section class="calendario__filters">
+    <div class="calendario__filters-head">
+      <h2>Filtros de busqueda</h2>
+      <p>Filtra por unidad, codigo y estados para enfocar el calendario operativo.</p>
+    </div>
+
+    <div class="calendario__filters-grid calendario__filters-grid--principal">
       <div class="campo">
         <label>Tipo de unidad</label>
         <select [(ngModel)]="filtroTipoUnidad" name="filtroTipoUnidad" (ngModelChange)="aplicarFiltros()">
-          <option *ngFor="let tipo of tiposUnidad" [ngValue]="tipo.value">
-            {{ tipo.label }}
-          </option>
+          <option *ngFor="let tipo of tiposUnidad" [ngValue]="tipo.value">{{ tipo.label }}</option>
         </select>
       </div>
 
       <div class="campo">
-        <label>Codigo de unidad</label>
+        <label>Codigo</label>
         <input
           type="text"
           [(ngModel)]="filtroCodigo"
           name="filtroCodigo"
-          placeholder="Ej: 101"
+          placeholder="Unidad o habitacion"
           (ngModelChange)="onFiltroCodigoChange()"
         />
       </div>
 
-      <div class="campo campo--checks">
-        <label>Estados de reserva</label>
-        <div class="checks">
-          <label *ngFor="let estado of estadosReserva" class="check">
-            <input
-              type="checkbox"
-              [checked]="estaEstadoReservaSeleccionado(estado)"
-              (change)="toggleEstadoReserva(estado, $any($event.target).checked)"
-            />
-            <span>{{ formatearEtiqueta(estado) }}</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="campo campo--checks">
-        <label>Estados de estancia</label>
-        <div class="checks">
-          <label *ngFor="let estado of estadosEstancia" class="check">
-            <input
-              type="checkbox"
-              [checked]="estaEstadoEstanciaSeleccionado(estado)"
-              (change)="toggleEstadoEstancia(estado, $any($event.target).checked)"
-            />
-            <span>{{ formatearEtiqueta(estado) }}</span>
-          </label>
-        </div>
-      </div>
-
-      <div class="reserva__acciones">
-        <button type="button" class="btn-secundario" (click)="limpiarFiltros()" [disabled]="cargando">
-          Limpiar
-        </button>
-      </div>
-
-      <div class="reserva__leyenda">
-        <span class="reserva__tag reserva__tag--reserva">Reserva</span>
-        <span class="reserva__tag reserva__tag--estancia">Estancia</span>
-      </div>
-
-      <p class="estado estado--error" *ngIf="error">{{ error }}</p>
-    </aside>
-
-    <div class="reserva__calendario">
-      <full-calendar [options]="calendarioOpciones" [events]="eventos"></full-calendar>
-    </div>
-  </div>
-
-  <div class="modal" *ngIf="reservaSeleccionada as reserva">
-    <div class="modal__backdrop" (click)="cerrarDetalle()"></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
-      <header class="modal__header">
-        <div>
-          <h2>Detalle de reserva</h2>
-          <p>Informacion general de la reserva seleccionada.</p>
-        </div>
-        <button type="button" class="modal__cerrar" (click)="cerrarDetalle()">Cerrar</button>
-      </header>
-
-      <div class="reserva-modal__grid">
-        <div>
-          <span class="reserva-modal__label">Codigo de reserva</span>
-          <strong>{{ reserva.codigoReserva || 'Reserva ' + reserva.id }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Estado</span>
-          <span class="reserva-modal__estado reserva-modal__estado--{{ reserva.estadoReserva.toLowerCase() }}">
-            {{ formatearEtiqueta(reserva.estadoReserva) }}
-          </span>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Tipo de unidad</span>
-          <strong>{{ formatearEtiqueta(reserva.tipoUnidad) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Codigo de unidad</span>
-          <strong>{{ reserva.codigoUnidad || '-' }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Cliente</span>
-          <strong>{{ reserva.nombreCliente || '-' }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Total personas</span>
-          <strong>{{ reserva.numeroPersonas ?? '-' }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Inicio</span>
-          <strong>{{ formatearFecha(reserva.inicio) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Fin</span>
-          <strong>{{ formatearFecha(reserva.fin) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Total pagado</span>
-          <strong>{{ (reserva.totalAnticipo ?? 0) | currency: 'COP' : 'symbol' : '1.0-0' }}</strong>
-        </div>
-      </div>
-
-      <div class="reserva-modal__acciones">
-        <button type="button" class="reserva-modal__btn-ingreso" (click)="darIngreso(reserva)">
-          Dar ingreso
+      <div class="calendario__filters-actions">
+        <button type="button" class="btn btn--ghost" (click)="limpiarFiltros()" [disabled]="cargando">
+          Limpiar filtros
         </button>
       </div>
     </div>
-  </div>
 
-  <div class="modal" *ngIf="estanciaSeleccionada as estancia">
-    <div class="modal__backdrop" (click)="cerrarDetalle()"></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
-      <header class="modal__header">
-        <div>
-          <h2>Detalle de estancia</h2>
-          <p>Informacion general de la estancia seleccionada.</p>
+    <div class="calendario__filters-grid calendario__filters-grid--estados">
+      <div class="calendario__chips-card">
+        <div class="campo">
+          <label>Estados de reserva</label>
+          <div class="checks checks--chips">
+            <button
+              type="button"
+              class="check check--chip-toggle"
+              *ngFor="let estado of estadosReserva"
+              [class.check--chip-active]="estaEstadoReservaSeleccionado(estado)"
+              (click)="toggleEstadoReserva(estado, !estaEstadoReservaSeleccionado(estado))"
+            >
+              <span>{{ formatearEtiqueta(estado) }}</span>
+            </button>
+          </div>
         </div>
-        <button type="button" class="modal__cerrar" (click)="cerrarDetalle()">Cerrar</button>
-      </header>
+      </div>
 
-      <div class="reserva-modal__grid">
-        <div>
-          <span class="reserva-modal__label">Codigo de estancia</span>
-          <strong>{{ estancia.codigoEstancia || 'Estancia ' + estancia.id }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Estado</span>
-          <span class="reserva-modal__estado reserva-modal__estado--{{ estancia.estadoEstancia.toLowerCase() }}">
-            {{ formatearEtiqueta(estancia.estadoEstancia) }}
-          </span>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Tipo de unidad</span>
-          <strong>{{ formatearEtiqueta(estancia.tipoUnidad) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Codigo de unidad</span>
-          <strong>{{ estancia.codigoUnidad || '-' }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Cliente</span>
-          <strong>{{ estancia.nombreCliente || '-' }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Total personas</span>
-          <strong>{{ estancia.numeroPersonas ?? '-' }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Inicio</span>
-          <strong>{{ formatearFecha(estancia.inicio) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Fin</span>
-          <strong>{{ formatearFecha(estancia.fin) }}</strong>
-        </div>
-        <div>
-          <span class="reserva-modal__label">Total pagado</span>
-          <strong>{{ (estancia.totalPagado ?? 0) | currency: 'COP' : 'symbol' : '1.0-0' }}</strong>
+      <div class="calendario__chips-card">
+        <div class="campo">
+          <label>Estados de estancia</label>
+          <div class="checks checks--chips">
+            <button
+              type="button"
+              class="check check--chip-toggle"
+              *ngFor="let estado of estadosEstancia"
+              [class.check--chip-active]="estaEstadoEstanciaSeleccionado(estado)"
+              (click)="toggleEstadoEstancia(estado, !estaEstadoEstanciaSeleccionado(estado))"
+            >
+              <span>{{ formatearEtiqueta(estado) }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <div class="modal" *ngIf="modalBusquedaAbierta">
-    <div class="modal__backdrop" (click)="cerrarBusqueda()"></div>
-    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
-      <header class="modal__header">
-        <div>
-          <h2>Buscar reserva</h2>
-          <p>Ingresa el numero de documento para encontrar reservas activas.</p>
+    <div class="calendario__filters-summary">
+      <span class="filtro-chip" *ngIf="filtroTipoUnidad">
+        Tipo: {{ formatearEtiqueta(filtroTipoUnidad) }}
+      </span>
+      <span class="filtro-chip" *ngIf="filtroCodigo.trim()">
+        Codigo: {{ filtroCodigo.trim() }}
+      </span>
+      <span class="filtro-chip" *ngIf="filtroEstadosReserva.length">
+        Reserva: {{ filtroEstadosReserva.length }}
+      </span>
+      <span class="filtro-chip" *ngIf="filtroEstadosEstancia.length">
+        Estancia: {{ filtroEstadosEstancia.length }}
+      </span>
+
+      <span class="calendario__filters-note calendario__filters-note--active" *ngIf="!usaEstadosPorDefecto">
+        Estados personalizados activos.
+      </span>
+      <span class="calendario__filters-count" *ngIf="totalFiltrosActivos">
+        {{ totalFiltrosActivos }} filtro(s) activo(s)
+      </span>
+    </div>
+  </section>
+
+  <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+  <p class="estado" *ngIf="cargando">Cargando calendario...</p>
+
+  <section class="calendario__board" *ngIf="!cargando">
+    <div class="calendario__toolbar">
+      <div class="calendario__toolbar-spacer" aria-hidden="true"></div>
+
+      <div class="calendario__week-nav calendario__week-nav--board">
+        <button type="button" class="btn btn--ghost" (click)="irSemanaAnterior()">&lt;</button>
+        <span>{{ rangoSemanaTexto }}</span>
+        <button type="button" class="btn btn--ghost" (click)="irSemanaSiguiente()">&gt;</button>
+        <button type="button" class="btn btn--ghost" (click)="irSemanaActual()">Hoy</button>
+      </div>
+
+      <div class="calendario__header-actions calendario__header-actions--toolbar">
+        <button
+          type="button"
+          class="btn btn--primary"
+          (click)="irANuevaReserva()"
+          [disabled]="!puedeCrearReservaDesdeSeleccion"
+        >
+          <i class="bi bi-calendar-plus btn__icon-font" aria-hidden="true"></i>
+          Crear reserva
+        </button>
+        <button
+          type="button"
+          class="btn btn--ghost"
+          (click)="irANuevaEstancia()"
+          [disabled]="!puedeAgregarEstanciaDesdeSeleccion"
+        >
+          <i class="bi bi-box-arrow-in-right btn__icon-font" aria-hidden="true"></i>
+          Agregar estancia
+        </button>
+      </div>
+    </div>
+
+    <div class="calendario__tables" *ngIf="filas.length; else sinDatos">
+      <div class="calendario__table calendario__table--units">
+        <div class="calendario__table-head calendario__board-label">Unidad / habitacion</div>
+        <div class="calendario__table-body">
+          <article
+            class="calendario__row-label calendario__row-label--table"
+            *ngFor="let fila of filas"
+            [class.calendario__row-label--habitacion]="fila.nivel === 'habitacion'"
+            [style.height.px]="alturaFilaPx(fila.id)"
+            [style.min-height.px]="alturaFilaPx(fila.id)"
+          >
+            <strong>{{ fila.nombre }}</strong>
+            <small>{{ fila.subtitulo }}</small>
+          </article>
         </div>
-        <button type="button" class="modal__cerrar" (click)="cerrarBusqueda()">Cerrar</button>
-      </header>
+      </div>
 
-      <form class="reserva-busqueda__form" (ngSubmit)="buscarReservasPorDocumento()">
-        <label for="busquedaDocumento">Numero de documento</label>
-        <div class="reserva-busqueda__input">
-          <input
-            id="busquedaDocumento"
-            type="text"
-            name="busquedaDocumento"
-            [(ngModel)]="busquedaDocumento"
-            placeholder="Ej: 10203040"
-          />
-          <button type="submit" [disabled]="busquedaCargando">Buscar</button>
+      <div class="calendario__table calendario__table--calendar" [style.--dias]="diasSemana.length">
+        <div class="calendario__table-head calendario__board-days">
+          <span class="calendario__day-head" *ngFor="let dia of diasSemana">{{ formatearDiaCabecera(dia) }}</span>
         </div>
-      </form>
-
-      <p class="estado" *ngIf="busquedaCargando">Buscando reservas...</p>
-      <p class="estado estado--error" *ngIf="busquedaError">{{ busquedaError }}</p>
-
-      <div class="reserva-busqueda__resultados" *ngIf="busquedaHecha && !busquedaCargando">
-        <p class="estado estado--ok" *ngIf="!busquedaReservas.length && !busquedaError">
-          No se encontraron reservas con ese documento.
-        </p>
-
-        <div class="reserva-busqueda__lista" *ngIf="busquedaReservas.length">
-          <article class="reserva-busqueda__item" *ngFor="let reserva of busquedaReservas">
-            <div class="reserva-busqueda__info">
-              <strong>{{ reserva.codigoUnidad || 'Unidad ' + reserva.id }}</strong>
-              <span>{{ formatearEtiqueta(reserva.tipoUnidad) }}</span>
-              <span>Cliente: {{ reserva.nombreCliente || '-' }}</span>
-              <span>
-                {{ formatearFecha(reserva.inicio) }} - {{ formatearFecha(reserva.fin) }}
-              </span>
-              <span class="reserva-modal__estado reserva-modal__estado--{{ reserva.estadoReserva.toLowerCase() }}">
-                {{ formatearEtiqueta(reserva.estadoReserva) }}
-              </span>
-            </div>
-            <div class="reserva-busqueda__acciones">
+        <div class="calendario__table-body">
+          <article
+            class="calendario__row-days calendario__row-days--table"
+            *ngFor="let fila of filas"
+            [style.height.px]="alturaFilaPx(fila.id)"
+            [style.min-height.px]="alturaFilaPx(fila.id)"
+          >
+            <div class="calendario__row-grid">
               <button
                 type="button"
-                class="reserva-busqueda__btn reserva-busqueda__btn--ghost"
-                (click)="verMasReserva(reserva)"
+                class="calendario__cell"
+                *ngFor="let dia of diasSemana"
+                [class.calendario__cell--selected]="estaCuadroSeleccionado(fila, dia)"
+                [class.calendario__cell--blocked]="esCuadroBloqueadoParaSeleccion(fila, dia)"
+                [class.calendario__cell--tooltip-visible]="mostrarTooltipSeleccion(fila, dia)"
+                [attr.data-tooltip]="
+                  estaCuadroSeleccionado(fila, dia)
+                    ? 'Seleccionado: ' + fila.nombre + ' · ' + formatearSoloFecha(dia)
+                    : null
+                "
+                [disabled]="esCuadroBloqueadoParaSeleccion(fila, dia)"
+                (click)="seleccionarCuadro(fila, dia)"
+              ></button>
+            </div>
+            <div class="calendario__segments-layer">
+              <button
+                type="button"
+                class="calendario__badge calendario__segment"
+                *ngFor="let segmento of obtenerSegmentosFila(fila.id)"
+                [class.calendario__badge--reserva]="segmento.registro.tipo === 'RESERVA'"
+                [class.calendario__badge--estancia]="segmento.registro.tipo === 'ESTANCIA'"
+                [class.calendario__badge--apartamento]="esBadgeAmarillo(segmento.registro, fila)"
+                [class.calendario__segment--readonly]="esBadgeAmarillo(segmento.registro, fila)"
+                [style.grid-column]="(segmento.inicioIndice + 1) + ' / ' + (segmento.finIndice + 2)"
+                [style.grid-row]="segmento.nivel + 1"
+                [attr.data-estado]="segmento.registro.estado"
+                [attr.title]="
+                  esBadgeAmarillo(segmento.registro, fila)
+                    ? null
+                    : segmento.registro.tipo +
+                      ' · ' +
+                      segmento.registro.etiqueta +
+                      ' · ' +
+                      formatearEtiqueta(segmento.registro.estado)
+                "
+                (click)="manejarClickSegmento(segmento.registro, fila)"
               >
-                Ver mas
+                {{ textoBadge(segmento.registro, fila, segmento.finIndice - segmento.inicioIndice + 1) }}
               </button>
             </div>
           </article>
         </div>
       </div>
     </div>
+  </section>
+
+  <ng-template #sinDatos>
+    <p class="estado estado--ok" *ngIf="mostrarMensajeSinDatos">
+      No hay reservas ni estancias para el rango seleccionado.
+    </p>
+  </ng-template>
+
+  <div class="modal" *ngIf="reservaSeleccionada as item">
+    <div class="modal__backdrop" (click)="cerrarDetalle()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header">
+        <div>
+          <h2>Detalle de reserva</h2>
+          <p>Informacion de la reserva seleccionada.</p>
+        </div>
+        <button type="button" class="btn btn--ghost" (click)="cerrarDetalle()">Cerrar</button>
+      </header>
+      <div class="modal__grid">
+        <ng-container *ngIf="item.mostrarResumenIndividualUnidad; else detalleReservaCompleto">
+          <div><span>Unidad</span><strong>{{ item.codigoUnidad || '-' }}</strong></div>
+          <div><span>Habitaciones afectadas</span><strong>{{ formatearHabitacionesAfectadas(item.habitacionesAfectadas) }}</strong></div>
+          <div><span>Hasta</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
+        </ng-container>
+        <ng-template #detalleReservaCompleto>
+        <div><span>Codigo</span><strong>{{ item.reserva?.codigoReserva || item.etiqueta }}</strong></div>
+        <div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div>
+        <div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div>
+        <div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div>
+        <div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div>
+        <div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div>
+        <div><span>Inicio</span><strong>{{ formatearFecha(item.inicio) }}</strong></div>
+        <div><span>Fin</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
+        </ng-template>
+      </div>
+
+      <div class="modal__actions modal__actions--split" *ngIf="!item.mostrarResumenIndividualUnidad && puedeGestionarReservaModal(item)">
+        <button
+          type="button"
+          class="btn btn--danger"
+          [disabled]="eliminandoReserva"
+          (click)="eliminarReservaDesdeModal(item)"
+        >
+          <i class="bi bi-trash btn__icon-font" aria-hidden="true"></i>
+          Eliminar
+        </button>
+        <div class="modal__actions-inline">
+          <button
+            type="button"
+            class="btn btn--ghost"
+            [disabled]="eliminandoReserva"
+            (click)="editarReservaDesdeModal(item)"
+          >
+            <i class="bi bi-pencil-square btn__icon-font" aria-hidden="true"></i>
+            Editar
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="eliminandoReserva"
+            (click)="darEntradaReservaDesdeModal(item)"
+          >
+            <i class="bi bi-box-arrow-in-right btn__icon-font" aria-hidden="true"></i>
+            Dar entrada
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <div class="modal" *ngIf="estanciaSeleccionada as item">
+    <div class="modal__backdrop" (click)="cerrarDetalle()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header">
+        <div>
+          <h2>Detalle de estancia</h2>
+          <p>Informacion de la estancia seleccionada.</p>
+        </div>
+        <button type="button" class="btn btn--ghost" (click)="cerrarDetalle()">Cerrar</button>
+      </header>
+      <div class="modal__grid">
+        <ng-container *ngIf="item.mostrarResumenIndividualUnidad; else detalleEstanciaCompleto">
+          <div><span>Unidad</span><strong>{{ item.codigoUnidad || '-' }}</strong></div>
+          <div><span>Habitaciones afectadas</span><strong>{{ formatearHabitacionesAfectadas(item.habitacionesAfectadas) }}</strong></div>
+          <div><span>Hasta</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
+        </ng-container>
+        <ng-template #detalleEstanciaCompleto>
+        <div><span>Codigo</span><strong>{{ item.estancia?.codigoFolio || item.etiqueta }}</strong></div>
+        <div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div>
+        <div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div>
+        <div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div>
+        <div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div>
+        <div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div>
+        <div><span>Inicio</span><strong>{{ formatearFecha(item.inicio) }}</strong></div>
+        <div><span>Fin</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
+        </ng-template>
+      </div>
+
+      <div class="modal__actions modal__actions--split" *ngIf="!item.mostrarResumenIndividualUnidad && puedeGestionarEstanciaModal(item)">
+        <button
+          type="button"
+          class="btn btn--danger"
+          [disabled]="eliminandoEstancia"
+          (click)="eliminarEstanciaDesdeModal(item)"
+        >
+          <i class="bi bi-trash btn__icon-font" aria-hidden="true"></i>
+          Eliminar
+        </button>
+        <div class="modal__actions-inline">
+          <button
+            type="button"
+            class="btn btn--ghost"
+            [disabled]="eliminandoEstancia"
+            (click)="editarEstanciaDesdeModal(item)"
+          >
+            <i class="bi bi-pencil-square btn__icon-font" aria-hidden="true"></i>
+            Editar
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="eliminandoEstancia"
+            (click)="darSalidaDesdeModal(item)"
+          >
+            <i class="bi bi-box-arrow-in-right btn__icon-font" aria-hidden="true"></i>
+            Dar salida
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal modal--recepcion" *ngIf="mostrarModalEliminarEstancia">
+    <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalEliminarEstancia()"></div>
+    <div class="modal__panel modal__panel--recepcion modal__panel--confirm" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header modal__header--recepcion">
+        <div>
+          <p class="modal__eyebrow">Calendario operativo</p>
+          <h2>Eliminar estancia</h2>
+          <p>Se eliminara la estancia seleccionada. Esta accion no se puede deshacer.</p>
+        </div>
+      </header>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="cerrarModalEliminarEstancia()" [disabled]="eliminandoEstancia">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn--danger" (click)="confirmarEliminarEstanciaDesdeModal()" [disabled]="eliminandoEstancia">
+          {{ eliminandoEstancia ? 'Eliminando...' : 'Eliminar estancia' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal modal--recepcion" *ngIf="mostrarModalEliminarReserva">
+    <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalEliminarReserva()"></div>
+    <div class="modal__panel modal__panel--recepcion modal__panel--confirm" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+      <header class="modal__header modal__header--recepcion">
+        <div>
+          <p class="modal__eyebrow">Calendario operativo</p>
+          <h2>Eliminar reserva</h2>
+          <p>Se eliminara la reserva seleccionada. Esta accion no se puede deshacer.</p>
+        </div>
+      </header>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" (click)="cerrarModalEliminarReserva()" [disabled]="eliminandoReserva">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn--danger" (click)="confirmarEliminarReservaDesdeModal()" [disabled]="eliminandoReserva">
+          {{ eliminandoReserva ? 'Eliminando...' : 'Eliminar reserva' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
 </section>

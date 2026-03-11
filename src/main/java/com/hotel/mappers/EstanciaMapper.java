@@ -1,6 +1,5 @@
 package com.hotel.mappers;
 
-import com.hotel.dtos.estancia.EstanciaCalendarioDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.estancia.EstanciaRequestDTO;
 import com.hotel.dtos.estancia.EstanciaTablaDTO;
@@ -8,7 +7,6 @@ import com.hotel.models.Estancia;
 import com.hotel.models.Ocupante;
 import com.hotel.models.Pago;
 import com.hotel.models.enums.*;
-
 import java.math.BigDecimal;
 
 public class EstanciaMapper {
@@ -31,48 +29,14 @@ public class EstanciaMapper {
         dto.setCodigoFolio(entity.getCodigoFolio());
         dto.setEntradaReal(entity.getEntradaReal());
         dto.setSalidaEstimada(entity.getSalidaEstimada());
+        dto.setSalidaReal(entity.getSalidaReal());
+        dto.setEstado(entity.getEstado());
         dto.setModoOcupacion(entity.getModoOcupacion());
         dto.setNotas(entity.getNotas());
         dto.setOcupantes(OcupanteMapper.listaOcupanteToDto(entity.getOcupantes()));
         if(entity.getPagos() != null) {
             dto.setPagos(PagoMapper.entityListToDTOListConCodigos(entity.getPagos()));
         }
-
-        return dto;
-    }
-
-    public static EstanciaCalendarioDTO entityToCalendarioDTO(Estancia estancia) {
-        EstanciaCalendarioDTO dto = new EstanciaCalendarioDTO();
-
-        dto.setId(estancia.getId());
-        dto.setInicio(estancia.getEntradaReal());
-        if(estancia.getSalidaReal() != null) {
-            dto.setFin(estancia.getSalidaReal());
-        } else {
-            dto.setFin(estancia.getSalidaEstimada());
-        }
-        dto.setCodigoEstancia(estancia.getCodigoFolio());
-        dto.setNumeroPersonas(estancia.getOcupantes().size());
-        dto.setNombreCliente(estancia.getOcupantes().stream()
-                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
-                .findFirst()
-                .map(ocupante -> ocupante.getNombres() + " " + ocupante.getApellidos())
-                .orElse("Cliente sin nombre"));
-
-        dto.setIdCliente(estancia.getOcupantes().stream()
-                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
-                .findFirst()
-                .map(Ocupante::getId)
-                .orElse(null));
-
-        if (estancia.getPagos() != null) {
-            dto.setTotalPagado(estancia.getPagos().stream()
-                    .filter(pago -> pago.getTipoPago() == TipoPago.ANTICIPO_ESTANCIA
-                            || pago.getTipoPago() == TipoPago.ESTANCIA_COMPLETADA)
-                    .map(Pago::getMonto)
-                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add));
-        }
-        dto.setEstadoEstancia(estancia.getEstado());
 
         return dto;
     }

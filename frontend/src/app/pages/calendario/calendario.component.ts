@@ -1,72 +1,109 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, ViewEncapsulation } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { FullCalendarModule } from '@fullcalendar/angular';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import {
-  CalendarOptions,
-  DatesSetArg,
-  DayCellContentArg,
-  DayCellMountArg,
-  EventInput,
-} from '@fullcalendar/core';
 
-import { ReservaService } from '../../services/reserva.service';
-import { ReservaCalendarioDTO } from '../../models/reserva-calendario.model';
-import { EstanciaCalendarioDTO, ReservaCalendarioResumenDTO } from '../../models/detalle-calendario.model';
+import { DetalleCalendarioUnidadDTO } from '../../models/detalle-calendario.model';
+import { EstanciaDTO } from '../../models/estancia-detalle.model';
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../../models/enums';
+import { ReservaDTO } from '../../models/reserva.model';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
+import { EstanciaService } from '../../services/estancia.service';
+import { ReservaService } from '../../services/reserva.service';
 
-type TipoRegistroCalendario = 'reserva' | 'estancia';
+type TipoRegistro = 'RESERVA' | 'ESTANCIA';
 
-interface RegistroCalendarioDia {
+interface CalendarioRegistroView {
   id: number;
-  tipo: TipoRegistroCalendario;
+  tipo: TipoRegistro;
+  etiqueta: string;
+  estado: string;
+  modoOcupacion?: string | null;
   inicio: string;
   fin: string;
-  codigoUnidad: string | null;
+  codigoUnidad: string;
+  codigoHabitacion?: string | null;
+  tipoUnidad: TipoUnidad | null;
   numeroPersonas: number | null;
-  estado: string;
+  nombreCliente: string | null;
+  idCliente: number | null;
+  mostrarResumenIndividualUnidad?: boolean;
+  habitacionesAfectadas?: string[];
+  reserva?: ReservaDTO;
+  estancia?: EstanciaDTO;
+}
+
+interface CalendarioFilaView {
+  id: string;
+  nombre: string;
+  subtitulo: string;
+  tipoUnidad: TipoUnidad | null;
+  nivel: 'unidad' | 'habitacion';
+  esHabitacionDeApartamento: boolean;
+  registros: CalendarioRegistroView[];
+  informacionAdicional: string | null;
+}
+
+interface CalendarioSegmentoView {
+  registro: CalendarioRegistroView;
+  inicioIndice: number;
+  finIndice: number;
+  nivel: number;
+}
+
+interface CalendarioSeleccion {
+  filaId: string;
+  dia: string;
 }
 
 @Component({
   selector: 'app-calendario',
   standalone: true,
-  imports: [CommonModule, FormsModule, FullCalendarModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './calendario.component.html',
   styleUrl: './calendario.component.css',
-  encapsulation: ViewEncapsulation.None,
 })
 export class CalendarioComponent implements OnInit {
-  reservas: ReservaCalendarioDTO[] = [];
-  estancias: EstanciaCalendarioDTO[] = [];
-  reservaSeleccionada: ReservaCalendarioDTO | null = null;
-  estanciaSeleccionada: EstanciaCalendarioDTO | null = null;
+  private readonly diasVisibles = 15;
+  private readonly margenPrefetchDias = 21;
+  private readonly estadosReservaPorDefecto: EstadoReserva[] = ['CONFIRMADA', 'EXPIRADA'];
+  private readonly estadosEstanciaPorDefecto: EstadoEstancia[] = ['ACTIVA', 'EXCEDIDA'];
+
   cargando = false;
   error = '';
-  modalBusquedaAbierta = false;
-  busquedaDocumento = '';
-  busquedaReservas: ReservaCalendarioDTO[] = [];
-  busquedaCargando = false;
-  busquedaError = '';
-  busquedaHecha = false;
 
-  private readonly maxUnidadesPorDia = 13;
-  private registrosPorDia = new Map<string, Map<string, RegistroCalendarioDia>>();
-  private filtroCodigoTimeout: ReturnType<typeof setTimeout> | null = null;
+  filas: CalendarioFilaView[] = [];
+  private registrosPorFilaDia = new Map<string, Map<string, CalendarioRegistroView[]>>();
+  private segmentosPorFila = new Map<string, CalendarioSegmentoView[]>();
+  private detalleCache: DetalleCalendarioUnidadDTO[] = [];
+  private cacheDesde: Date | null = null;
+  private cacheHasta: Date | null = null;
+  private cacheClaveFiltros = '';
+  seleccion: CalendarioSeleccion | null = null;
+  tooltipSeleccionVisible: CalendarioSeleccion | null = null;
+  private tooltipSeleccionTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  semanaInicio = this.inicioDelDia(new Date());
 
   filtroTipoUnidad: TipoUnidad | '' = '';
   filtroCodigo = '';
-  filtroEstadosReserva: EstadoReserva[] = [];
-  filtroEstadosEstancia: EstadoEstancia[] = [];
+  filtroEstadosReserva: EstadoReserva[] = [...this.estadosReservaPorDefecto];
+  filtroEstadosEstancia: EstadoEstancia[] = [...this.estadosEstanciaPorDefecto];
 
-  mesActivo = this.formatearMes(new Date());
-  eventos: EventInput[] = [];
+  reservaSeleccionada: CalendarioRegistroView | null = null;
+  estanciaSeleccionada: CalendarioRegistroView | null = null;
+
+  private filtroCodigoTimeout: ReturnType<typeof setTimeout> | null = null;
+  eliminandoEstancia = false;
+  mostrarModalEliminarEstancia = false;
+  estanciaPendienteEliminar: CalendarioRegistroView | null = null;
+  eliminandoReserva = false;
+  mostrarModalEliminarReserva = false;
+  reservaPendienteEliminar: CalendarioRegistroView | null = null;
 
   tiposUnidad = [
     { label: 'Todas', value: '' as const },
-    { label: 'Unidad', value: 'APARTAMENTO' as TipoUnidad },
+    { label: 'Apartamento', value: 'APARTAMENTO' as TipoUnidad },
     { label: 'Apartaestudio', value: 'APARTAESTUDIO' as TipoUnidad },
     { label: 'Habitacion', value: 'HABITACION' as TipoUnidad },
   ];
@@ -74,59 +111,134 @@ export class CalendarioComponent implements OnInit {
   readonly estadosReserva: EstadoReserva[] = ['CONFIRMADA', 'CANCELADA', 'COMPLETADA', 'EXPIRADA'];
   readonly estadosEstancia: EstadoEstancia[] = [
     'ACTIVA',
-    'RESERVADA',
     'FINALIZADA',
     'EXCEDIDA',
     'CANCELADA',
   ];
 
-  calendarioOpciones: CalendarOptions = {
-    plugins: [dayGridPlugin],
-    initialView: 'dayGridMonth',
-    fixedWeekCount: false,
-    contentHeight: 'auto',
-    eventDisplay: 'none',
-    locale: 'es',
-    headerToolbar: {
-      left: 'prev,next today',
-      center: 'title',
-      right: '',
-    },
-    eventClassNames: (arg) => {
-      const estado = (arg.event.extendedProps as { estado?: EstadoReserva }).estado;
-      return estado ? [`reserva-evento--${estado.toLowerCase()}`] : [];
-    },
-    dayCellContent: (arg: DayCellContentArg) => this.renderizarContenidoDia(arg),
-    dayCellDidMount: (arg: DayCellMountArg) => this.onDayCellDidMount(arg),
-    datesSet: (arg: DatesSetArg) => this.onDatesSet(arg),
-  };
-
   constructor(
     private readonly reservaService: ReservaService,
+    private readonly estanciaService: EstanciaService,
     private readonly router: Router,
   ) {}
 
   ngOnInit(): void {
-    this.cargarReservasMes(this.mesActivo);
+    this.cargarCalendarioSemana();
   }
 
-  irANuevaReserva(): void {
-    this.router.navigate(['/reservas/nueva'], {
-      state: { returnTo: this.router.url },
+  get diasSemana(): Date[] {
+    return Array.from({ length: this.diasVisibles }, (_, index) => {
+      const dia = new Date(this.semanaInicio);
+      dia.setDate(dia.getDate() + index);
+      return dia;
     });
   }
 
-  onDatesSet(event: DatesSetArg): void {
-    const fecha = event.view.currentStart;
-    const nuevoMes = this.formatearMes(fecha);
-    if (nuevoMes !== this.mesActivo) {
-      this.mesActivo = nuevoMes;
-      this.cargarReservasMes(this.mesActivo);
+  get rangoSemanaTexto(): string {
+    const inicio = this.formatearSoloFecha(this.semanaInicio);
+    const fin = this.formatearSoloFecha(this.diasSemana[this.diasSemana.length - 1]);
+    return `${inicio} - ${fin}`;
+  }
+
+  irANuevaReserva(): void {
+    const prefill = this.obtenerPrefillSeleccion();
+    this.router.navigate(['/reservas/nueva'], {
+      state: {
+        returnTo: this.router.url,
+        codigo: prefill?.codigo,
+        tipo: prefill?.tipo,
+        entrada: prefill?.entrada,
+      },
+    });
+  }
+
+  irANuevaEstancia(): void {
+    const prefill = this.obtenerPrefillSeleccion();
+    this.router.navigate(['/estancias/nueva'], {
+      state: {
+        returnTo: this.router.url,
+        codigo: prefill?.codigo,
+        tipo: prefill?.tipo,
+        entrada: prefill?.entrada,
+      },
+    });
+  }
+
+  seleccionarCuadro(fila: CalendarioFilaView, dia: Date): void {
+    if (this.esCuadroBloqueadoParaSeleccion(fila, dia)) {
+      return;
     }
+
+    const diaFormateado = this.formatearDia(dia);
+    if (this.seleccion?.filaId === fila.id && this.seleccion?.dia === diaFormateado) {
+      this.seleccion = null;
+      this.ocultarTooltipSeleccion();
+      return;
+    }
+
+    this.seleccion = {
+      filaId: fila.id,
+      dia: diaFormateado,
+    };
+    this.mostrarTooltipSeleccionTemporal(fila.id, diaFormateado);
+  }
+
+  estaCuadroSeleccionado(fila: CalendarioFilaView, dia: Date): boolean {
+    if (!this.seleccion) {
+      return false;
+    }
+
+    return this.seleccion.filaId === fila.id && this.seleccion.dia === this.formatearDia(dia);
+  }
+
+  mostrarTooltipSeleccion(fila: CalendarioFilaView, dia: Date): boolean {
+    if (!this.tooltipSeleccionVisible) {
+      return false;
+    }
+
+    return (
+      this.tooltipSeleccionVisible.filaId === fila.id &&
+      this.tooltipSeleccionVisible.dia === this.formatearDia(dia)
+    );
+  }
+
+  esCuadroBloqueadoParaSeleccion(fila: CalendarioFilaView, dia: Date): boolean {
+    const diaFormateado = this.formatearDia(dia);
+    const registrosDia = this.registrosPorFilaDia.get(fila.id)?.get(diaFormateado) ?? [];
+
+    return registrosDia.some((registro) => {
+      const estado = registro.estado?.toUpperCase?.() ?? '';
+      if (registro.tipo === 'ESTANCIA') {
+        return estado === 'ACTIVA' || estado === 'EXCEDIDA';
+      }
+      if (registro.tipo === 'RESERVA') {
+        return estado === 'CONFIRMADA' || estado === 'EXPIRADA';
+      }
+      return false;
+    });
+  }
+
+  irSemanaAnterior(): void {
+    const nuevaFecha = new Date(this.semanaInicio);
+    nuevaFecha.setDate(nuevaFecha.getDate() - 1);
+    this.semanaInicio = nuevaFecha;
+    this.cargarCalendarioSemana();
+  }
+
+  irSemanaSiguiente(): void {
+    const nuevaFecha = new Date(this.semanaInicio);
+    nuevaFecha.setDate(nuevaFecha.getDate() + 1);
+    this.semanaInicio = nuevaFecha;
+    this.cargarCalendarioSemana();
+  }
+
+  irSemanaActual(): void {
+    this.semanaInicio = this.inicioDelDia(new Date());
+    this.cargarCalendarioSemana();
   }
 
   aplicarFiltros(): void {
-    this.cargarReservasMes(this.mesActivo);
+    this.cargarCalendarioSemana();
   }
 
   onFiltroCodigoChange(): void {
@@ -143,9 +255,9 @@ export class CalendarioComponent implements OnInit {
   limpiarFiltros(): void {
     this.filtroTipoUnidad = '';
     this.filtroCodigo = '';
-    this.filtroEstadosReserva = [];
-    this.filtroEstadosEstancia = [];
-    this.cargarReservasMes(this.mesActivo);
+    this.filtroEstadosReserva = [...this.estadosReservaPorDefecto];
+    this.filtroEstadosEstancia = [...this.estadosEstanciaPorDefecto];
+    this.cargarCalendarioSemana();
   }
 
   toggleEstadoReserva(estado: EstadoReserva, checked: boolean): void {
@@ -170,254 +282,923 @@ export class CalendarioComponent implements OnInit {
     return this.filtroEstadosEstancia.includes(estado);
   }
 
-  private cargarReservasMes(mes: string): void {
-    this.cargando = true;
+  get totalFiltrosActivos(): number {
+    let total = 0;
+    if (this.filtroTipoUnidad) {
+      total += 1;
+    }
+    if (this.filtroCodigo.trim()) {
+      total += 1;
+    }
+    if (this.filtroEstadosReserva.length) {
+      total += 1;
+    }
+    if (this.filtroEstadosEstancia.length) {
+      total += 1;
+    }
+    return total;
+  }
+
+  get usaEstadosPorDefecto(): boolean {
+    const reservaActual = [...this.filtroEstadosReserva].sort().join(',');
+    const reservaDefault = [...this.estadosReservaPorDefecto].sort().join(',');
+    const estanciaActual = [...this.filtroEstadosEstancia].sort().join(',');
+    const estanciaDefault = [...this.estadosEstanciaPorDefecto].sort().join(',');
+    return reservaActual === reservaDefault && estanciaActual === estanciaDefault;
+  }
+
+  get mostrarMensajeSinDatos(): boolean {
+    return this.filtroEstadosReserva.length > 0 || this.filtroEstadosEstancia.length > 0;
+  }
+
+  get puedeAgregarEstanciaDesdeSeleccion(): boolean {
+    if (!this.seleccion) {
+      return false;
+    }
+
+    const fechaSeleccion = this.parsearFechaLocal(this.seleccion.dia);
+    if (!fechaSeleccion) {
+      return false;
+    }
+
+    return fechaSeleccion.getTime() <= this.inicioDelDia(new Date()).getTime();
+  }
+
+  get puedeCrearReservaDesdeSeleccion(): boolean {
+    if (!this.seleccion) {
+      return false;
+    }
+
+    const fechaSeleccion = this.parsearFechaLocal(this.seleccion.dia);
+    if (!fechaSeleccion) {
+      return false;
+    }
+
+    return fechaSeleccion.getTime() >= this.inicioDelDia(new Date()).getTime();
+  }
+
+  obtenerSegmentosFila(filaId: string): CalendarioSegmentoView[] {
+    return this.segmentosPorFila.get(filaId) ?? [];
+  }
+
+  alturaFilaPx(filaId: string): number {
+    const segmentos = this.obtenerSegmentosFila(filaId);
+    if (!segmentos.length) {
+      return 56;
+    }
+
+    const maxNivel = Math.max(...segmentos.map((segmento) => segmento.nivel));
+    return Math.max(56, (maxNivel + 1) * 24 + 10);
+  }
+
+  abrirDetalleRegistro(registro: CalendarioRegistroView): void {
+    if (registro.tipo === 'RESERVA') {
+      this.reservaSeleccionada = registro;
+      this.estanciaSeleccionada = null;
+      return;
+    }
+
+    this.estanciaSeleccionada = registro;
+    this.reservaSeleccionada = null;
+  }
+
+  cerrarDetalle(): void {
+    this.reservaSeleccionada = null;
+    this.estanciaSeleccionada = null;
+  }
+
+  mantenerModal(event: MouseEvent): void {
+    event.stopPropagation();
+  }
+
+  formatearFecha(valor: string | null | undefined): string {
+    const fecha = this.parsearFechaLocal(valor);
+    if (!fecha) {
+      return '-';
+    }
+    return fecha.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit',
+    });
+  }
+
+  formatearSoloFecha(valor: Date): string {
+    return valor.toLocaleDateString('es-CO', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  }
+
+  formatearDiaCabecera(valor: Date): string {
+    return valor.toLocaleDateString('es-CO', {
+      weekday: 'short',
+      day: '2-digit',
+    });
+  }
+
+  formatearEtiqueta(valor: string | null | undefined): string {
+    if (!valor) {
+      return '-';
+    }
+    const texto = valor.replace(/_/g, ' ').toLowerCase();
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+
+  private cargarCalendarioSemana(): void {
     this.error = '';
+
+    const visibleDesde = this.inicioDelDia(this.semanaInicio);
+    const visibleHasta = this.inicioDelDia(this.ultimoDiaVisible());
 
     const tipoUnidad = this.filtroTipoUnidad || undefined;
     const codigoUnidad = this.filtroCodigo.trim() || undefined;
-    const estadosReserva = this.filtroEstadosReserva.length ? this.filtroEstadosReserva : undefined;
-    const estadosEstancia = this.filtroEstadosEstancia.length ? this.filtroEstadosEstancia : undefined;
+    const estadosReserva = this.filtroEstadosReserva;
+    const estadosEstancia = this.filtroEstadosEstancia;
+
+    if (!estadosReserva.length && !estadosEstancia.length) {
+      this.filas = [];
+      this.registrosPorFilaDia.clear();
+      this.segmentosPorFila.clear();
+      this.cargando = false;
+      this.reservaSeleccionada = null;
+      this.estanciaSeleccionada = null;
+      return;
+    }
+
+    const claveFiltros = this.construirClaveFiltros(
+      tipoUnidad,
+      codigoUnidad,
+      estadosReserva,
+      estadosEstancia,
+    );
+
+    if (this.cubreRangoEnCache(visibleDesde, visibleHasta) && this.cacheClaveFiltros === claveFiltros) {
+      this.actualizarVistaDesdeCache();
+      return;
+    }
+
+    const desdeConsulta = new Date(visibleDesde);
+    desdeConsulta.setDate(desdeConsulta.getDate() - this.margenPrefetchDias);
+    const hastaConsulta = new Date(visibleHasta);
+    hastaConsulta.setDate(hastaConsulta.getDate() + this.margenPrefetchDias);
+
+    const desde = this.formatearFechaIsoLocal(desdeConsulta, false);
+    const hasta = this.formatearFechaIsoLocal(hastaConsulta, true);
+
+    const mostrarCargaCompleta = this.detalleCache.length === 0;
+    if (mostrarCargaCompleta) {
+      this.cargando = true;
+    }
 
     this.reservaService
-      .obtenerCalendario(mes, tipoUnidad, codigoUnidad, estadosReserva, estadosEstancia)
+      .obtenerCalendarioDetalle(desde, hasta, tipoUnidad, codigoUnidad, estadosReserva, estadosEstancia)
       .subscribe({
         next: (detalle) => {
-          const estancias = detalle.estancias ?? [];
-          const reservas = this.mapearReservasCalendario(detalle.reservas ?? []);
-          this.reservas = reservas;
-          this.estancias = estancias;
+          this.detalleCache = detalle ?? [];
+          this.cacheDesde = this.inicioDelDia(desdeConsulta);
+          this.cacheHasta = this.inicioDelDia(hastaConsulta);
+          this.cacheClaveFiltros = claveFiltros;
+          this.actualizarVistaDesdeCache();
           this.reservaSeleccionada = null;
           this.estanciaSeleccionada = null;
-          this.registrosPorDia = this.construirMapaDias(reservas, this.estancias);
-          this.eventos = this.construirEventos(reservas, this.estancias);
-          this.calendarioOpciones = { ...this.calendarioOpciones };
           this.cargando = false;
         },
         error: (errorResponse: unknown) => {
           this.error = extractBackendErrorMessage(
             errorResponse,
-            'No fue posible cargar las reservas del calendario.'
+            'No fue posible cargar el calendario operativo.',
           );
-          this.reservas = [];
-          this.estancias = [];
-          this.reservaSeleccionada = null;
-          this.estanciaSeleccionada = null;
-          this.registrosPorDia.clear();
-          this.eventos = [];
-          this.calendarioOpciones = { ...this.calendarioOpciones };
+          if (this.detalleCache.length === 0) {
+            this.filas = [];
+            this.registrosPorFilaDia.clear();
+          }
           this.cargando = false;
         },
       });
   }
 
-  private mapearReservasCalendario(reservas: ReservaCalendarioResumenDTO[]): ReservaCalendarioDTO[] {
-    return reservas.map((reserva) => ({
-      id: reserva.id,
-      idCliente: reserva.idCliente,
-      idEstancia: reserva.idEstancia ?? null,
-      codigoReserva: reserva.codigoReserva,
-      inicio: reserva.inicio,
-      fin: reserva.fin,
-      estadoReserva: reserva.estadoReserva,
-      codigoUnidad: reserva.codigoUnidad,
-      tipoUnidad: reserva.tipoUnidad,
-      numeroPersonas: reserva.numeroPersonas,
-      nombreCliente: reserva.nombreCliente,
-      totalAnticipo: reserva.totalAnticipo,
+  private actualizarVistaDesdeCache(): void {
+    this.filas = this.construirFilas(this.detalleCache);
+    this.registrosPorFilaDia = this.construirMapaRegistrosPorDia(this.filas);
+    this.segmentosPorFila = this.construirSegmentosPorFila(this.filas);
+    this.ajustarSeleccionSegunVista();
+  }
+
+  private construirSegmentosPorFila(
+    filas: CalendarioFilaView[],
+  ): Map<string, CalendarioSegmentoView[]> {
+    const resultado = new Map<string, CalendarioSegmentoView[]>();
+    const inicioVisible = this.inicioDelDia(this.semanaInicio);
+    const finVisible = this.inicioDelDia(this.ultimoDiaVisible());
+
+    filas.forEach((fila) => {
+      const segmentosBase: CalendarioSegmentoView[] = [];
+
+      fila.registros.forEach((registro) => {
+        const inicio = this.parsearFechaLocal(registro.inicio);
+        const fin = this.parsearFechaLocal(registro.fin);
+        if (!inicio || !fin) {
+          return;
+        }
+
+        const inicioRecorte = inicio < inicioVisible ? inicioVisible : inicio;
+        const finRecorte = fin > finVisible ? finVisible : fin;
+        if (finRecorte < inicioVisible || inicioRecorte > finVisible) {
+          return;
+        }
+
+        const inicioIndice = this.diferenciaDias(inicioVisible, inicioRecorte);
+        const finIndice = this.diferenciaDias(inicioVisible, finRecorte);
+
+        if (inicioIndice < 0 || finIndice < 0 || inicioIndice > finIndice) {
+          return;
+        }
+
+        segmentosBase.push({
+          registro,
+          inicioIndice,
+          finIndice,
+          nivel: 0,
+        });
+      });
+
+      segmentosBase.sort((a, b) => {
+        if (a.inicioIndice !== b.inicioIndice) {
+          return a.inicioIndice - b.inicioIndice;
+        }
+        return b.finIndice - a.finIndice;
+      });
+
+      const finPorNivel: number[] = [];
+      const segmentosNivelados = segmentosBase.map((segmento) => {
+        let nivel = finPorNivel.findIndex((finNivel) => segmento.inicioIndice > finNivel);
+        if (nivel === -1) {
+          finPorNivel.push(segmento.finIndice);
+          nivel = finPorNivel.length - 1;
+        } else {
+          finPorNivel[nivel] = segmento.finIndice;
+        }
+
+        return {
+          ...segmento,
+          nivel,
+        };
+      });
+
+      resultado.set(fila.id, segmentosNivelados);
+    });
+
+    return resultado;
+  }
+
+  private cubreRangoEnCache(desde: Date, hasta: Date): boolean {
+    if (!this.cacheDesde || !this.cacheHasta) {
+      return false;
+    }
+    return this.cacheDesde.getTime() <= desde.getTime() && this.cacheHasta.getTime() >= hasta.getTime();
+  }
+
+  private construirFilas(detalle: DetalleCalendarioUnidadDTO[]): CalendarioFilaView[] {
+    const filas: CalendarioFilaView[] = [];
+    const unidadesOrdenadas = [...detalle].sort((a, b) => {
+      const prioridad = (tipo: TipoUnidad | null | undefined): number => {
+        if (tipo === 'APARTAMENTO') {
+          return 0;
+        }
+        if (tipo === 'APARTAESTUDIO') {
+          return 1;
+        }
+        return 2;
+      };
+
+      const porTipo = prioridad(a.unidad?.tipo) - prioridad(b.unidad?.tipo);
+      if (porTipo !== 0) {
+        return porTipo;
+      }
+
+      return (a.unidad?.codigo ?? '').localeCompare(b.unidad?.codigo ?? '', 'es', {
+        sensitivity: 'base',
+      });
+    });
+
+    unidadesOrdenadas.forEach((item) => {
+      const codigoUnidad = item.unidad?.codigo ?? 'Unidad';
+      const tipoUnidad = item.unidad?.tipo ?? null;
+
+      const filasHabitaciones: CalendarioFilaView[] = [];
+      const registrosIndividualesHabitaciones: CalendarioRegistroView[] = [];
+
+      if (item.unidad?.tipo === 'APARTAMENTO') {
+        (item.habitaciones ?? []).forEach((habitacion) => {
+          const codigoHabitacion = habitacion.habitacion?.codigo ?? 'Habitacion';
+          const registrosHabitacion = [
+            ...this.mapearReservas(habitacion.reservas ?? [], codigoHabitacion, 'HABITACION', 'habitacion'),
+            ...this.mapearEstancias(
+              habitacion.estancias ?? [],
+              codigoHabitacion,
+              'HABITACION',
+              habitacion.habitacion?.informacionAdicional,
+              'habitacion',
+            ),
+          ];
+
+          registrosHabitacion
+            .filter((registro) => registro.modoOcupacion === 'INDIVIDUAL')
+            .forEach((registro) => registrosIndividualesHabitaciones.push(registro));
+
+          filasHabitaciones.push({
+            id: `habitacion-${habitacion.habitacion.id}`,
+            nombre: codigoHabitacion,
+            subtitulo: `Hab. de ${codigoUnidad}`,
+            tipoUnidad: 'HABITACION',
+            nivel: 'habitacion',
+            esHabitacionDeApartamento: true,
+            informacionAdicional: habitacion.habitacion?.informacionAdicional ?? null,
+            registros: registrosHabitacion,
+          });
+        });
+      }
+
+      const registrosUnidad = [
+        ...this.mapearReservas(item.reservas ?? [], codigoUnidad, tipoUnidad, 'unidad'),
+        ...this.mapearEstancias(
+          item.estancias ?? [],
+          codigoUnidad,
+          tipoUnidad,
+          item.unidad?.informacionAdicional,
+          'unidad',
+        ),
+      ];
+
+      const registrosUnidadNormalizados = this.normalizarRegistrosUnidadApartamento(
+        registrosUnidad,
+        tipoUnidad,
+        registrosIndividualesHabitaciones,
+        codigoUnidad,
+      );
+
+      filas.push({
+        id: `unidad-${item.unidad.id}`,
+        nombre: codigoUnidad,
+        subtitulo: this.formatearEtiqueta(tipoUnidad),
+        tipoUnidad,
+        nivel: 'unidad',
+        esHabitacionDeApartamento: false,
+        informacionAdicional: item.unidad?.informacionAdicional ?? null,
+        registros: registrosUnidadNormalizados,
+      });
+
+      filas.push(...filasHabitaciones);
+    });
+
+    return filas;
+  }
+
+  private mapearReservas(
+    reservas: ReservaDTO[],
+    codigoUnidad: string,
+    tipoUnidad: TipoUnidad | null,
+    destino: 'unidad' | 'habitacion',
+  ): CalendarioRegistroView[] {
+    return reservas
+      .filter((reserva) => this.debePintarRegistroSegunModo(reserva.modoOcupacion, tipoUnidad, destino))
+      .filter((reserva) => {
+        const estado = (reserva.estadoReserva ?? 'CONFIRMADA') as EstadoReserva;
+        return this.filtroEstadosReserva.includes(estado);
+      })
+      .filter((reserva) => !!reserva.id && !!reserva.entradaEstimada && !!reserva.salidaEstimada)
+      .map((reserva) => ({
+        id: reserva.id,
+        tipo: 'RESERVA' as const,
+        etiqueta: reserva.codigoReserva || `RES-${reserva.id}`,
+        estado: reserva.estadoReserva ?? 'CONFIRMADA',
+        modoOcupacion: reserva.modoOcupacion ?? null,
+        inicio: reserva.entradaEstimada,
+        fin: reserva.salidaEstimada,
+        codigoUnidad,
+        tipoUnidad,
+        numeroPersonas: reserva.numeroPersonas ?? null,
+        nombreCliente: reserva.nombreCliente ?? null,
+        idCliente: reserva.idCliente ?? null,
+        codigoHabitacion: codigoUnidad,
+        reserva,
+      }));
+  }
+
+  private mapearEstancias(
+    estancias: EstanciaDTO[],
+    codigoUnidad: string,
+    tipoUnidad: TipoUnidad | null,
+    informacionAdicional: string | null | undefined,
+    destino: 'unidad' | 'habitacion',
+  ): CalendarioRegistroView[] {
+    return estancias
+      .filter((estancia) =>
+        this.debePintarRegistroSegunModo(estancia.modoOcupacion, tipoUnidad, destino)
+      )
+      .filter(
+        (estancia) =>
+          !!estancia.id &&
+          !!estancia.entradaReal &&
+          !!(estancia.salidaEstimada || estancia.salidaReal),
+      )
+      .reduce<CalendarioRegistroView[]>((acumulado, estancia) => {
+        const estadoEstancia = this.resolverEstadoEstancia(estancia, informacionAdicional);
+        if (!this.filtroEstadosEstancia.includes(estadoEstancia)) {
+          return acumulado;
+        }
+        const fechaFin =
+          estadoEstancia === 'FINALIZADA' && estancia.salidaReal
+            ? estancia.salidaReal
+            : estancia.salidaEstimada || estancia.salidaReal || estancia.entradaReal;
+        const cliente = (estancia.ocupantes ?? []).find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        acumulado.push({
+          id: estancia.id,
+          tipo: 'ESTANCIA' as const,
+          etiqueta: estancia.codigoFolio || `EST-${estancia.id}`,
+          estado: estadoEstancia,
+          modoOcupacion: estancia.modoOcupacion ?? null,
+          inicio: estancia.entradaReal,
+          fin: fechaFin,
+          codigoUnidad,
+          tipoUnidad,
+          numeroPersonas: (estancia.ocupantes ?? []).length,
+          nombreCliente: cliente ? `${cliente.nombres} ${cliente.apellidos}`.trim() : null,
+          idCliente: cliente?.id ?? null,
+          codigoHabitacion: codigoUnidad,
+          estancia,
+        });
+        return acumulado;
+      }, []);
+  }
+
+  private normalizarRegistrosUnidadApartamento(
+    registros: CalendarioRegistroView[],
+    tipoUnidad: TipoUnidad | null,
+    registrosHabitacionesIndividuales: CalendarioRegistroView[],
+    codigoUnidadPadre: string,
+  ): CalendarioRegistroView[] {
+    if (tipoUnidad !== 'APARTAMENTO') {
+      return registros;
+    }
+
+    const completos = registros.filter((registro) => registro.modoOcupacion !== 'INDIVIDUAL');
+    const seleccionados = this.construirResumenesIndividualesUnidad(
+      registrosHabitacionesIndividuales,
+      codigoUnidadPadre,
+    );
+
+    return [...completos, ...seleccionados];
+  }
+
+  private construirResumenesIndividualesUnidad(
+    registrosIndividualesHabitaciones: CalendarioRegistroView[],
+    codigoUnidadPadre: string,
+  ): CalendarioRegistroView[] {
+    const resumenes: CalendarioRegistroView[] = [];
+
+    (['RESERVA', 'ESTANCIA'] as const).forEach((tipoRegistro) => {
+      const grupo = registrosIndividualesHabitaciones.filter(
+        (registro) => registro.tipo === tipoRegistro && registro.modoOcupacion === 'INDIVIDUAL',
+      );
+
+      if (!grupo.length) {
+        return;
+      }
+
+      const intervalos = this.construirIntervalosContiguos(grupo);
+
+      intervalos.forEach((intervalo, indice) => {
+        const base =
+          grupo.find((registro) => this.registroIncluyeDia(registro, intervalo.inicio)) ??
+          grupo[0];
+
+        resumenes.push({
+          ...base,
+          id: base.id + indice,
+          inicio: this.formatearFechaIsoLocal(intervalo.inicio, false),
+          fin: this.formatearFechaIsoLocal(intervalo.fin, false),
+          codigoUnidad: codigoUnidadPadre,
+          codigoHabitacion: null,
+          mostrarResumenIndividualUnidad: true,
+          habitacionesAfectadas: intervalo.habitaciones,
+          etiqueta: `${tipoRegistro === 'RESERVA' ? 'Reserva' : 'Estancia'} individual`,
+        });
+      });
+    });
+
+    return resumenes;
+  }
+
+  private construirIntervalosContiguos(
+    registros: CalendarioRegistroView[],
+  ): Array<{ inicio: Date; fin: Date; habitaciones: string[] }> {
+    const porDia = new Map<string, Set<string>>();
+
+    registros.forEach((registro) => {
+      const inicio = this.parsearFechaLocal(registro.inicio);
+      const fin = this.parsearFechaLocal(registro.fin);
+      if (!inicio || !fin) {
+        return;
+      }
+
+      const cursor = new Date(inicio);
+      while (cursor <= fin) {
+        const clave = this.formatearDia(cursor);
+        const habitacionesDia = porDia.get(clave) ?? new Set<string>();
+        if (registro.codigoUnidad?.trim()) {
+          habitacionesDia.add(registro.codigoUnidad);
+        }
+        porDia.set(clave, habitacionesDia);
+        cursor.setDate(cursor.getDate() + 1);
+      }
+    });
+
+    const diasOrdenados = Array.from(porDia.keys()).sort((a, b) => a.localeCompare(b));
+    if (!diasOrdenados.length) {
+      return [];
+    }
+
+    const intervalos: Array<{ inicio: Date; fin: Date; habitaciones: Set<string> }> = [];
+    let inicioActual = this.parsearFechaLocal(diasOrdenados[0]);
+    let finActual = this.parsearFechaLocal(diasOrdenados[0]);
+    let habitacionesActuales = new Set<string>(porDia.get(diasOrdenados[0]) ?? []);
+
+    for (let i = 1; i < diasOrdenados.length; i += 1) {
+      const dia = this.parsearFechaLocal(diasOrdenados[i]);
+      if (!dia || !finActual || !inicioActual) {
+        continue;
+      }
+
+      const esperado = new Date(finActual);
+      esperado.setDate(esperado.getDate() + 1);
+      const esContiguo = this.formatearDia(esperado) === diasOrdenados[i];
+
+      if (esContiguo) {
+        finActual = dia;
+        (porDia.get(diasOrdenados[i]) ?? []).forEach((codigo) => habitacionesActuales.add(codigo));
+        continue;
+      }
+
+      intervalos.push({
+        inicio: inicioActual,
+        fin: finActual,
+        habitaciones: habitacionesActuales,
+      });
+
+      inicioActual = dia;
+      finActual = dia;
+      habitacionesActuales = new Set<string>(porDia.get(diasOrdenados[i]) ?? []);
+    }
+
+    if (inicioActual && finActual) {
+      intervalos.push({
+        inicio: inicioActual,
+        fin: finActual,
+        habitaciones: habitacionesActuales,
+      });
+    }
+
+    return intervalos.map((intervalo) => ({
+      inicio: intervalo.inicio,
+      fin: intervalo.fin,
+      habitaciones: Array.from(intervalo.habitaciones).sort((a, b) =>
+        a.localeCompare(b, 'es', { sensitivity: 'base' }),
+      ),
     }));
   }
 
-  private construirEventos(
-    reservas: ReservaCalendarioDTO[],
-    estancias: EstanciaCalendarioDTO[],
-  ): EventInput[] {
-    const eventosReserva = reservas.reduce<EventInput[]>((eventos, reserva) => {
-      const inicio = this.parsearFechaLocal(reserva.inicio);
-      const fin = this.parsearFechaLocal(reserva.fin);
-      if (!inicio || !fin) {
-        return eventos;
-      }
+  private construirMapaRegistrosPorDia(
+    filas: CalendarioFilaView[],
+  ): Map<string, Map<string, CalendarioRegistroView[]>> {
+    const mapaFilas = new Map<string, Map<string, CalendarioRegistroView[]>>();
 
-      const finInclusivo = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate() + 1);
+    filas.forEach((fila) => {
+      const mapaDias = new Map<string, CalendarioRegistroView[]>();
 
-      eventos.push({
-        id: `${reserva.id}`,
-        title: `${reserva.codigoUnidad ?? 'Unidad'} (${reserva.numeroPersonas ?? 0})`,
-        start: inicio,
-        end: finInclusivo,
-        allDay: true,
-        extendedProps: {
-          estado: reserva.estadoReserva,
-        },
+      this.diasSemana.forEach((dia) => {
+        const claveDia = this.formatearDia(dia);
+        const registrosDia = fila.registros.filter((registro) => this.registroIncluyeDia(registro, dia));
+        mapaDias.set(claveDia, registrosDia);
       });
 
-      return eventos;
-    }, []);
-
-    const eventosEstancia = estancias.reduce<EventInput[]>((eventos, estancia) => {
-      const inicio = this.parsearFechaLocal(estancia.inicio);
-      const fin = this.parsearFechaLocal(estancia.fin);
-      if (!inicio || !fin) {
-        return eventos;
-      }
-
-      const finInclusivo = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate() + 1);
-
-      eventos.push({
-        id: `estancia-${estancia.id}`,
-        title: `${estancia.codigoUnidad ?? 'Unidad'} (${estancia.numeroPersonas ?? 0})`,
-        start: inicio,
-        end: finInclusivo,
-        allDay: true,
-      });
-
-      return eventos;
-    }, []);
-
-    return [...eventosReserva, ...eventosEstancia];
-  }
-
-  private construirMapaDias(
-    reservas: ReservaCalendarioDTO[],
-    estancias: EstanciaCalendarioDTO[],
-  ): Map<string, Map<string, RegistroCalendarioDia>> {
-    const mapa = new Map<string, Map<string, RegistroCalendarioDia>>();
-
-    reservas.forEach((reserva) => {
-      const inicio = this.parsearFechaLocal(reserva.inicio);
-      const fin = this.parsearFechaLocal(reserva.fin);
-      if (!inicio || !fin) {
-        return;
-      }
-
-      const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
-      const fechaFinal = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
-      const claveRegistro = `reserva-${reserva.codigoUnidad ?? `ID-${reserva.id}`}-${reserva.id}`;
-
-      while (fechaActual <= fechaFinal) {
-        const clave = this.formatearDia(fechaActual);
-        let mapaDia = mapa.get(clave);
-        if (!mapaDia) {
-          mapaDia = new Map<string, RegistroCalendarioDia>();
-          mapa.set(clave, mapaDia);
-        }
-
-        if (!mapaDia.has(claveRegistro)) {
-          mapaDia.set(claveRegistro, {
-            id: reserva.id,
-            tipo: 'reserva',
-            inicio: reserva.inicio,
-            fin: reserva.fin,
-            codigoUnidad: reserva.codigoUnidad,
-            numeroPersonas: reserva.numeroPersonas,
-            estado: reserva.estadoReserva,
-          });
-        }
-
-        fechaActual.setDate(fechaActual.getDate() + 1);
-      }
+      mapaFilas.set(fila.id, mapaDias);
     });
 
-    estancias.forEach((estancia) => {
-      const inicio = this.parsearFechaLocal(estancia.inicio);
-      const fin = this.parsearFechaLocal(estancia.fin);
-      if (!inicio || !fin) {
-        return;
-      }
-
-      const fechaActual = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
-      const fechaFinal = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
-      const claveRegistro = `estancia-${estancia.codigoUnidad ?? `ID-${estancia.id}`}-${estancia.id}`;
-
-      while (fechaActual <= fechaFinal) {
-        const clave = this.formatearDia(fechaActual);
-        let mapaDia = mapa.get(clave);
-        if (!mapaDia) {
-          mapaDia = new Map<string, RegistroCalendarioDia>();
-          mapa.set(clave, mapaDia);
-        }
-
-        if (!mapaDia.has(claveRegistro)) {
-          mapaDia.set(claveRegistro, {
-            id: estancia.id,
-            tipo: 'estancia',
-            inicio: estancia.inicio,
-            fin: estancia.fin,
-            codigoUnidad: estancia.codigoUnidad,
-            numeroPersonas: estancia.numeroPersonas,
-            estado: estancia.estadoEstancia,
-          });
-        }
-
-        fechaActual.setDate(fechaActual.getDate() + 1);
-      }
-    });
-
-    return mapa;
+    return mapaFilas;
   }
 
-  private renderizarContenidoDia(arg: DayCellContentArg): { html: string } {
-    const clave = this.formatearDia(arg.date);
-    const mapaDia = this.registrosPorDia.get(clave);
-    const registrosDia = mapaDia ? Array.from(mapaDia.entries()) : [];
-    registrosDia.sort((a, b) => a[0].localeCompare(b[0]));
-
-    const ocupadas = registrosDia.slice(0, this.maxUnidadesPorDia);
-
-    const circulosOcupados = ocupadas
-      .map(([, registro]) => {
-        const estadoClase = registro.estado.toLowerCase();
-        const etiqueta = registro.codigoUnidad ?? `Unidad ${registro.id}`;
-        const tipoClase = `reserva-circulo--${registro.tipo}`;
-        const tipoLabel = registro.tipo === 'reserva' ? 'Reserva' : 'Estancia';
-        const etiquetaEscapada = this.escaparHtml(etiqueta);
-        const titulo = this.escaparHtml(
-          `${tipoLabel} · ${etiqueta} · ${this.formatearEtiqueta(registro.estado)}`,
-        );
-        const dataReservaId = registro.tipo === 'reserva' ? ` data-reserva-id="${registro.id}"` : '';
-        const dataEstanciaId =
-          registro.tipo === 'estancia' ? ` data-estancia-id="${registro.id}"` : '';
-        return `<span class="reserva-circulo ${tipoClase} reserva-circulo--${estadoClase}"${dataReservaId}${dataEstanciaId} title="${titulo}" aria-label="${titulo}">${etiquetaEscapada}</span>`;
-      })
-      .join('');
-
-    if (!circulosOcupados) {
-      return {
-        html: `<div class="reserva-dia">
-          <span class="reserva-dia-numero">${this.escaparHtml(arg.dayNumberText)}</span>
-        </div>`,
-      };
+  private registroIncluyeDia(registro: CalendarioRegistroView, dia: Date): boolean {
+    const inicio = this.parsearFechaLocal(registro.inicio);
+    const fin = this.parsearFechaLocal(registro.fin);
+    if (!inicio || !fin) {
+      return false;
     }
 
-    return {
-      html: `<div class="reserva-dia">
-        <span class="reserva-dia-numero">${this.escaparHtml(arg.dayNumberText)}</span>
-        <div class="reserva-circulos">${circulosOcupados}</div>
-      </div>`,
-    };
+    const diaComparacion = new Date(dia.getFullYear(), dia.getMonth(), dia.getDate());
+    return diaComparacion >= inicio && diaComparacion <= fin;
   }
 
-  private formatearMes(fecha: Date): string {
-    const year = fecha.getFullYear();
-    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
-    return `${year}-${month}`;
+  private resolverEstadoEstancia(
+    estancia: EstanciaDTO,
+    informacionAdicional: string | null | undefined,
+  ): EstadoEstancia {
+    if (estancia.estado) {
+      return estancia.estado;
+    }
+
+    if (!informacionAdicional?.trim()) {
+      return 'ACTIVA';
+    }
+
+    try {
+      const informacion = JSON.parse(informacionAdicional) as {
+        ESTANCIA?: { idEstancia?: number | string; estado?: EstadoEstancia };
+      };
+
+      const idInfo = Number(informacion?.ESTANCIA?.idEstancia);
+      if (idInfo === estancia.id && informacion.ESTANCIA?.estado) {
+        return informacion.ESTANCIA.estado;
+      }
+    } catch {
+      return 'ACTIVA';
+    }
+
+    return 'ACTIVA';
   }
 
-  private formatearDia(fecha: Date): string {
-    const year = fecha.getFullYear();
-    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
-    const day = `${fecha.getDate()}`.padStart(2, '0');
-    return `${year}-${month}-${day}`;
+  private debePintarRegistroSegunModo(
+    modoOcupacion: string | null | undefined,
+    tipoUnidad: TipoUnidad | null,
+    destino: 'unidad' | 'habitacion',
+  ): boolean {
+    if (tipoUnidad === 'APARTAMENTO') {
+      return destino === 'unidad' || destino === 'habitacion';
+    }
+
+    if (tipoUnidad === 'HABITACION') {
+      return destino === 'habitacion';
+    }
+
+    if (tipoUnidad !== 'APARTAESTUDIO') {
+      return destino === 'unidad';
+    }
+
+    return destino === 'unidad';
   }
 
-  private escaparHtml(valor: string): string {
-    return valor
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  textoBadge(registro: CalendarioRegistroView, fila: CalendarioFilaView, duracionDias: number): string {
+    const esAmarilloUnidadIndividual =
+      fila.tipoUnidad === 'APARTAMENTO' &&
+      fila.nivel === 'unidad' &&
+      registro.modoOcupacion === 'INDIVIDUAL';
+
+    const esAmarilloHabitacionCompleto =
+      fila.esHabitacionDeApartamento &&
+      fila.nivel === 'habitacion' &&
+      registro.modoOcupacion === 'COMPLETO';
+
+    if (esAmarilloUnidadIndividual || esAmarilloHabitacionCompleto) {
+      const tipo = registro.tipo === 'RESERVA' ? 'Reserva' : 'Estancia';
+      const tipoCorto = registro.tipo === 'RESERVA' ? 'R' : 'E';
+      const modo = registro.modoOcupacion === 'INDIVIDUAL' ? 'individual' : 'completa';
+      if (duracionDias <= 1) {
+        return `${tipoCorto} ${modo}`;
+      }
+      return `${tipo} ${modo}`;
+    }
+
+    return registro.nombreCliente?.trim() || 'Sin nombre';
+  }
+
+  esBadgeAmarillo(registro: CalendarioRegistroView, fila: CalendarioFilaView): boolean {
+    return (
+      (fila.tipoUnidad === 'APARTAMENTO' &&
+        fila.nivel === 'unidad' &&
+        registro.modoOcupacion === 'INDIVIDUAL') ||
+      (fila.esHabitacionDeApartamento &&
+        fila.nivel === 'habitacion' &&
+        registro.modoOcupacion === 'COMPLETO')
+    );
+  }
+
+  manejarClickSegmento(registro: CalendarioRegistroView, fila: CalendarioFilaView): void {
+    if (this.esBadgeAmarillo(registro, fila)) {
+      return;
+    }
+    this.abrirDetalleRegistro(registro);
+  }
+
+  puedeGestionarEstanciaModal(item: CalendarioRegistroView): boolean {
+    if (!item.estancia?.id) {
+      return false;
+    }
+
+    return item.estado === 'ACTIVA' || item.estado === 'EXCEDIDA';
+  }
+
+  puedeGestionarReservaModal(item: CalendarioRegistroView): boolean {
+    if (!item.reserva?.id) {
+      return false;
+    }
+
+    return item.estado === 'CONFIRMADA' || item.estado === 'EXPIRADA';
+  }
+
+  editarReservaDesdeModal(item: CalendarioRegistroView): void {
+    if (!this.puedeGestionarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/reservas/nueva'], {
+      state: {
+        editMode: true,
+        returnTo: this.router.url,
+        reserva: {
+          id: item.reserva.id,
+          codigo: item.codigoUnidad,
+          tipoUnidad: item.tipoUnidad ?? undefined,
+          idOcupante: item.reserva.idCliente ?? undefined,
+          nombreCliente: item.nombreCliente ?? undefined,
+          numeroPersonas: item.numeroPersonas ?? undefined,
+          canalReserva: item.reserva.canalReserva,
+          entradaEstimada: item.reserva.entradaEstimada,
+          salidaEstimada: item.reserva.salidaEstimada,
+        },
+      },
+    });
+  }
+
+  darEntradaReservaDesdeModal(item: CalendarioRegistroView): void {
+    if (!this.puedeGestionarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/estancias/nueva'], {
+      state: {
+        returnTo: this.router.url,
+        flujo: 'INGRESO',
+        idReserva: item.reserva.id,
+        idEstancia: item.reserva.idEstancia ?? undefined,
+        idCliente: item.reserva.idCliente ?? undefined,
+        codigoReserva: item.reserva.codigoReserva ?? '',
+        nombreCliente: item.nombreCliente ?? '',
+        codigo: item.codigoUnidad,
+        tipo: item.tipoUnidad,
+        entrada: item.reserva.entradaEstimada,
+        salida: item.reserva.salidaEstimada,
+        numeroPersonasReserva: item.reserva.numeroPersonas,
+      },
+    });
+  }
+
+  eliminarReservaDesdeModal(item: CalendarioRegistroView): void {
+    if (!this.puedeGestionarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
+      return;
+    }
+
+    this.reservaPendienteEliminar = item;
+    this.mostrarModalEliminarReserva = true;
+  }
+
+  cerrarModalEliminarReserva(): void {
+    if (this.eliminandoReserva) {
+      return;
+    }
+
+    this.mostrarModalEliminarReserva = false;
+    this.reservaPendienteEliminar = null;
+  }
+
+  confirmarEliminarReservaDesdeModal(): void {
+    const item = this.reservaPendienteEliminar;
+    if (!item?.reserva?.id || this.eliminandoReserva) {
+      return;
+    }
+
+    this.eliminandoReserva = true;
+    this.error = '';
+    this.reservaService.eliminarReserva(item.reserva.id).subscribe({
+      next: () => {
+        this.eliminandoReserva = false;
+        this.mostrarModalEliminarReserva = false;
+        this.reservaPendienteEliminar = null;
+        this.cerrarDetalle();
+        this.cargarCalendarioSemana();
+      },
+      error: (errorResponse: unknown) => {
+        this.eliminandoReserva = false;
+        this.mostrarModalEliminarReserva = false;
+        this.reservaPendienteEliminar = null;
+        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible eliminar la reserva.');
+      },
+    });
+  }
+
+  editarEstanciaDesdeModal(item: CalendarioRegistroView): void {
+    if (!this.puedeGestionarEstanciaModal(item) || this.eliminandoEstancia) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/estancias/nueva'], {
+      queryParams: {
+        codigo: item.codigoUnidad,
+        tipo: item.tipoUnidad,
+        editar: true,
+        estanciaId: item.estancia?.id,
+      },
+      state: { returnTo: this.router.url },
+    });
+  }
+
+  eliminarEstanciaDesdeModal(item: CalendarioRegistroView): void {
+    if (!this.puedeGestionarEstanciaModal(item) || this.eliminandoEstancia || !item.estancia?.id) {
+      return;
+    }
+
+    this.estanciaPendienteEliminar = item;
+    this.mostrarModalEliminarEstancia = true;
+  }
+
+  cerrarModalEliminarEstancia(): void {
+    if (this.eliminandoEstancia) {
+      return;
+    }
+
+    this.mostrarModalEliminarEstancia = false;
+    this.estanciaPendienteEliminar = null;
+  }
+
+  confirmarEliminarEstanciaDesdeModal(): void {
+    const item = this.estanciaPendienteEliminar;
+    if (!item?.estancia?.id || this.eliminandoEstancia) {
+      return;
+    }
+
+    this.eliminandoEstancia = true;
+    this.error = '';
+    this.estanciaService.eliminarEstancia(item.estancia.id).subscribe({
+      next: () => {
+        this.eliminandoEstancia = false;
+        this.mostrarModalEliminarEstancia = false;
+        this.estanciaPendienteEliminar = null;
+        this.cerrarDetalle();
+        this.cargarCalendarioSemana();
+      },
+      error: (errorResponse: unknown) => {
+        this.eliminandoEstancia = false;
+        this.mostrarModalEliminarEstancia = false;
+        this.estanciaPendienteEliminar = null;
+        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible eliminar la estancia.');
+      },
+    });
+  }
+
+  darSalidaDesdeModal(item: CalendarioRegistroView): void {
+    if (!this.puedeGestionarEstanciaModal(item) || this.eliminandoEstancia || !item.estancia?.id) {
+      return;
+    }
+
+    this.estanciaService.obtenerEstanciaPorId(item.estancia.id).subscribe({
+      next: (estancia) => {
+        const cliente = estancia.ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        const nombreCliente = [cliente?.nombres, cliente?.apellidos]
+          .filter((valor) => Boolean(valor?.trim()))
+          .join(' ');
+
+        this.cerrarDetalle();
+        this.router.navigate(['/estancias/salida'], {
+          state: {
+            returnTo: this.router.url,
+            estanciaId: estancia.id,
+            codigo: item.codigoUnidad,
+            tipo: item.tipoUnidad,
+            entrada: estancia.entradaReal,
+            salida: estancia.salidaEstimada,
+            numeroPersonas: estancia.ocupantes.length,
+            nombreCliente,
+          },
+        });
+      },
+      error: (errorResponse: unknown) => {
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible preparar la finalizacion de la estancia.',
+        );
+      },
+    });
+  }
+
+  formatearHabitacionesAfectadas(habitaciones: string[] | null | undefined): string {
+    if (!habitaciones?.length) {
+      return '-';
+    }
+    return habitaciones.join(', ');
   }
 
   private parsearFechaLocal(valor: string | null | undefined): Date | null {
@@ -435,155 +1216,137 @@ export class CalendarioComponent implements OnInit {
     return new Date(year, month - 1, day);
   }
 
-  private onDayCellDidMount(arg: DayCellMountArg): void {
-    arg.el.addEventListener('click', this.onDayCellClick);
+  private obtenerInicioSemanaLunes(fecha: Date): Date {
+    const base = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+    const diaSemana = base.getDay();
+    const desplazamiento = diaSemana === 0 ? -6 : 1 - diaSemana;
+    base.setDate(base.getDate() + desplazamiento);
+    return base;
   }
 
-  private onDayCellClick = (event: MouseEvent): void => {
-    const objetivo = event.target as HTMLElement | null;
-    if (!objetivo) {
+  private ultimoDiaVisible(): Date {
+    const fin = new Date(this.semanaInicio);
+    fin.setDate(fin.getDate() + (this.diasVisibles - 1));
+    return fin;
+  }
+
+  private inicioDelDia(fecha: Date): Date {
+    return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+  }
+
+  private diferenciaDias(inicio: Date, fin: Date): number {
+    const msDia = 24 * 60 * 60 * 1000;
+    return Math.floor((this.inicioDelDia(fin).getTime() - this.inicioDelDia(inicio).getTime()) / msDia);
+  }
+
+  private formatearDia(fecha: Date): string {
+    const year = fecha.getFullYear();
+    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const day = `${fecha.getDate()}`.padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private formatearFechaIsoLocal(fecha: Date, finDelDia: boolean): string {
+    const date = new Date(fecha);
+    if (finDelDia) {
+      date.setHours(23, 59, 59, 0);
+    } else {
+      date.setHours(0, 0, 0, 0);
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hours = `${date.getHours()}`.padStart(2, '0');
+    const minutes = `${date.getMinutes()}`.padStart(2, '0');
+    const seconds = `${date.getSeconds()}`.padStart(2, '0');
+    const millis = `${date.getMilliseconds()}`.padStart(3, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}.${millis}`;
+  }
+
+  private construirClaveFiltros(
+    tipoUnidad: TipoUnidad | undefined,
+    codigoUnidad: string | undefined,
+    estadosReserva: EstadoReserva[],
+    estadosEstancia: EstadoEstancia[],
+  ): string {
+    const reservas = [...estadosReserva].sort().join(',');
+    const estancias = [...estadosEstancia].sort().join(',');
+    return `${tipoUnidad ?? ''}|${codigoUnidad ?? ''}|${reservas}|${estancias}`;
+  }
+
+  private obtenerPrefillSeleccion():
+    | {
+        codigo: string;
+        tipo: TipoUnidad;
+        entrada: string;
+      }
+    | undefined {
+    if (!this.seleccion) {
+      return undefined;
+    }
+
+    const fila = this.filas.find((item) => item.id === this.seleccion?.filaId);
+    if (!fila) {
+      return undefined;
+    }
+
+    if (fila.nivel === 'habitacion') {
+      return {
+        codigo: fila.nombre,
+        tipo: 'HABITACION',
+        entrada: this.seleccion.dia,
+      };
+    }
+
+    if (!fila.tipoUnidad) {
+      return undefined;
+    }
+
+    return {
+      codigo: fila.nombre,
+      tipo: fila.tipoUnidad,
+      entrada: this.seleccion.dia,
+    };
+  }
+
+  private mostrarTooltipSeleccionTemporal(filaId: string, dia: string): void {
+    this.tooltipSeleccionVisible = { filaId, dia };
+
+    if (this.tooltipSeleccionTimeout) {
+      clearTimeout(this.tooltipSeleccionTimeout);
+    }
+
+    this.tooltipSeleccionTimeout = setTimeout(() => {
+      this.tooltipSeleccionVisible = null;
+      this.tooltipSeleccionTimeout = null;
+    }, 1800);
+  }
+
+  private ocultarTooltipSeleccion(): void {
+    this.tooltipSeleccionVisible = null;
+    if (this.tooltipSeleccionTimeout) {
+      clearTimeout(this.tooltipSeleccionTimeout);
+      this.tooltipSeleccionTimeout = null;
+    }
+  }
+
+  private ajustarSeleccionSegunVista(): void {
+    if (!this.seleccion) {
       return;
     }
 
-    const circulo = objetivo.closest('.reserva-circulo') as HTMLElement | null;
-    if (!circulo) {
+    const fila = this.filas.find((item) => item.id === this.seleccion?.filaId);
+    if (!fila) {
+      this.seleccion = null;
+      this.ocultarTooltipSeleccion();
       return;
     }
 
-    event.preventDefault();
-    event.stopPropagation();
-
-    const idReservaTexto = circulo.dataset['reservaId'];
-    const idEstanciaTexto = circulo.dataset['estanciaId'];
-
-    if (idReservaTexto) {
-      const idReserva = Number.parseInt(idReservaTexto, 10);
-      if (!Number.isFinite(idReserva)) {
-        return;
-      }
-      const reserva = this.reservas.find((item) => item.id === idReserva);
-      if (reserva) {
-        this.abrirDetalle(reserva);
-      }
-      return;
+    const fechaSeleccionada = this.parsearFechaLocal(this.seleccion.dia);
+    if (!fechaSeleccionada || this.esCuadroBloqueadoParaSeleccion(fila, fechaSeleccionada)) {
+      this.seleccion = null;
+      this.ocultarTooltipSeleccion();
     }
-
-    if (idEstanciaTexto) {
-      const idEstancia = Number.parseInt(idEstanciaTexto, 10);
-      if (!Number.isFinite(idEstancia)) {
-        return;
-      }
-      const estancia = this.estancias.find((item) => item.id === idEstancia);
-      if (estancia) {
-        this.abrirDetalleEstancia(estancia);
-      }
-    }
-  };
-
-  abrirDetalle(reserva: ReservaCalendarioDTO): void {
-    this.reservaSeleccionada = reserva;
-    this.estanciaSeleccionada = null;
-  }
-
-  abrirDetalleEstancia(estancia: EstanciaCalendarioDTO): void {
-    this.estanciaSeleccionada = estancia;
-    this.reservaSeleccionada = null;
-  }
-
-  cerrarDetalle(): void {
-    this.reservaSeleccionada = null;
-    this.estanciaSeleccionada = null;
-  }
-
-  mantenerModal(event: MouseEvent): void {
-    event.stopPropagation();
-  }
-
-  abrirBusqueda(): void {
-    this.modalBusquedaAbierta = true;
-    this.busquedaError = '';
-  }
-
-  cerrarBusqueda(): void {
-    this.modalBusquedaAbierta = false;
-    this.busquedaDocumento = '';
-    this.busquedaReservas = [];
-    this.busquedaError = '';
-    this.busquedaHecha = false;
-    this.busquedaCargando = false;
-  }
-
-  buscarReservasPorDocumento(): void {
-    const documento = this.busquedaDocumento.trim();
-    if (!documento) {
-      this.busquedaError = 'Ingresa el numero de documento para buscar.';
-      this.busquedaReservas = [];
-      this.busquedaHecha = true;
-      return;
-    }
-
-    this.busquedaCargando = true;
-    this.busquedaError = '';
-    this.reservaService.buscarPorDocumento(documento).subscribe({
-      next: (reservas) => {
-        this.busquedaReservas = reservas;
-        this.busquedaCargando = false;
-        this.busquedaHecha = true;
-      },
-      error: (errorResponse: unknown) => {
-        this.busquedaError = extractBackendErrorMessage(
-          errorResponse,
-          'No fue posible buscar reservas con ese documento.'
-        );
-        this.busquedaReservas = [];
-        this.busquedaCargando = false;
-        this.busquedaHecha = true;
-      },
-    });
-  }
-
-  verMasReserva(reserva: ReservaCalendarioDTO): void {
-    this.cerrarBusqueda();
-    this.abrirDetalle(reserva);
-  }
-
-  darIngreso(reserva: ReservaCalendarioDTO): void {
-    this.cerrarDetalle();
-    this.cerrarBusqueda();
-    this.router.navigate(['/estancias/nueva'], {
-      state: {
-        returnTo: this.router.url,
-        idReserva: reserva.id,
-        codigoReserva: reserva.codigoReserva ?? '',
-        idEstancia: reserva.idEstancia ?? undefined,
-        totalAnticipo: reserva.totalAnticipo ?? undefined,
-        idCliente: reserva.idCliente && reserva.idCliente > 0 ? reserva.idCliente : undefined,
-        nombreCliente: reserva.nombreCliente ?? '',
-        codigo: reserva.codigoUnidad ?? '',
-        tipo: reserva.tipoUnidad ?? '',
-        entrada: reserva.inicio ?? '',
-        salida: reserva.fin ?? '',
-      },
-    });
-  }
-
-  formatearFecha(valor: string | null | undefined): string {
-    const fecha = this.parsearFechaLocal(valor);
-    if (!fecha) {
-      return '-';
-    }
-    return fecha.toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: '2-digit',
-    });
-  }
-
-  formatearEtiqueta(valor: string | null | undefined): string {
-    if (!valor) {
-      return '-';
-    }
-    const texto = valor.replace(/_/g, ' ').toLowerCase();
-    return texto.charAt(0).toUpperCase() + texto.slice(1);
   }
 }

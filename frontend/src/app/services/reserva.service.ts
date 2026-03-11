@@ -1,8 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { map } from 'rxjs';
 
 import { environment } from '../../environments/environment';
-import { DetalleCalendarioDTO } from '../models/detalle-calendario.model';
+import {
+  DetalleCalendarioDTO,
+  DetalleCalendarioUnidadDTO,
+  EstanciaCalendarioDTO,
+  ReservaCalendarioResumenDTO,
+} from '../models/detalle-calendario.model';
 import { ReservaCalendarioDTO } from '../models/reserva-calendario.model';
 import { ReservaDTO, ReservaNuevoRequest } from '../models/reserva.model';
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../models/enums';
@@ -24,7 +30,8 @@ export class ReservaService {
     estadosReserva?: EstadoReserva[],
     estadosEstancia?: EstadoEstancia[],
   ) {
-    let params = new HttpParams().set('mes', mes);
+    const { desde, hasta } = this.construirRangoMes(mes);
+    let params = new HttpParams().set('desde', desde).set('hasta', hasta);
 
     if (tipoUnidad) {
       params = params.set('tipoUnidad', tipoUnidad);
@@ -42,7 +49,9 @@ export class ReservaService {
       params = params.append('estadosEstancia', estado);
     });
 
-    return this.http.get<DetalleCalendarioDTO>(`${this.detalleBaseUrl}/calendario`, { params });
+    return this.http
+      .get<DetalleCalendarioUnidadDTO[]>(`${this.detalleBaseUrl}/calendario`, { params })
+      .pipe(map((unidades) => this.mapearDetalleCalendario(unidades ?? [])));
   }
 
   obtenerReservasCalendario(mes: string, tipoUnidad?: TipoUnidad, codigoUnidad?: string) {
@@ -57,6 +66,35 @@ export class ReservaService {
     }
 
     return this.http.get<ReservaCalendarioDTO[]>(`${this.baseUrl}/calendario`, { params });
+  }
+
+  obtenerCalendarioDetalle(
+    desde: string,
+    hasta: string,
+    tipoUnidad?: TipoUnidad,
+    codigoUnidad?: string,
+    estadosReserva?: EstadoReserva[],
+    estadosEstancia?: EstadoEstancia[],
+  ) {
+    let params = new HttpParams().set('desde', desde).set('hasta', hasta);
+
+    if (tipoUnidad) {
+      params = params.set('tipoUnidad', tipoUnidad);
+    }
+
+    if (codigoUnidad) {
+      params = params.set('codigoUnidad', codigoUnidad);
+    }
+
+    (estadosReserva ?? []).forEach((estado) => {
+      params = params.append('estadosReserva', estado);
+    });
+
+    (estadosEstancia ?? []).forEach((estado) => {
+      params = params.append('estadosEstancia', estado);
+    });
+
+    return this.http.get<DetalleCalendarioUnidadDTO[]>(`${this.detalleBaseUrl}/calendario`, { params });
   }
 
   obtenerTabla(filtros: ReservaTablaFiltros, page: number, size: number, sort: string[]) {
@@ -129,5 +167,127 @@ export class ReservaService {
     }
 
     return params.set(key, valueTrimmed);
+  }
+
+  private construirRangoMes(mes: string): { desde: string; hasta: string } {
+    const [anioTexto, mesTexto] = mes.split('-');
+    const anio = Number.parseInt(anioTexto, 10);
+    const numeroMes = Number.parseInt(mesTexto, 10);
+
+    if (Number.isNaN(anio) || Number.isNaN(numeroMes) || numeroMes < 1 || numeroMes > 12) {
+      const ahora = new Date();
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0, 0, 0);
+      const fin = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0, 23, 59, 59);
+      return {
+        desde: this.formatearFechaIsoLocal(inicio),
+        hasta: this.formatearFechaIsoLocal(fin),
+      };
+    }
+
+    const inicio = new Date(anio, numeroMes - 1, 1, 0, 0, 0);
+    const fin = new Date(anio, numeroMes, 0, 23, 59, 59);
+    return {
+      desde: this.formatearFechaIsoLocal(inicio),
+      hasta: this.formatearFechaIsoLocal(fin),
+    };
+  }
+
+  private formatearFechaIsoLocal(fecha: Date): string {
+    const anio = fecha.getFullYear();
+    const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const dia = `${fecha.getDate()}`.padStart(2, '0');
+    const horas = `${fecha.getHours()}`.padStart(2, '0');
+    const minutos = `${fecha.getMinutes()}`.padStart(2, '0');
+    const segundos = `${fecha.getSeconds()}`.padStart(2, '0');
+    const milis = `${fecha.getMilliseconds()}`.padStart(3, '0');
+    return `${anio}-${mes}-${dia}T${horas}:${minutos}:${segundos}.${milis}`;
+  }
+
+  private mapearDetalleCalendario(unidades: DetalleCalendarioUnidadDTO[]): DetalleCalendarioDTO {
+    const reservasMap = new Map<number, ReservaCalendarioResumenDTO>();
+    const estanciasMap = new Map<number, EstanciaCalendarioDTO>();
+
+    unidades.forEach((detalle) => {
+      const codigoUnidad = detalle.unidad?.codigo ?? null;
+      const tipoUnidad = detalle.unidad?.tipo ?? null;
+
+      (detalle.reservas ?? []).forEach((reserva) => {
+        if (!reserva?.id) {
+          return;
+        }
+        reservasMap.set(reserva.id, {
+          id: reserva.id,
+          idEstancia: reserva.idEstancia ?? null,
+          inicio: `${reserva.entradaEstimada}`,
+          fin: `${reserva.salidaEstimada}`,
+          codigoReserva: reserva.codigoReserva ?? null,
+          codigoUnidad,
+          tipoUnidad,
+          numeroPersonas: reserva.numeroPersonas ?? null,
+          nombreCliente: reserva.nombreCliente ?? null,
+          idCliente: reserva.idCliente ?? null,
+          totalAnticipo: null,
+          estadoReserva: reserva.estadoReserva as EstadoReserva,
+        });
+      });
+
+      (detalle.estancias ?? []).forEach((estancia) => {
+        if (!estancia?.id) {
+          return;
+        }
+        const cliente = (estancia.ocupantes ?? []).find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        const totalPagado = (estancia.pagos ?? [])
+          .filter((pago) => pago.estado === 'COMPLETADO')
+          .reduce((acc, pago) => acc + Number(pago.monto ?? 0), 0);
+
+        estanciasMap.set(estancia.id, {
+          id: estancia.id,
+          inicio: `${estancia.entradaReal}`,
+          fin: `${estancia.salidaEstimada}`,
+          codigoEstancia: estancia.codigoFolio ?? null,
+          codigoUnidad,
+          tipoUnidad,
+          numeroPersonas: (estancia.ocupantes ?? []).length,
+          nombreCliente: cliente ? `${cliente.nombres} ${cliente.apellidos}`.trim() : null,
+          idCliente: cliente?.id ?? null,
+          totalPagado,
+          estadoEstancia: this.resolverEstadoEstancia(detalle, estancia.id),
+        });
+      });
+    });
+
+    return {
+      reservas: Array.from(reservasMap.values()),
+      estancias: Array.from(estanciasMap.values()),
+    };
+  }
+
+  private resolverEstadoEstancia(
+    detalleUnidad: DetalleCalendarioUnidadDTO,
+    idEstancia: number
+  ): EstadoEstancia {
+    const fuentes = [
+      detalleUnidad.unidad?.informacionAdicional,
+      ...(detalleUnidad.unidad?.habitaciones ?? []).map((habitacion) => habitacion.informacionAdicional),
+    ];
+
+    for (const informacionRaw of fuentes) {
+      if (!informacionRaw) {
+        continue;
+      }
+      try {
+        const informacion = JSON.parse(informacionRaw) as {
+          ESTANCIA?: { idEstancia?: number | string; estado?: EstadoEstancia };
+        };
+        const idInfo = Number(informacion?.ESTANCIA?.idEstancia);
+        if (idInfo === idEstancia && informacion.ESTANCIA?.estado) {
+          return informacion.ESTANCIA.estado;
+        }
+      } catch {
+        continue;
+      }
+    }
+
+    return 'ACTIVA';
   }
 }

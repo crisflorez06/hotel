@@ -12,6 +12,8 @@ import { ReservaService } from '../../services/reserva.service';
 import { UnidadService } from '../../services/unidad.service';
 import { EstadoOperativo, Piso, TipoUnidad } from '../../models/enums';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
+import { getCurrentDateInput } from '../../core/utils/date-time.util';
+import { parseJsonSafe } from '../../core/utils/json.util';
 import { ReservaTablaFiltros, ReservaTablaItem } from '../../models/reserva-tabla.model';
 
 interface InformacionEstanciaUnidad {
@@ -610,21 +612,13 @@ export class RecepcionComponent implements OnInit {
   }
 
   private obtenerFechaActual(): string {
-    return new Date().toISOString().slice(0, 10);
+    return getCurrentDateInput();
   }
 
   private parsearInformacionAdicional(
     informacionAdicional: string | null | undefined
   ): InformacionAdicionalUnidad | null {
-    if (!informacionAdicional?.trim()) {
-      return null;
-    }
-
-    try {
-      return JSON.parse(informacionAdicional) as InformacionAdicionalUnidad;
-    } catch {
-      return null;
-    }
+    return parseJsonSafe<InformacionAdicionalUnidad>(informacionAdicional);
   }
 
   private extraerInfoValida(

@@ -3473,7 +3473,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         entityManager.clear();
 
         // ---------- WHEN ----------
-        EstanciaDTO result = estanciaService.obtenerEstancia(unidad.getCodigo(), unidad.getTipo());
+        EstanciaDTO result = estanciaService.obtenerEstancia(estancia.getId());
 
         // ---------- THEN ----------
         assertThat(result).isNotNull();
@@ -3525,7 +3525,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         entityManager.clear();
 
         // ---------- WHEN ----------
-        EstanciaDTO result = estanciaService.obtenerEstancia(unidad.getCodigo(), TipoUnidad.APARTAESTUDIO);
+        EstanciaDTO result = estanciaService.obtenerEstancia(estancia.getId());
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
         // ---------- THEN ----------
         assertThat(result).isNotNull();
@@ -3580,7 +3580,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         entityManager.clear();
 
         // ---------- WHEN ----------
-        EstanciaDTO result = estanciaService.obtenerEstancia(habitacion.getCodigo(), TipoUnidad.HABITACION);
+        EstanciaDTO result = estanciaService.obtenerEstancia(estancia.getId());
 
         // ---------- THEN ----------
         assertThat(result).isNotNull();
@@ -3633,7 +3633,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         entityManager.clear();
 
         // ---------- WHEN + THEN ----------
-        assertThatThrownBy(() -> estanciaService.obtenerEstancia(unidad.getCodigo(), unidad.getTipo()))
+        assertThatThrownBy(() -> estanciaService.obtenerEstancia(1L))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No se encontró una estancia activa o excedida para la unidad con codigo");
 

@@ -11,6 +11,7 @@ import { EstanciaService } from '../../services/estancia.service';
 import { PagoService } from '../../services/pago.service';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import { FeedbackToastService } from '../../core/services/feedback-toast.service';
+import { getPreviousNavigationUrl } from '../../core/utils/navigation-return.util';
 
 @Component({
   selector: 'app-estancia-salida',
@@ -412,10 +413,9 @@ export class EstanciaSalidaComponent implements OnInit {
       return;
     }
 
-    const currentNavigation = this.router.getCurrentNavigation();
-    const urlAnterior = currentNavigation?.previousNavigation?.finalUrl?.toString() ?? null;
+    const urlAnterior = getPreviousNavigationUrl(this.router, { excludePrefix: '/estancias/salida' });
 
-    if (!urlAnterior || urlAnterior.startsWith('/estancias/salida')) {
+    if (!urlAnterior) {
       return;
     }
 

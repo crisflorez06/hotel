@@ -1,6 +1,5 @@
 package com.hotel.controllers;
 
-import com.hotel.dtos.reserva.ReservaCalendarioDTO;
 import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
@@ -63,7 +62,7 @@ public class ReservaController {
     }
 
     @GetMapping("/buscar-por-documento")
-    public List<ReservaCalendarioDTO> buscarReservasPorDocumento(
+    public List<ReservaDTO> buscarReservasPorDocumento(
             @RequestParam("numero") String numeroDocumento) {
         return reservaService.buscarReservasPorNumeroDocumento(numeroDocumento);
     }

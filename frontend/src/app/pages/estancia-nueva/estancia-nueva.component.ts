@@ -15,8 +15,10 @@ import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { PagoNuevoRequest } from '../../models/pago.model';
 import { PagoService } from '../../services/pago.service';
 import { UnidadService } from '../../services/unidad.service';
+import { formatDateOnly, getCurrentDateInput } from '../../core/utils/date-time.util';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import { FeedbackToastService } from '../../core/services/feedback-toast.service';
+import { getPreviousNavigationUrl } from '../../core/utils/navigation-return.util';
 
 @Component({
   selector: 'app-estancia-nueva',
@@ -795,21 +797,7 @@ export class EstanciaNuevaComponent implements OnInit {
   }
 
   formatearSoloFecha(valor: string): string {
-    if (!valor) {
-      return '-';
-    }
-
-    const normalizado = valor.replace(' ', 'T');
-    const fecha = new Date(normalizado);
-    if (Number.isNaN(fecha.getTime())) {
-      return valor;
-    }
-
-    return fecha.toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+    return valor ? formatDateOnly(valor.replace(' ', 'T')) : '-';
   }
 
   private buildPago(): PagoNuevoRequest | undefined {
@@ -911,11 +899,7 @@ export class EstanciaNuevaComponent implements OnInit {
   }
 
   private obtenerFechaActual(): string {
-    const fecha = new Date();
-    const anio = fecha.getFullYear();
-    const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
-    const dia = `${fecha.getDate()}`.padStart(2, '0');
-    return `${anio}-${mes}-${dia}`;
+    return getCurrentDateInput();
   }
 
   private parsearFechaHoraLocal(valor: string): Date | null {
@@ -987,10 +971,9 @@ export class EstanciaNuevaComponent implements OnInit {
       return;
     }
 
-    const currentNavigation = this.router.getCurrentNavigation();
-    const urlAnterior = currentNavigation?.previousNavigation?.finalUrl?.toString() ?? null;
+    const urlAnterior = getPreviousNavigationUrl(this.router, { excludePrefix: '/estancias/nueva' });
 
-    if (!urlAnterior || urlAnterior.startsWith('/estancias/nueva')) {
+    if (!urlAnterior) {
       return;
     }
 

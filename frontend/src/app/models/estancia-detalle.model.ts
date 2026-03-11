@@ -1,4 +1,4 @@
-import { ModoOcupacion } from './enums';
+import { EstadoEstancia, ModoOcupacion } from './enums';
 import { OcupanteDTO } from './ocupante.model';
 import { PagoDTO } from './pago-detalle.model';
 import { UnidadDTO } from './unidad.model';
@@ -9,6 +9,8 @@ export interface EstanciaDTO {
   codigoFolio: string;
   entradaReal: string;
   salidaEstimada: string;
+  salidaReal?: string | null;
+  estado?: EstadoEstancia | null;
   modoOcupacion: ModoOcupacion;
   ocupantes: OcupanteDTO[];
   notas: string | null;

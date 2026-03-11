@@ -20,7 +20,9 @@ import {
 import { ReservaNuevoRequest } from '../../models/reserva.model';
 import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { PagoNuevoRequest } from '../../models/pago.model';
+import { getCurrentDateInput } from '../../core/utils/date-time.util';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
+import { getPreviousNavigationUrl } from '../../core/utils/navigation-return.util';
 
 interface ReservaEditState {
   editMode?: boolean;
@@ -161,8 +163,18 @@ export class ReservaNuevaComponent implements OnInit {
       this.retornoExplicito = true;
     }
 
-    this.codigo = this.route.snapshot.queryParamMap.get('codigo') ?? '';
-    this.tipoUnidad = (this.route.snapshot.queryParamMap.get('tipo') as TipoUnidad) ?? '';
+    const codigoState = (history.state?.codigo as string | undefined) ?? '';
+    const tipoState = (history.state?.tipo as TipoUnidad | undefined) ?? '';
+    const entradaState = (history.state?.entrada as string | undefined) ?? '';
+
+    this.codigo = codigoState || this.route.snapshot.queryParamMap.get('codigo') || '';
+    this.tipoUnidad =
+      (tipoState || (this.route.snapshot.queryParamMap.get('tipo') as TipoUnidad | null) || '') as
+      | TipoUnidad
+      | '';
+    if (entradaState) {
+      this.entradaEstimada = this.formatearFechaFlatpickr(entradaState);
+    }
     if (this.tipoUnidad) {
       this.cargarCodigosDisponibles(this.tipoUnidad);
     }
@@ -641,11 +653,7 @@ export class ReservaNuevaComponent implements OnInit {
   }
 
   private obtenerFechaActual(): string {
-    const fecha = new Date();
-    const anio = fecha.getFullYear();
-    const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
-    const dia = `${fecha.getDate()}`.padStart(2, '0');
-    return `${anio}-${mes}-${dia}`;
+    return getCurrentDateInput();
   }
 
   private limpiarClienteNuevo(): void {
@@ -692,10 +700,9 @@ export class ReservaNuevaComponent implements OnInit {
       return;
     }
 
-    const currentNavigation = this.router.getCurrentNavigation();
-    const urlAnterior = currentNavigation?.previousNavigation?.finalUrl?.toString() ?? null;
+    const urlAnterior = getPreviousNavigationUrl(this.router, { excludePrefix: '/reservas/nueva' });
 
-    if (!urlAnterior || urlAnterior.startsWith('/reservas/nueva')) {
+    if (!urlAnterior) {
       return;
     }
 

@@ -1,6 +1,5 @@
 package com.hotel.services;
 
-import com.hotel.dtos.reserva.ReservaCalendarioDTO;
 import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
@@ -1984,23 +1983,20 @@ class ReservaServiceIT extends AbstractServiceIT {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // ---------- WHEN ----------
-        List<ReservaCalendarioDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("CC-RESERVA-1001");
+        List<ReservaDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("CC-RESERVA-1001");
 
         // ---------- THEN ----------
         assertThat(resultado).hasSize(1);
 
-        ReservaCalendarioDTO dto = resultado.getFirst();
+        ReservaDTO dto = resultado.getFirst();
         assertThat(dto.getId()).isEqualTo(reserva.getId());
         assertThat(dto.getCodigoReserva()).isEqualTo(reserva.getCodigo());
-        assertThat(dto.getCodigoUnidad()).isEqualTo(unidad.getCodigo());
-        assertThat(dto.getTipoUnidad()).isEqualTo(TipoUnidad.APARTAMENTO);
         assertThat(dto.getEstadoReserva()).isEqualTo(EstadoReserva.CONFIRMADA);
         assertThat(dto.getNumeroPersonas()).isEqualTo(reserva.getNumeroPersonas());
         assertThat(dto.getIdCliente()).isEqualTo(cliente.getId());
         assertThat(dto.getNombreCliente()).isEqualTo("Mario Lopez");
-        assertThat(dto.getInicio()).isEqualTo(reserva.getEntradaEstimada());
-        assertThat(dto.getFin()).isEqualTo(reserva.getSalidaEstimada());
-        assertThat(dto.getTotalAnticipo()).isEqualByComparingTo(totalAnticipoEsperado);
+        assertThat(dto.getEntradaEstimada()).isEqualTo(reserva.getEntradaEstimada());
+        assertThat(dto.getSalidaEstimada()).isEqualTo(reserva.getSalidaEstimada());
     }
 
     @Test
@@ -2031,13 +2027,13 @@ class ReservaServiceIT extends AbstractServiceIT {
         ocupanteRepository.save(reservaHabitacion.getCliente());
 
         // ---------- WHEN ----------
-        List<ReservaCalendarioDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("777");
+        List<ReservaDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("777");
 
         // ---------- THEN ----------
         assertThat(resultado).hasSize(3);
 
-        Map<String, ReservaCalendarioDTO> reservasPorCodigo = resultado.stream()
-                .collect(java.util.stream.Collectors.toMap(ReservaCalendarioDTO::getCodigoReserva, dto -> dto));
+        Map<String, ReservaDTO> reservasPorCodigo = resultado.stream()
+                .collect(java.util.stream.Collectors.toMap(ReservaDTO::getCodigoReserva, dto -> dto));
 
         assertThat(reservasPorCodigo).containsKeys(
                 reservaApartamento.getCodigo(),
@@ -2045,14 +2041,14 @@ class ReservaServiceIT extends AbstractServiceIT {
                 reservaHabitacion.getCodigo()
         );
 
-        assertThat(reservasPorCodigo.get(reservaApartamento.getCodigo()).getCodigoUnidad()).isEqualTo(apartamento.getCodigo());
-        assertThat(reservasPorCodigo.get(reservaApartamento.getCodigo()).getTipoUnidad()).isEqualTo(TipoUnidad.APARTAMENTO);
+        assertThat(reservasPorCodigo.get(reservaApartamento.getCodigo()).getCodigoReserva())
+                .isEqualTo(reservaApartamento.getCodigo());
 
-        assertThat(reservasPorCodigo.get(reservaApartaestudio.getCodigo()).getCodigoUnidad()).isEqualTo(apartaestudio.getCodigo());
-        assertThat(reservasPorCodigo.get(reservaApartaestudio.getCodigo()).getTipoUnidad()).isEqualTo(TipoUnidad.APARTAESTUDIO);
+        assertThat(reservasPorCodigo.get(reservaApartaestudio.getCodigo()).getCodigoReserva())
+                .isEqualTo(reservaApartaestudio.getCodigo());
 
-        assertThat(reservasPorCodigo.get(reservaHabitacion.getCodigo()).getCodigoUnidad()).isEqualTo(habitacion.getCodigo());
-        assertThat(reservasPorCodigo.get(reservaHabitacion.getCodigo()).getTipoUnidad()).isEqualTo(TipoUnidad.HABITACION);
+        assertThat(reservasPorCodigo.get(reservaHabitacion.getCodigo()).getCodigoReserva())
+                .isEqualTo(reservaHabitacion.getCodigo());
     }
 
     @Test
@@ -2072,7 +2068,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         reservaRepository.save(reservaCancelada);
 
         // ---------- WHEN ----------
-        List<ReservaCalendarioDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("FILTRO-555");
+        List<ReservaDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("FILTRO-555");
 
         // ---------- THEN ----------
         assertThat(resultado).hasSize(1);

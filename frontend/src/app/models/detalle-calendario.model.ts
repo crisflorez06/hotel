@@ -1,4 +1,21 @@
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from './enums';
+import { HabitacionDTO } from './habitacion.model';
+import { ReservaDTO } from './reserva.model';
+import { EstanciaDTO } from './estancia-detalle.model';
+import { UnidadDTO } from './unidad.model';
+
+export interface DetalleCalendarioHabitacionDTO {
+  habitacion: HabitacionDTO;
+  estancias: EstanciaDTO[];
+  reservas: ReservaDTO[];
+}
+
+export interface DetalleCalendarioUnidadDTO {
+  unidad: UnidadDTO;
+  estancias: EstanciaDTO[];
+  reservas: ReservaDTO[];
+  habitaciones: DetalleCalendarioHabitacionDTO[];
+}
 
 export interface EstanciaCalendarioDTO {
   id: number;

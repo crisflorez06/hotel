@@ -1,7 +1,5 @@
 package com.hotel.mappers;
 
-
-import com.hotel.dtos.reserva.ReservaCalendarioDTO;
 import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.reserva.ReservaRequestDTO;
 import com.hotel.dtos.reserva.ReservaTablaDTO;
@@ -64,38 +62,6 @@ public class ReservaMapper {
         }
 
         return dto;
-    }
-
-    public static ReservaCalendarioDTO entityToCalendarioDTO(Reserva reserva) {
-        ReservaCalendarioDTO dto = new ReservaCalendarioDTO();
-
-        dto.setId(reserva.getId());
-        if(reserva.getEstancia() != null && reserva.getEstancia().getEntradaReal() != null) {
-            dto.setInicio(reserva.getEstancia().getEntradaReal());
-        } else {
-            dto.setInicio(reserva.getEntradaEstimada());
-        }
-        dto.setFin(reserva.getSalidaEstimada());
-        dto.setCodigoReserva(reserva.getCodigo());
-        dto.setEstadoReserva(reserva.getEstado());
-        dto.setNumeroPersonas(reserva.getNumeroPersonas());
-        dto.setNombreCliente(reserva.getCliente().getNombres() + " " + reserva.getCliente().getApellidos());
-        dto.setIdCliente(reserva.getCliente().getId());
-        dto.setIdEstancia(reserva.getEstancia() != null ? reserva.getEstancia().getId() : null);
-
-        if (reserva.getEstancia() != null && reserva.getEstancia().getPagos() != null) {
-            dto.setTotalAnticipo(reserva.getEstancia().getPagos().stream()
-                    .filter(pago -> pago.getTipoPago() == TipoPago.ANTICIPO_RESERVA)
-                    .map(Pago::getMonto)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add));
-        }
-        return dto;
-    }
-
-    public static List<ReservaCalendarioDTO> entityListaToCalendarioDTOList(List<Reserva> reservas) {
-        return reservas.stream()
-                .map(ReservaMapper::entityToCalendarioDTO)
-                .toList();
     }
 
     public static ReservaTablaDTO entityToTablaDTO(Reserva reserva) {

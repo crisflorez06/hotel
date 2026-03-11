@@ -1,7 +1,7 @@
 package com.hotel.dtos;
 
 import com.hotel.dtos.estancia.EstanciaDTO;
-import com.hotel.dtos.reserva.ReservaCalendarioDTO;
+import com.hotel.dtos.reserva.ReservaDTO;
 import lombok.Data;
 
 import java.util.List;
@@ -10,6 +10,6 @@ import java.util.List;
 public class DetalleDTO {
     private UnidadDTO unidad;
     private EstanciaDTO estancia;
-    private ReservaCalendarioDTO reserva;
+    private ReservaDTO reserva;
 
 }

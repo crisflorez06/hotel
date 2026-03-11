@@ -52,7 +52,7 @@
 
         </div>
 
-        <div class="panel__unit-rooms" *ngIf="!esVistaHabitacion">
+        <div class="panel__unit-rooms" *ngIf="!esVistaHabitacion && unidad.tipo === 'APARTAMENTO'">
           <div class="panel__unit-rooms-head">
             <h4>Habitaciones</h4>
             <span class="panel__section-note">Estado por habitación</span>
@@ -84,7 +84,7 @@
             </li>
           </ul>
         </div>
-        <div class="panel__unit-rooms-actions" *ngIf="!esVistaHabitacion">
+        <div class="panel__unit-rooms-actions" *ngIf="!esVistaHabitacion && unidad.tipo === 'APARTAMENTO'">
           <button
             type="button"
             class="btn-secondary panel__action-btn"
@@ -635,6 +635,38 @@
         [disabled]="eliminandoEstancia"
       >
         {{ eliminandoEstancia ? 'Eliminando...' : 'Eliminar estancia' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="modal modal--recepcion" *ngIf="mostrarModalEliminarReserva">
+  <div class="modal__backdrop modal__backdrop--recepcion" (click)="cerrarModalEliminarReserva()"></div>
+  <div class="modal__panel modal__panel--recepcion modal__panel--confirm" role="dialog" aria-modal="true" (click)="mantenerModal($event)">
+    <header class="modal__header modal__header--recepcion">
+      <div>
+        <p class="modal__eyebrow">Recepcion operativa</p>
+        <h2>Eliminar reserva</h2>
+        <p>Se eliminara la reserva asociada. Esta accion no se puede deshacer.</p>
+      </div>
+    </header>
+
+    <div class="modal__actions">
+      <button
+        type="button"
+        class="btn-secondary"
+        (click)="cerrarModalEliminarReserva()"
+        [disabled]="procesandoReserva"
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        class="btn-danger"
+        (click)="confirmarEliminarReserva()"
+        [disabled]="procesandoReserva"
+      >
+        {{ procesandoReserva ? 'Eliminando...' : 'Eliminar reserva' }}
       </button>
     </div>
   </div>
