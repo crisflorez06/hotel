@@ -8,6 +8,7 @@ import com.hotel.models.Ocupante;
 import com.hotel.models.Pago;
 import com.hotel.models.enums.*;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 
 public class EstanciaMapper {
 
@@ -24,18 +25,40 @@ public class EstanciaMapper {
 
     public static EstanciaDTO entityToDTO(Estancia entity) {
         EstanciaDTO dto = new EstanciaDTO();
+        dto.setAcompanantes(new ArrayList<>());
+        dto.setPagos(new ArrayList<>());
 
         dto.setId(entity.getId());
         dto.setCodigoFolio(entity.getCodigoFolio());
+
+        if(entity.getReserva() != null) {
+            dto.setCodigoReserva(entity.getReserva().getCodigo());
+            dto.setIdReserva(entity.getReserva().getId());
+        }
+
         dto.setEntradaReal(entity.getEntradaReal());
         dto.setSalidaEstimada(entity.getSalidaEstimada());
         dto.setSalidaReal(entity.getSalidaReal());
         dto.setEstado(entity.getEstado());
         dto.setModoOcupacion(entity.getModoOcupacion());
         dto.setNotas(entity.getNotas());
-        dto.setOcupantes(OcupanteMapper.listaOcupanteToDto(entity.getOcupantes()));
+        entity.getOcupantes().stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst()
+                .ifPresent(cliente -> {
+                    dto.setCliente(OcupanteMapper.ocupanteToDto(cliente));
+                });
+
+        entity.getOcupantes().stream()
+                .filter(ocupante -> ocupante.getTipoOcupante() == TipoOcupante.ACOMPANANTE)
+                .forEach(acompanante -> {
+                    dto.getAcompanantes().add(OcupanteMapper.ocupanteToDto(acompanante));
+                });
+
         if(entity.getPagos() != null) {
-            dto.setPagos(PagoMapper.entityListToDTOListConCodigos(entity.getPagos()));
+            entity.getPagos().forEach(pago -> {
+                dto.getPagos().add(PagoMapper.entityToDTO(pago));
+            });
         }
 
         return dto;

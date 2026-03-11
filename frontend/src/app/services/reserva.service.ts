@@ -9,6 +9,7 @@ import {
   EstanciaCalendarioDTO,
   ReservaCalendarioResumenDTO,
 } from '../models/detalle-calendario.model';
+import { EstanciaDTO } from '../models/estancia-detalle.model';
 import { ReservaCalendarioDTO } from '../models/reserva-calendario.model';
 import { ReservaDTO, ReservaNuevoRequest } from '../models/reserva.model';
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../models/enums';
@@ -51,7 +52,10 @@ export class ReservaService {
 
     return this.http
       .get<DetalleCalendarioUnidadDTO[]>(`${this.detalleBaseUrl}/calendario`, { params })
-      .pipe(map((unidades) => this.mapearDetalleCalendario(unidades ?? [])));
+      .pipe(
+        map((unidades) => this.normalizarDetalleCalendarioUnidades(unidades ?? [])),
+        map((unidades) => this.mapearDetalleCalendario(unidades))
+      );
   }
 
   obtenerReservasCalendario(mes: string, tipoUnidad?: TipoUnidad, codigoUnidad?: string) {
@@ -65,7 +69,9 @@ export class ReservaService {
       params = params.set('codigoUnidad', codigoUnidad);
     }
 
-    return this.http.get<ReservaCalendarioDTO[]>(`${this.baseUrl}/calendario`, { params });
+    return this.http
+      .get<ReservaCalendarioDTO[]>(`${this.baseUrl}/calendario`, { params })
+      .pipe(map((reservas) => reservas ?? []));
   }
 
   obtenerCalendarioDetalle(
@@ -94,7 +100,9 @@ export class ReservaService {
       params = params.append('estadosEstancia', estado);
     });
 
-    return this.http.get<DetalleCalendarioUnidadDTO[]>(`${this.detalleBaseUrl}/calendario`, { params });
+    return this.http
+      .get<DetalleCalendarioUnidadDTO[]>(`${this.detalleBaseUrl}/calendario`, { params })
+      .pipe(map((unidades) => this.normalizarDetalleCalendarioUnidades(unidades ?? [])));
   }
 
   obtenerTabla(filtros: ReservaTablaFiltros, page: number, size: number, sort: string[]) {
@@ -139,7 +147,9 @@ export class ReservaService {
   }
 
   crearReserva(request: ReservaNuevoRequest) {
-    return this.http.post<ReservaDTO>(this.baseUrl, request);
+    return this.http
+      .post<ReservaDTO>(this.baseUrl, request)
+      .pipe(map((reserva) => this.normalizarReserva(reserva)));
   }
 
   editarReserva(id: number, request: ReservaNuevoRequest) {
@@ -147,7 +157,9 @@ export class ReservaService {
   }
 
   obtenerReservaPorId(id: number) {
-    return this.http.get<ReservaDTO>(`${this.baseUrl}/${id}`);
+    return this.http
+      .get<ReservaDTO>(`${this.baseUrl}/${id}`)
+      .pipe(map((reserva) => this.normalizarReserva(reserva)));
   }
 
   eliminarReserva(id: number) {
@@ -158,6 +170,54 @@ export class ReservaService {
     return this.http.get<ReservaCalendarioDTO[]>(`${this.baseUrl}/buscar-por-documento`, {
       params: { numero: numeroDocumento },
     });
+  }
+
+  private normalizarReserva(reserva: ReservaDTO): ReservaDTO {
+    return {
+      ...reserva,
+      cliente: reserva.cliente ?? null,
+    };
+  }
+
+  private normalizarDetalleCalendarioUnidades(
+    unidades: DetalleCalendarioUnidadDTO[]
+  ): DetalleCalendarioUnidadDTO[] {
+    return unidades.map((unidad) => ({
+      ...unidad,
+      reservas: (unidad.reservas ?? []).map((reserva) => this.normalizarReserva(reserva)),
+      estancias: (unidad.estancias ?? []).map((estancia) => this.normalizarEstancia(estancia)),
+      habitaciones: (unidad.habitaciones ?? []).map((habitacion) => ({
+        ...habitacion,
+        reservas: (habitacion.reservas ?? []).map((reserva) => this.normalizarReserva(reserva)),
+        estancias: (habitacion.estancias ?? []).map((estancia) => this.normalizarEstancia(estancia)),
+      })),
+    }));
+  }
+
+  private normalizarEstancia(estancia: EstanciaDTO): EstanciaDTO {
+    return {
+      ...estancia,
+      cliente: estancia.cliente ?? null,
+      acompanantes: estancia.acompanantes ?? [],
+    };
+  }
+
+  private obtenerNombreClienteReserva(reserva: ReservaDTO): string | null {
+    const nombres = reserva.cliente?.nombres?.trim() ?? '';
+    const apellidos = reserva.cliente?.apellidos?.trim() ?? '';
+    const nombre = `${nombres} ${apellidos}`.trim();
+    return nombre || null;
+  }
+
+  private obtenerNombreClienteEstancia(estancia: EstanciaDTO): string | null {
+    const cliente = estancia.cliente;
+
+    if (!cliente) {
+      return null;
+    }
+
+    const nombre = `${cliente.nombres ?? ''} ${cliente.apellidos ?? ''}`.trim();
+    return nombre || null;
   }
 
   private setParamIfValue(params: HttpParams, key: string, value?: string): HttpParams {
@@ -211,7 +271,8 @@ export class ReservaService {
       const codigoUnidad = detalle.unidad?.codigo ?? null;
       const tipoUnidad = detalle.unidad?.tipo ?? null;
 
-      (detalle.reservas ?? []).forEach((reserva) => {
+      (detalle.reservas ?? []).forEach((reservaRaw) => {
+        const reserva = this.normalizarReserva(reservaRaw);
         if (!reserva?.id) {
           return;
         }
@@ -224,18 +285,18 @@ export class ReservaService {
           codigoUnidad,
           tipoUnidad,
           numeroPersonas: reserva.numeroPersonas ?? null,
-          nombreCliente: reserva.nombreCliente ?? null,
-          idCliente: reserva.idCliente ?? null,
+          nombreCliente: this.obtenerNombreClienteReserva(reserva),
+          idCliente: reserva.cliente?.id ?? null,
           totalAnticipo: null,
           estadoReserva: reserva.estadoReserva as EstadoReserva,
         });
       });
 
-      (detalle.estancias ?? []).forEach((estancia) => {
+      (detalle.estancias ?? []).forEach((estanciaRaw) => {
+        const estancia = this.normalizarEstancia(estanciaRaw);
         if (!estancia?.id) {
           return;
         }
-        const cliente = (estancia.ocupantes ?? []).find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
         const totalPagado = (estancia.pagos ?? [])
           .filter((pago) => pago.estado === 'COMPLETADO')
           .reduce((acc, pago) => acc + Number(pago.monto ?? 0), 0);
@@ -247,9 +308,9 @@ export class ReservaService {
           codigoEstancia: estancia.codigoFolio ?? null,
           codigoUnidad,
           tipoUnidad,
-          numeroPersonas: (estancia.ocupantes ?? []).length,
-          nombreCliente: cliente ? `${cliente.nombres} ${cliente.apellidos}`.trim() : null,
-          idCliente: cliente?.id ?? null,
+          numeroPersonas: this.contarPersonasEstancia(estancia),
+          nombreCliente: this.obtenerNombreClienteEstancia(estancia),
+          idCliente: estancia.cliente?.id ?? null,
           totalPagado,
           estadoEstancia: this.resolverEstadoEstancia(detalle, estancia.id),
         });
@@ -260,6 +321,11 @@ export class ReservaService {
       reservas: Array.from(reservasMap.values()),
       estancias: Array.from(estanciasMap.values()),
     };
+  }
+
+  private contarPersonasEstancia(estancia: EstanciaDTO): number {
+    const cliente = estancia.cliente ? 1 : 0;
+    return cliente + (estancia.acompanantes?.length ?? 0);
   }
 
   private resolverEstadoEstancia(

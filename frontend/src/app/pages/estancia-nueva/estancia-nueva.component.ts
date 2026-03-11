@@ -921,13 +921,11 @@ export class EstanciaNuevaComponent implements OnInit {
         this.notas = estancia.notas ?? '';
         this.conPago = false;
 
-        const cliente = estancia.ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        const cliente = estancia.cliente ?? null;
         this.idCliente = cliente?.id ?? null;
-        this.clienteCreado = cliente ?? null;
+        this.clienteCreado = cliente;
 
-        this.acompanantesCreados = estancia.ocupantes.filter(
-          (ocupante) => ocupante.tipoOcupante === 'ACOMPANANTE'
-        );
+        this.acompanantesCreados = estancia.acompanantes ?? [];
         this.idAcompanantes = '';
         this.totalAnticipoReserva = this.sumarPagosPorTipo(estancia, 'ANTICIPO_RESERVA');
         this.totalAnticipoEstanciaRegistrado = this.sumarPagosPorTipo(estancia, 'ANTICIPO_ESTANCIA');

@@ -48,6 +48,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,6 +64,8 @@ public class DetalleService {
     private static final List<EstadoPago> ESTADOS_PAGO_INGRESO = List.of(
             EstadoPago.PENDIENTE,
             EstadoPago.COMPLETADO);
+
+    Logger logger = Logger.getLogger(DetalleService.class.getName());
 
     private final EstanciaRepository estanciaRepository;
     private final ReservaRepository reservaRepository;
@@ -92,17 +96,25 @@ public class DetalleService {
             String codigoUnidad,
             List<EstadoReserva> estadosReserva,
             List<EstadoEstancia> estadosEstancia) {
+
+        logger.info("[obtenerCalendario] verificando rango de fechas: desde=" + desde + ", hasta=" + hasta);
         validarRangoFechas(desde, hasta);
+
+        if((estadosReserva == null || estadosReserva.isEmpty()) && (estadosEstancia == null || estadosEstancia.isEmpty())) {
+            logger.info("[obtenerCalendario] no se especificaron estados de reserva ni estancia, se traera una lista vacia");
+            return List.of();
+        }
 
         List<EstadoReserva> estadosReservaFiltrados = normalizarEstadosReserva(estadosReserva);
         List<EstadoEstancia> estadosEstanciaFiltrados = normalizarEstadosEstancia(estadosEstancia);
+        List<Habitacion> habitacionesConsultadas = obtenerHabitacionesAConsultar(tipoUnidad, codigoUnidad);
+        logger.info("[obtenerCalendario] habitaciones consultadas: " + habitacionesConsultadas.size() + " para tipoUnidad=" + tipoUnidad + " y codigoUnidad=" + codigoUnidad);
 
         List<Reserva> reservas = reservaRepository.findAll(
                 ReservaSpecification.byCalendario(
                         desde,
                         hasta,
-                        tipoUnidad,
-                        codigoUnidad,
+                        habitacionesConsultadas.stream().map(Habitacion::getCodigo).toList(),
                         estadosReservaFiltrados));
 
         List<Estancia> estancias = estadosEstanciaFiltrados.isEmpty()
@@ -111,166 +123,122 @@ public class DetalleService {
                         EstanciaSpecification.byCalendario(
                                 desde,
                                 hasta,
-                                tipoUnidad,
-                                codigoUnidad,
+                                habitacionesConsultadas.stream().map(Habitacion::getCodigo).toList(),
                                 estadosEstanciaFiltrados));
 
-        List<Unidad> unidadesFiltradas = filtrarUnidadesCalendario(tipoUnidad, codigoUnidad);
 
-        Map<Long, AcumuladorUnidadCalendario> acumuladores = new LinkedHashMap<>();
-        for (Unidad unidad : unidadesFiltradas) {
-            acumuladores.put(unidad.getId(), crearAcumuladorUnidad(unidad));
-        }
-
-        for (Reserva reserva : reservas) {
-            ReservaDTO reservaDTO = ReservaMapper.entityToDTO(reserva);
-            agregarReservaPorHabitaciones(acumuladores, reservaDTO, reserva.getHabitaciones());
-        }
-
-        for (Estancia estancia : estancias) {
-            EstanciaDTO estanciaDTO = EstanciaMapper.entityToDTO(estancia);
-            agregarEstanciaPorHabitaciones(acumuladores, estanciaDTO, estancia.getHabitaciones());
-        }
-
-        return acumuladores.values().stream()
-                .map(this::toDetalleCalendarioUnidadDTO)
-                .toList();
+        return construirCalendario(habitacionesConsultadas, reservas, estancias);
     }
 
-    private List<Unidad> filtrarUnidadesCalendario(TipoUnidad tipoUnidad, String codigoUnidad) {
-        String codigoUnidadNormalizado = normalizarTexto(codigoUnidad);
-        return unidadRepository.findAll().stream()
-                .filter(unidad -> tipoUnidad == null || unidad.getTipo() == tipoUnidad)
-                .filter(unidad -> coincideCodigoUnidad(unidad, codigoUnidadNormalizado))
-                .sorted(Comparator.comparing(Unidad::getCodigo, String.CASE_INSENSITIVE_ORDER))
-                .toList();
-    }
 
-    private boolean coincideCodigoUnidad(Unidad unidad, String codigoUnidadNormalizado) {
-        if (codigoUnidadNormalizado == null) {
-            return true;
-        }
-        if (contieneIgnoreCase(unidad.getCodigo(), codigoUnidadNormalizado)) {
-            return true;
-        }
-        if (unidad.getHabitaciones() == null) {
-            return false;
-        }
-        return unidad.getHabitaciones().stream()
-                .map(Habitacion::getCodigo)
-                .anyMatch(codigo -> contieneIgnoreCase(codigo, codigoUnidadNormalizado));
-    }
-
-    private String normalizarTexto(String valor) {
-        if (valor == null) {
-            return null;
-        }
-        String normalizado = valor.trim();
-        return normalizado.isEmpty() ? null : normalizado.toLowerCase();
-    }
-
-    private boolean contieneIgnoreCase(String valor, String patronMinuscula) {
-        return valor != null && patronMinuscula != null && valor.toLowerCase().contains(patronMinuscula);
-    }
-
-    private AcumuladorUnidadCalendario crearAcumuladorUnidad(Unidad unidad) {
-        UnidadDTO unidadDTO = UnidadMapper.entityToDto(unidad);
-        Map<Long, AcumuladorHabitacionCalendario> habitaciones = new LinkedHashMap<>();
-        if (unidad.getHabitaciones() != null) {
-            unidad.getHabitaciones().stream()
-                    .sorted(Comparator.comparing(Habitacion::getCodigo, String.CASE_INSENSITIVE_ORDER))
-                    .forEach(habitacion -> habitaciones.put(
-                            habitacion.getId(),
-                            new AcumuladorHabitacionCalendario(HabitacionMapper.entityToDto(habitacion))));
-        }
-        return new AcumuladorUnidadCalendario(unidadDTO, habitaciones);
-    }
-
-    private void agregarReservaPorHabitaciones(
-            Map<Long, AcumuladorUnidadCalendario> acumuladores,
-            ReservaDTO reservaDTO,
-            List<Habitacion> habitaciones) {
+    private List<DetalleCalendarioUnidadDTO> construirCalendario(List<Habitacion> habitaciones, List<Reserva> reservas, List<Estancia> estancias) {
         if (habitaciones == null || habitaciones.isEmpty()) {
-            return;
+            return List.of();
         }
 
+        Map<Long, Unidad> unidadesPorId = new LinkedHashMap<>();
         for (Habitacion habitacion : habitaciones) {
-            AcumuladorUnidadCalendario unidadAcumulada = acumuladores.get(habitacion.getUnidad().getId());
-            if (unidadAcumulada == null) {
+            if (habitacion == null || habitacion.getUnidad() == null) {
                 continue;
             }
+            unidadesPorId.putIfAbsent(habitacion.getUnidad().getId(), habitacion.getUnidad());
+        }
 
-            unidadAcumulada.reservas().putIfAbsent(reservaDTO.getId(), reservaDTO);
-            AcumuladorHabitacionCalendario habitacionAcumulada = unidadAcumulada.habitaciones().get(habitacion.getId());
-            if (habitacionAcumulada != null) {
-                habitacionAcumulada.reservas().putIfAbsent(reservaDTO.getId(), reservaDTO);
+        List<DetalleCalendarioUnidadDTO> detalleCalendario = new ArrayList<>();
+        for (Unidad unidad : unidadesPorId.values()) {
+            DetalleCalendarioUnidadDTO dto = new DetalleCalendarioUnidadDTO();
+            dto.setUnidad(UnidadMapper.entityToDto(unidad));
+            dto.setHabitaciones(new ArrayList<>());
+
+            Map<Long, ReservaDTO> reservasUnidad = new LinkedHashMap<>();
+            Map<Long, EstanciaDTO> estanciasUnidad = new LinkedHashMap<>();
+
+            List<Habitacion> habitacionesUnidad = unidad.getHabitaciones() == null
+                    ? List.of()
+                    : unidad.getHabitaciones();
+
+            for (Habitacion habitacionUnidad : habitacionesUnidad) {
+                DetalleCalendarioHabitacionDTO habitacionDTO = new DetalleCalendarioHabitacionDTO();
+                habitacionDTO.setHabitacion(HabitacionMapper.entityToDto(habitacionUnidad));
+                List<ReservaDTO> reservasHabitacion = reservas.stream()
+                        .filter(reserva -> reserva.getHabitaciones().contains(habitacionUnidad))
+                        .map(ReservaMapper::entityToDTO)
+                        .toList();
+                habitacionDTO.setReservas(reservasHabitacion);
+                for (ReservaDTO reservaDTO : reservasHabitacion) {
+                    reservasUnidad.putIfAbsent(reservaDTO.getId(), reservaDTO);
+                }
+
+                List<EstanciaDTO> estanciasHabitacion = estancias.stream()
+                        .filter(estancia -> estancia.getHabitaciones().contains(habitacionUnidad))
+                        .map(EstanciaMapper::entityToDTO)
+                        .toList();
+                habitacionDTO.setEstancias(estanciasHabitacion);
+                for (EstanciaDTO estanciaDTO : estanciasHabitacion) {
+                    estanciasUnidad.putIfAbsent(estanciaDTO.getId(), estanciaDTO);
+                }
+
+                dto.getHabitaciones().add(habitacionDTO);
+            }
+
+            dto.setReservas(new ArrayList<>(reservasUnidad.values()));
+            dto.setEstancias(new ArrayList<>(estanciasUnidad.values()));
+
+            if (!dto.getHabitaciones().isEmpty()) {
+                detalleCalendario.add(dto);
             }
         }
+
+        return detalleCalendario;
+    }
+    private List<EstadoReserva> normalizarEstadosReserva(List<EstadoReserva> estadosReserva) {
+        if (estadosReserva == null || estadosReserva.isEmpty()) {
+            return List.of();
+        }
+        return estadosReserva;
     }
 
-    private void agregarEstanciaPorHabitaciones(
-            Map<Long, AcumuladorUnidadCalendario> acumuladores,
-            EstanciaDTO estanciaDTO,
-            List<Habitacion> habitaciones) {
-        if (habitaciones == null || habitaciones.isEmpty()) {
-            return;
+    private List<EstadoEstancia> normalizarEstadosEstancia(List<EstadoEstancia> estadosEstancia) {
+        if (estadosEstancia == null || estadosEstancia.isEmpty()) {
+            return List.of();
         }
 
-        for (Habitacion habitacion : habitaciones) {
-            AcumuladorUnidadCalendario unidadAcumulada = acumuladores.get(habitacion.getUnidad().getId());
-            if (unidadAcumulada == null) {
-                continue;
+        return estadosEstancia;
+    }
+
+    private List<Habitacion> obtenerHabitacionesAConsultar(TipoUnidad tipoUnidad, String codigoUnidad) {
+        String codigoUnidadNormalizado = codigoUnidad == null || codigoUnidad.isBlank() ? null : codigoUnidad.trim().toLowerCase();
+
+        if(tipoUnidad == null && codigoUnidadNormalizado == null) {
+            return habitacionRepository.findAll();
+        }
+
+        if(tipoUnidad == null) {
+            return habitacionRepository.findByCodigoContainingIgnoreCaseOrderByCodigoAsc(codigoUnidadNormalizado);
+        }
+
+        if(tipoUnidad.equals(TipoUnidad.HABITACION) || tipoUnidad.equals(TipoUnidad.APARTAMENTO)) {
+            if(codigoUnidadNormalizado == null) {
+                return habitacionRepository.findHabitacionesByTipoUnidadApartamentoOApartaestudio(TipoUnidad.APARTAMENTO);
             }
+            List<Habitacion> habitacionesConsultadas = habitacionRepository.findHabitacionesByTipoUnidadApartamentoOApartaestudio(TipoUnidad.APARTAMENTO);
+            return habitacionesConsultadas.stream()
+                    .filter(habitacion -> habitacion.getCodigo().toLowerCase().contains(codigoUnidadNormalizado))
+                    .toList();
+        }
 
-            unidadAcumulada.estancias().putIfAbsent(estanciaDTO.getId(), estanciaDTO);
-            AcumuladorHabitacionCalendario habitacionAcumulada = unidadAcumulada.habitaciones().get(habitacion.getId());
-            if (habitacionAcumulada != null) {
-                habitacionAcumulada.estancias().putIfAbsent(estanciaDTO.getId(), estanciaDTO);
+        if (tipoUnidad.equals(TipoUnidad.APARTAESTUDIO)) {
+            if(codigoUnidadNormalizado == null) {
+                return habitacionRepository.findHabitacionesByTipoUnidadApartamentoOApartaestudio(TipoUnidad.APARTAESTUDIO);
             }
+            List<Habitacion> habitacionesConsultadas = habitacionRepository.findHabitacionesByTipoUnidadApartamentoOApartaestudio(TipoUnidad.APARTAESTUDIO);
+            return habitacionesConsultadas.stream()
+                    .filter(habitacion -> habitacion.getCodigo().toLowerCase().contains(codigoUnidadNormalizado))
+                    .toList();
         }
-    }
 
-    private DetalleCalendarioUnidadDTO toDetalleCalendarioUnidadDTO(AcumuladorUnidadCalendario acumulador) {
-        DetalleCalendarioUnidadDTO dto = new DetalleCalendarioUnidadDTO();
-        dto.setUnidad(acumulador.unidad());
-        dto.setReservas(new ArrayList<>(acumulador.reservas().values()));
-        dto.setEstancias(new ArrayList<>(acumulador.estancias().values()));
-        dto.setHabitaciones(acumulador.habitaciones().values().stream()
-                .map(this::toDetalleCalendarioHabitacionDTO)
-                .toList());
-        return dto;
+        throw new IllegalArgumentException("Tipo de unidad no soportado: " + tipoUnidad);
     }
-
-    private DetalleCalendarioHabitacionDTO toDetalleCalendarioHabitacionDTO(
-            AcumuladorHabitacionCalendario acumulador) {
-        DetalleCalendarioHabitacionDTO dto = new DetalleCalendarioHabitacionDTO();
-        dto.setHabitacion(acumulador.habitacion());
-        dto.setReservas(new ArrayList<>(acumulador.reservas().values()));
-        dto.setEstancias(new ArrayList<>(acumulador.estancias().values()));
-        return dto;
-    }
-
-    private record AcumuladorUnidadCalendario(
-            UnidadDTO unidad,
-            Map<Long, ReservaDTO> reservas,
-            Map<Long, EstanciaDTO> estancias,
-            Map<Long, AcumuladorHabitacionCalendario> habitaciones) {
-        private AcumuladorUnidadCalendario(
-                UnidadDTO unidad,
-                Map<Long, AcumuladorHabitacionCalendario> habitaciones) {
-            this(unidad, new LinkedHashMap<>(), new LinkedHashMap<>(), habitaciones);
-        }
-    }
-
-    private record AcumuladorHabitacionCalendario(
-            HabitacionDTO habitacion,
-            Map<Long, ReservaDTO> reservas,
-            Map<Long, EstanciaDTO> estancias) {
-        private AcumuladorHabitacionCalendario(HabitacionDTO habitacion) {
-            this(habitacion, new LinkedHashMap<>(), new LinkedHashMap<>());
-        }
-    }
-
 
 
     @Transactional(readOnly = true)
@@ -448,21 +416,6 @@ public class DetalleService {
         response.setTotalItems(totalItems);
         response.setTotalPages(size == 0 ? 0 : (int) Math.ceil((double) totalItems / size));
         return response;
-    }
-
-    private List<EstadoReserva> normalizarEstadosReserva(List<EstadoReserva> estadosReserva) {
-        if (estadosReserva == null || estadosReserva.isEmpty()) {
-            return List.of();
-        }
-        return estadosReserva;
-    }
-
-    private List<EstadoEstancia> normalizarEstadosEstancia(List<EstadoEstancia> estadosEstancia) {
-        if (estadosEstancia == null || estadosEstancia.isEmpty()) {
-            return List.of();
-        }
-
-        return estadosEstancia;
     }
 
     private void validarRangoFechas(LocalDateTime desde, LocalDateTime hasta) {

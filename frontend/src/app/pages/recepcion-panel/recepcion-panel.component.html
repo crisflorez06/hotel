@@ -160,7 +160,7 @@
             <div class="panel__subsection">
               <h4>Ocupantes</h4>
               <ul class="panel__list panel__list--compact">
-                <li *ngFor="let ocupante of estanciaDetalle.ocupantes">
+                <li *ngFor="let ocupante of obtenerOcupantesEstancia(estanciaDetalle)">
                   <div>
                     <strong class="panel__occupant-name">
                       <span
@@ -303,14 +303,14 @@
                   <i class="bi bi-person-badge panel__info-icon" aria-hidden="true"></i>
                   <div>
                     <span>Cliente</span>
-                    <strong *ngIf="reserva.nombreCliente; else clienteReservaVacio">
+                    <strong *ngIf="obtenerNombreClienteReserva(reserva); else clienteReservaVacio">
                       <button
                         type="button"
                         class="panel__person-link"
                         (click)="irAClientesPorReserva(reserva)"
                         data-tooltip="Ver en clientes"
                       >
-                        {{ reserva.nombreCliente }}
+                        {{ obtenerNombreClienteReserva(reserva) }}
                       </button>
                     </strong>
                     <ng-template #clienteReservaVacio>
@@ -329,7 +329,7 @@
                   <i class="bi bi-broadcast panel__info-icon" aria-hidden="true"></i>
                   <div>
                     <span>Canal reserva</span>
-                    <strong>{{ reserva.canalReserva ?? '-' }}</strong>
+                    <strong>{{ formatearCanalReserva(reserva.canalReserva) }}</strong>
                   </div>
                 </article>
                 <article class="panel__info-item">
@@ -523,14 +523,14 @@
                     <i class="bi bi-person-badge panel__info-icon" aria-hidden="true"></i>
                     <div>
                       <span>Cliente</span>
-                      <strong *ngIf="reserva.nombreCliente; else clienteReservaVacioSinEstancia">
+                      <strong *ngIf="obtenerNombreClienteReserva(reserva); else clienteReservaVacioSinEstancia">
                         <button
                           type="button"
                           class="panel__person-link"
                           (click)="irAClientesPorReserva(reserva)"
                           data-tooltip="Ver en clientes"
                         >
-                          {{ reserva.nombreCliente }}
+                          {{ obtenerNombreClienteReserva(reserva) }}
                         </button>
                       </strong>
                       <ng-template #clienteReservaVacioSinEstancia>
@@ -549,7 +549,7 @@
                     <i class="bi bi-broadcast panel__info-icon" aria-hidden="true"></i>
                     <div>
                       <span>Canal reserva</span>
-                      <strong>{{ reserva.canalReserva ?? '-' }}</strong>
+                      <strong>{{ formatearCanalReserva(reserva.canalReserva) }}</strong>
                     </div>
                   </article>
                   <article class="panel__info-item">

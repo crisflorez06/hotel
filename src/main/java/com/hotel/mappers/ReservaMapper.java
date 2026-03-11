@@ -34,32 +34,22 @@ public class ReservaMapper {
         return entity;
     }
 
-    public static ReservaDTO entityToDTO(Reserva reserva) {
+    public static ReservaDTO entityToDTO(Reserva entity) {
         ReservaDTO dto = new ReservaDTO();
-        dto.setId(reserva.getId());
-        dto.setCodigoReserva(reserva.getCodigo());
-        dto.setFechaCreacion(reserva.getFechaCreacion());
-        dto.setEntradaEstimada(reserva.getEntradaEstimada());
-        dto.setSalidaEstimada(reserva.getSalidaEstimada());
-        dto.setNumeroPersonas(reserva.getNumeroPersonas());
-        dto.setCanalReserva(reserva.getCanalReserva());
-        dto.setModoOcupacion(reserva.getModoOcupacion());
-        dto.setEstadoReserva(reserva.getEstado());
-        dto.setNotas(reserva.getNotas());
 
-        if (reserva.getCliente() != null) {
-            dto.setIdCliente(reserva.getCliente().getId());
-            dto.setNombreCliente(
-                    String.format("%s %s",
-                            reserva.getCliente().getNombres(),
-                            reserva.getCliente().getApellidos()).trim());
-        }
-
-        if (reserva.getEstancia() != null) {
-            dto.setIdEstancia(reserva.getEstancia().getId());
-            dto.setCodigoEstancia(reserva.getEstancia().getCodigoFolio());
-            dto.setEstadoEstancia(reserva.getEstancia().getEstado());
-        }
+        dto.setId(entity.getId());
+        dto.setCodigoReserva(entity.getCodigo());
+        dto.setCodigoEstancia(entity.getEstancia() != null ? entity.getEstancia().getCodigoFolio() : null);
+        dto.setIdEstancia(entity.getEstancia() != null ? entity.getEstancia().getId() : null);
+        dto.setCliente(OcupanteMapper.ocupanteToDto(entity.getCliente()));
+        dto.setFechaCreacion(entity.getFechaCreacion());
+        dto.setEntradaEstimada(entity.getEntradaEstimada());
+        dto.setSalidaEstimada(entity.getSalidaEstimada());
+        dto.setNumeroPersonas(entity.getNumeroPersonas());
+        dto.setCanalReserva(entity.getCanalReserva());
+        dto.setModoOcupacion(entity.getModoOcupacion());
+        dto.setEstadoReserva(entity.getEstado());
+        dto.setNotas(entity.getNotas());
 
         return dto;
     }

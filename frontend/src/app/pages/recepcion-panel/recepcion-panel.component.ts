@@ -204,12 +204,15 @@ export class RecepcionPanelComponent implements OnInit {
   }
 
   irAClientesPorReserva(reserva: ReservaDTO): void {
-    const clienteOcupante = this.estanciaDetalle?.ocupantes.find(
-      (ocupante) => ocupante.tipoOcupante === 'CLIENTE' && ocupante.id === reserva.idCliente
+    const idClienteReserva = reserva.cliente?.id ?? null;
+    const clienteOcupante = this.obtenerOcupantesEstancia(this.estanciaDetalle).find(
+      (ocupante) => ocupante.tipoOcupante === 'CLIENTE' && ocupante.id === idClienteReserva
     );
 
+    const nombreCliente = this.obtenerNombreClienteReserva(reserva);
+
     const params = this.construirFiltrosCliente(
-      clienteOcupante?.nombres ?? reserva.nombreCliente ?? '',
+      clienteOcupante?.nombres ?? nombreCliente,
       clienteOcupante?.apellidos ?? '',
       clienteOcupante?.tipoDocumento,
       clienteOcupante?.numeroDocumento
@@ -433,7 +436,8 @@ export class RecepcionPanelComponent implements OnInit {
       return;
     }
 
-    const cliente = this.estanciaDetalle.ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+    const ocupantes = this.obtenerOcupantesEstancia(this.estanciaDetalle);
+    const cliente = ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
     const nombreCliente = [cliente?.nombres, cliente?.apellidos]
       .filter((valor) => Boolean(valor?.trim()))
       .join(' ');
@@ -446,7 +450,7 @@ export class RecepcionPanelComponent implements OnInit {
         tipo: this.unidad.tipo,
         entrada: this.estanciaDetalle.entradaReal,
         salida: this.estanciaDetalle.salidaEstimada,
-        numeroPersonas: this.estanciaDetalle.ocupantes.length,
+        numeroPersonas: ocupantes.length,
         nombreCliente,
       },
     });
@@ -463,9 +467,9 @@ export class RecepcionPanelComponent implements OnInit {
         flujo: 'INGRESO',
         idReserva: this.reservaDetalle.id,
         idEstancia: this.reservaDetalle.idEstancia ?? undefined,
-        idCliente: this.reservaDetalle.idCliente ?? undefined,
+        idCliente: this.reservaDetalle.cliente?.id ?? undefined,
         codigoReserva: this.reservaDetalle.codigoReserva ?? '',
-        nombreCliente: this.reservaDetalle.nombreCliente ?? '',
+        nombreCliente: this.obtenerNombreClienteReserva(this.reservaDetalle),
         codigo: this.unidad.codigo,
         tipo: this.unidad.tipo,
         entrada: this.reservaDetalle.entradaEstimada,
@@ -488,8 +492,8 @@ export class RecepcionPanelComponent implements OnInit {
           id: this.reservaDetalle.id,
           codigo: this.unidad.codigo,
           tipoUnidad: this.unidad.tipo,
-          idOcupante: this.reservaDetalle.idCliente ?? undefined,
-          nombreCliente: this.reservaDetalle.nombreCliente ?? '',
+          idOcupante: this.reservaDetalle.cliente?.id ?? undefined,
+          nombreCliente: this.obtenerNombreClienteReserva(this.reservaDetalle),
           numeroPersonas: this.reservaDetalle.numeroPersonas,
           canalReserva: this.reservaDetalle.canalReserva,
           entradaEstimada: this.reservaDetalle.entradaEstimada,
@@ -664,7 +668,7 @@ export class RecepcionPanelComponent implements OnInit {
       return;
     }
 
-    const numeroPersonas = this.reservaDetalle?.numeroPersonas ?? this.estanciaDetalle.ocupantes.length;
+    const numeroPersonas = this.reservaDetalle?.numeroPersonas ?? this.obtenerOcupantesEstancia(this.estanciaDetalle).length;
     const fechaEntrada = this.reservaDetalle?.entradaEstimada ?? this.estanciaDetalle.entradaReal;
     const fechaSalida = this.reservaDetalle?.salidaEstimada ?? this.estanciaDetalle.salidaEstimada;
 
@@ -724,6 +728,21 @@ export class RecepcionPanelComponent implements OnInit {
 
   formatearSoloFecha(fecha: string): string {
     return formatDateOnly(fecha);
+  }
+
+  formatearCanalReserva(canal: string | null | undefined): string {
+    if (!canal) {
+      return '-';
+    }
+
+    const canalSinPrefijo = canal.startsWith('PLATAFORMA_')
+      ? canal.replace('PLATAFORMA_', '')
+      : canal;
+
+    return canalSinPrefijo
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (letra) => letra.toUpperCase());
   }
 
   totalPagosEstancia(): number {
@@ -788,7 +807,7 @@ export class RecepcionPanelComponent implements OnInit {
   }
 
   get textoPersonasCalculoPago(): string {
-    const numeroPersonas = this.reservaDetalle?.numeroPersonas ?? this.estanciaDetalle?.ocupantes.length;
+    const numeroPersonas = this.reservaDetalle?.numeroPersonas ?? this.obtenerOcupantesEstancia(this.estanciaDetalle).length;
     return numeroPersonas ? `${numeroPersonas}` : '-';
   }
 
@@ -866,7 +885,7 @@ export class RecepcionPanelComponent implements OnInit {
     const entradaVacia = !estancia.entradaReal;
     const salidaVacia = !estancia.salidaEstimada;
     const notasVacias = estancia.notas == null || estancia.notas === '';
-    const ocupantesVacios = !estancia.ocupantes || estancia.ocupantes.length === 0;
+    const ocupantesVacios = this.obtenerOcupantesEstancia(estancia).length === 0;
     const pagosVacios = !estancia.pagos || estancia.pagos.length === 0;
 
     return (
@@ -878,6 +897,25 @@ export class RecepcionPanelComponent implements OnInit {
       ocupantesVacios &&
       pagosVacios
     );
+  }
+
+  obtenerNombreClienteReserva(reserva: ReservaDTO | null | undefined): string {
+    if (!reserva) {
+      return '';
+    }
+
+    const nombres = reserva.cliente?.nombres?.trim() ?? '';
+    const apellidos = reserva.cliente?.apellidos?.trim() ?? '';
+    return `${nombres} ${apellidos}`.trim();
+  }
+
+  obtenerOcupantesEstancia(estancia: EstanciaDTO | null | undefined): OcupanteDTO[] {
+    if (!estancia) {
+      return [];
+    }
+
+    const cliente = estancia.cliente ? [estancia.cliente] : [];
+    return [...cliente, ...(estancia.acompanantes ?? [])];
   }
 
   private cargarUnidad(): void {

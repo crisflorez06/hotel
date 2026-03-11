@@ -234,14 +234,44 @@
           <div><span>Hasta</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
         </ng-container>
         <ng-template #detalleReservaCompleto>
-        <div><span>Codigo</span><strong>{{ item.reserva?.codigoReserva || item.etiqueta }}</strong></div>
-        <div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div>
-        <div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div>
-        <div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div>
-        <div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div>
-        <div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div>
-        <div><span>Inicio</span><strong>{{ formatearFecha(item.inicio) }}</strong></div>
-        <div><span>Fin</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
+        <div class="modal__info-grid">
+          <article
+            class="modal__info-item modal__info-item--clickable"
+            data-tooltip="Ir a reservas"
+            (click)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta)"
+            (keydown.enter)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta)"
+            (keydown.space)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta); $event.preventDefault()"
+            tabindex="0"
+          ><i class="bi bi-upc-scan modal__info-icon"></i><div><span>Codigo</span><strong>{{ item.reserva?.codigoReserva || item.etiqueta }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-flag modal__info-icon"></i><div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-building modal__info-icon"></i><div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-diagram-3 modal__info-icon"></i><div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div></article>
+          <article
+            class="modal__info-item"
+            [class.modal__info-item--clickable]="esClienteNavegable(item.reserva?.cliente)"
+            [attr.data-tooltip]="esClienteNavegable(item.reserva?.cliente) ? 'Ir a clientes' : null"
+            [attr.tabindex]="esClienteNavegable(item.reserva?.cliente) ? '0' : null"
+            (click)="irATablaClientes(item.reserva?.cliente)"
+            (keydown.enter)="irATablaClientes(item.reserva?.cliente)"
+            (keydown.space)="irATablaClientes(item.reserva?.cliente); $event.preventDefault()"
+          ><i class="bi bi-person modal__info-icon"></i><div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-people modal__info-icon"></i><div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-broadcast modal__info-icon"></i><div><span>Canal reserva</span><strong>{{ formatearCanalReserva(item.reserva?.canalReserva) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-grid-3x2-gap modal__info-icon"></i><div><span>Modo ocupacion</span><strong>{{ formatearEtiqueta(item.reserva?.modoOcupacion) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-calendar-plus modal__info-icon"></i><div><span>Creada</span><strong>{{ formatearFecha(item.reserva?.fechaCreacion) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-box-arrow-in-right modal__info-icon"></i><div><span>Inicio</span><strong>{{ formatearFecha(item.inicio) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-box-arrow-right modal__info-icon"></i><div><span>Fin</span><strong>{{ formatearFecha(item.fin) }}</strong></div></article>
+          <article
+            class="modal__info-item modal__info-item--clickable"
+            *ngIf="mostrarCodigoEstanciaReserva(item)"
+            data-tooltip="Ir a estancias"
+            (click)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia)"
+            (keydown.enter)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia)"
+            (keydown.space)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia); $event.preventDefault()"
+            tabindex="0"
+          ><i class="bi bi-link-45deg modal__info-icon"></i><div><span>Codigo estancia</span><strong>{{ item.reserva?.codigoEstancia }}</strong></div></article>
+          <article class="modal__info-item modal__info-item--full"><i class="bi bi-journal-text modal__info-icon"></i><div><span>Notas</span><strong>{{ item.reserva?.notas || 'Sin notas' }}</strong></div></article>
+        </div>
         </ng-template>
       </div>
 
@@ -296,14 +326,55 @@
           <div><span>Hasta</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
         </ng-container>
         <ng-template #detalleEstanciaCompleto>
-        <div><span>Codigo</span><strong>{{ item.estancia?.codigoFolio || item.etiqueta }}</strong></div>
-        <div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div>
-        <div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div>
-        <div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div>
-        <div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div>
-        <div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div>
-        <div><span>Inicio</span><strong>{{ formatearFecha(item.inicio) }}</strong></div>
-        <div><span>Fin</span><strong>{{ formatearFecha(item.fin) }}</strong></div>
+        <div class="modal__info-grid">
+          <article
+            class="modal__info-item modal__info-item--clickable"
+            data-tooltip="Ir a estancias"
+            (click)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta)"
+            (keydown.enter)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta)"
+            (keydown.space)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta); $event.preventDefault()"
+            tabindex="0"
+          ><i class="bi bi-upc-scan modal__info-icon"></i><div><span>Codigo</span><strong>{{ item.estancia?.codigoFolio || item.etiqueta }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-flag modal__info-icon"></i><div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-building modal__info-icon"></i><div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-diagram-3 modal__info-icon"></i><div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div></article>
+          <article
+            class="modal__info-item"
+            [class.modal__info-item--clickable]="esClienteNavegable(item.estancia?.cliente)"
+            [attr.data-tooltip]="esClienteNavegable(item.estancia?.cliente) ? 'Ir a clientes' : null"
+            [attr.tabindex]="esClienteNavegable(item.estancia?.cliente) ? '0' : null"
+            (click)="irATablaClientes(item.estancia?.cliente)"
+            (keydown.enter)="irATablaClientes(item.estancia?.cliente)"
+            (keydown.space)="irATablaClientes(item.estancia?.cliente); $event.preventDefault()"
+          ><i class="bi bi-person modal__info-icon"></i><div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div></article>
+          <article
+            class="modal__info-item"
+            [class.modal__info-item--clickable]="puedeIrAClientesPorEstancia(item.estancia)"
+            [attr.data-tooltip]="puedeIrAClientesPorEstancia(item.estancia) ? 'Ver personas en clientes' : null"
+            [attr.tabindex]="puedeIrAClientesPorEstancia(item.estancia) ? '0' : null"
+            (click)="irAClientesPorPersonasEstancia(item.estancia)"
+            (keydown.enter)="irAClientesPorPersonasEstancia(item.estancia)"
+            (keydown.space)="irAClientesPorPersonasEstancia(item.estancia); $event.preventDefault()"
+          ><i class="bi bi-people modal__info-icon"></i><div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-grid-3x2-gap modal__info-icon"></i><div><span>Modo ocupacion</span><strong>{{ formatearEtiqueta(item.estancia?.modoOcupacion) }}</strong></div></article>
+          <article
+            *ngIf="item.estancia?.codigoReserva as codigoReserva; else codigoReservaCardVacia"
+            class="modal__info-item modal__info-item--clickable"
+            data-tooltip="Ir a reservas"
+            (click)="irATablaReservasPorCodigo(codigoReserva)"
+            (keydown.enter)="irATablaReservasPorCodigo(codigoReserva)"
+            (keydown.space)="irATablaReservasPorCodigo(codigoReserva); $event.preventDefault()"
+            tabindex="0"
+          ><i class="bi bi-link-45deg modal__info-icon"></i><div><span>Codigo reserva</span><strong>{{ codigoReserva }}</strong></div></article>
+          <ng-template #codigoReservaCardVacia>
+            <article class="modal__info-item"><i class="bi bi-link-45deg modal__info-icon"></i><div><span>Codigo reserva</span><strong>-</strong></div></article>
+          </ng-template>
+          <article class="modal__info-item"><i class="bi bi-box-arrow-in-right modal__info-icon"></i><div><span>Entrada real</span><strong>{{ formatearFecha(item.estancia?.entradaReal || item.inicio) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-box-arrow-right modal__info-icon"></i><div><span>Salida estimada</span><strong>{{ formatearFecha(item.estancia?.salidaEstimada || item.fin) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-calendar-check modal__info-icon"></i><div><span>Salida real</span><strong>{{ formatearFecha(item.estancia?.salidaReal) }}</strong></div></article>
+          <article class="modal__info-item"><i class="bi bi-cash-stack modal__info-icon"></i><div><span>Total pagado</span><strong>{{ obtenerTotalPagadoEstancia(item) | currency: 'COP' : 'symbol' : '1.0-0' }}</strong></div></article>
+          <article class="modal__info-item modal__info-item--full"><i class="bi bi-journal-text modal__info-icon"></i><div><span>Notas</span><strong>{{ item.estancia?.notas || 'Sin notas' }}</strong></div></article>
+        </div>
         </ng-template>
       </div>
 

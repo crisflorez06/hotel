@@ -5,6 +5,8 @@ import { Router } from '@angular/router';
 import { map } from 'rxjs';
 
 import { HabitacionDTO } from '../../models/habitacion.model';
+import { EstanciaDTO } from '../../models/estancia-detalle.model';
+import { OcupanteDTO } from '../../models/ocupante.model';
 import { UnidadDTO } from '../../models/unidad.model';
 import { EstanciaService } from '../../services/estancia.service';
 import { HabitacionService } from '../../services/habitacion.service';
@@ -571,7 +573,8 @@ export class RecepcionComponent implements OnInit {
 
     this.estanciaService.obtenerEstanciaPorId(idEstancia).subscribe({
       next: (estancia) => {
-        const cliente = estancia.ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        const ocupantes = this.obtenerOcupantesEstancia(estancia);
+        const cliente = ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
         const nombreCliente = [cliente?.nombres, cliente?.apellidos]
           .filter((valor) => Boolean(valor?.trim()))
           .join(' ');
@@ -584,7 +587,7 @@ export class RecepcionComponent implements OnInit {
             tipo: unidad.tipo,
             entrada: estancia.entradaReal,
             salida: estancia.salidaEstimada,
-            numeroPersonas: estancia.ocupantes.length,
+            numeroPersonas: ocupantes.length,
             nombreCliente,
           },
         });
@@ -629,6 +632,11 @@ export class RecepcionComponent implements OnInit {
     }
 
     return info;
+  }
+
+  private obtenerOcupantesEstancia(estancia: EstanciaDTO): OcupanteDTO[] {
+    const cliente = estancia.cliente ? [estancia.cliente] : [];
+    return [...cliente, ...(estancia.acompanantes ?? [])];
   }
 
   private obtenerMensajeAlerta(informacionAdicional: string | null | undefined): string | null {

@@ -12,6 +12,7 @@ import jakarta.persistence.criteria.Predicate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.data.jpa.domain.Specification;
 
 public class EstanciaSpecification {
@@ -19,13 +20,14 @@ public class EstanciaSpecification {
     public static Specification<Estancia> byCalendario(
             LocalDateTime desde,
             LocalDateTime hasta,
-            TipoUnidad tipoUnidad,
-            String codigoUnidad,
+            List<String> codigosHabitaciones,
             List<EstadoEstancia> estados) {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            query.distinct(true);
+            if (query != null) {
+                query.distinct(true);
+            }
 
             Join<?, ?> reservaJoin = root.join("reserva", JoinType.LEFT);
             Expression<LocalDateTime> inicio = criteriaBuilder.coalesce(
@@ -46,16 +48,17 @@ public class EstanciaSpecification {
             }
 
             Join<?, ?> habitacionJoin = root.join("habitaciones", JoinType.INNER);
-            Join<?, ?> unidadJoin = habitacionJoin.join("unidad", JoinType.INNER);
+            if (codigosHabitaciones != null && !codigosHabitaciones.isEmpty()) {
+                List<String> codigosNormalizados = codigosHabitaciones.stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(codigo -> !codigo.isEmpty())
+                        .map(String::toLowerCase)
+                        .toList();
 
-            if (tipoUnidad != null) {
-                predicates.add(criteriaBuilder.equal(unidadJoin.get("tipo"), tipoUnidad));
-            }
-
-            if (codigoUnidad != null && !codigoUnidad.isBlank()) {
-                predicates.add(criteriaBuilder.like(
-                        criteriaBuilder.lower(unidadJoin.get("codigo")),
-                        "%" + codigoUnidad.toLowerCase() + "%"));
+                if (!codigosNormalizados.isEmpty()) {
+                    predicates.add(criteriaBuilder.lower(habitacionJoin.get("codigo")).in(codigosNormalizados));
+                }
             }
 
             List<EstadoEstancia> estadosFiltrados = estados == null

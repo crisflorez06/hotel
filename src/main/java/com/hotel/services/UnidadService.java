@@ -2,17 +2,21 @@ package com.hotel.services;
 
 import com.hotel.dtos.HabitacionDTO;
 import com.hotel.dtos.UnidadDTO;
+import com.hotel.mappers.HabitacionMapper;
 import com.hotel.mappers.UnidadMapper;
 import com.hotel.models.*;
 import com.hotel.models.enums.*;
+import com.hotel.repositories.HabitacionRepository;
 import com.hotel.repositories.UnidadRepository;
 import com.hotel.resolvers.EstanciaReservaResolver;
+import com.hotel.specifications.HabitacionSpecification;
 import com.hotel.specifications.UnidadSpecification;
 import com.hotel.utils.ConstruirJsonInfo;
 import com.hotel.utils.HabitacionModoKey;
 import jakarta.persistence.EntityNotFoundException;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -27,10 +31,15 @@ public class UnidadService {
     private static final Logger logger = LoggerFactory.getLogger(UnidadService.class);
 
     private final UnidadRepository unidadRepository;
+    private final HabitacionRepository habitacionRepository;
     private final EstanciaReservaResolver estanciaReservaResolver;
 
-    public UnidadService(UnidadRepository unidadRepository, EstanciaReservaResolver estanciaReservaResolver) {
+    public UnidadService(
+            UnidadRepository unidadRepository,
+            HabitacionRepository habitacionRepository,
+            EstanciaReservaResolver estanciaReservaResolver) {
         this.unidadRepository = unidadRepository;
+        this.habitacionRepository = habitacionRepository;
         this.estanciaReservaResolver = estanciaReservaResolver;
     }
 
@@ -39,6 +48,9 @@ public class UnidadService {
             List<EstadoOperativo> estados,
             List<Piso> pisos,
             String codigo) {
+        if (tipo == TipoUnidad.HABITACION) {
+            return buscarUnidadesDesdeHabitaciones(estados, pisos, codigo);
+        }
 
         List<UnidadDTO> unidadDTOS = unidadRepository.findAll(UnidadSpecification.byFilters(tipo, estados, pisos, codigo)).stream()
                 .map(UnidadMapper::entityToDto)
@@ -136,6 +148,55 @@ public class UnidadService {
         return unidadDTOS;
     }
 
+    private List<UnidadDTO> buscarUnidadesDesdeHabitaciones(
+            List<EstadoOperativo> estados,
+            List<Piso> pisos,
+            String codigo) {
+        List<HabitacionDTO> habitaciones = habitacionRepository.findAll(HabitacionSpecification.byFilters(estados, pisos, codigo))
+                .stream()
+                .map(HabitacionMapper::entityToDto)
+                .toList();
+
+        List<HabitacionDTO> habitacionesConInfo = agregarInformacionAdicionalHabitaciones(habitaciones);
+        List<UnidadDTO> unidades = new ArrayList<>();
+
+        for (HabitacionDTO habitacion : habitacionesConInfo) {
+            UnidadDTO unidad = new UnidadDTO();
+            unidad.setId(habitacion.getId());
+            unidad.setCodigo(habitacion.getCodigo());
+            unidad.setTipo(TipoUnidad.HABITACION);
+            unidad.setPiso(habitacion.getPiso());
+            unidad.setEstado(habitacion.getEstado());
+            unidad.setHabitaciones(List.of(habitacion));
+            unidad.setInformacionAdicional(habitacion.getInformacionAdicional());
+            unidades.add(unidad);
+        }
+
+        return unidades;
+    }
+
+    private List<HabitacionDTO> agregarInformacionAdicionalHabitaciones(List<HabitacionDTO> habitacionDTOS) {
+        List<Reserva> reservas = estanciaReservaResolver.buscarProximasReservas();
+        List<Estancia> estancias = estanciaReservaResolver.buscarEstancias();
+        Map<HabitacionModoKey, Reserva> reservaPorHabitacionYModo =
+                estanciaReservaResolver.crearMapaReservasPorHabitacionYModo(reservas);
+        Map<HabitacionModoKey, Estancia> estanciaPorHabitacionYModo =
+                estanciaReservaResolver.crearMapaEstanciasPorHabitacionYModo(estancias);
+
+        for (HabitacionDTO habitacion : habitacionDTOS) {
+            Reserva reservaHabitacion = estanciaReservaResolver.buscarReservaPorHabitacionYModoOcupacion(
+                    reservaPorHabitacionYModo,
+                    habitacion.getCodigo(),
+                    ModoOcupacion.INDIVIDUAL);
+            Estancia estanciaHabitacion = estanciaReservaResolver.buscarEstanciaPorHabitacionYModoOcupacion(
+                    estanciaPorHabitacionYModo,
+                    habitacion.getCodigo(),
+                    ModoOcupacion.INDIVIDUAL);
+            habitacion.setInformacionAdicional(
+                    estanciaReservaResolver.llenarInformacionEstanciaYReserva(estanciaHabitacion, reservaHabitacion));
+        }
+        return habitacionDTOS;
+    }
 
 
 }

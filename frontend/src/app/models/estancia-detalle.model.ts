@@ -7,12 +7,15 @@ import { ReservaCalendarioDTO } from './reserva-calendario.model';
 export interface EstanciaDTO {
   id: number;
   codigoFolio: string;
+  codigoReserva?: string | null;
+  idReserva?: number | null;
   entradaReal: string;
   salidaEstimada: string;
   salidaReal?: string | null;
   estado?: EstadoEstancia | null;
   modoOcupacion: ModoOcupacion;
-  ocupantes: OcupanteDTO[];
+  cliente?: OcupanteDTO | null;
+  acompanantes?: OcupanteDTO[];
   notas: string | null;
   pagos?: PagoDTO[];
 }

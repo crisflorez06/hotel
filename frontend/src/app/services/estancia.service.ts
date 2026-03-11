@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
+import { map } from 'rxjs';
 
 import { environment } from '../../environments/environment';
 import {
@@ -20,11 +21,15 @@ export class EstanciaService {
   private readonly baseUrl = `${environment.apiUrl}/estancias`;
 
   crearEstancia(request: EstanciaNuevoRequest) {
-    return this.http.post<EstanciaDTO>(this.baseUrl, request);
+    return this.http
+      .post<EstanciaDTO>(this.baseUrl, request)
+      .pipe(map((estancia) => this.normalizarEstancia(estancia)));
   }
 
   activarEstancia(request: EstanciaActivarRequest) {
-    return this.http.put<EstanciaDTO>(`${this.baseUrl}/activar`, request);
+    return this.http
+      .put<EstanciaDTO>(`${this.baseUrl}/activar`, request)
+      .pipe(map((estancia) => this.normalizarEstancia(estancia)));
   }
 
   editarEstancia(id: number, request: EstanciaEditarRequest) {
@@ -40,7 +45,17 @@ export class EstanciaService {
   }
 
   obtenerEstanciaPorId(id: number) {
-    return this.http.get<EstanciaDTO>(`${this.baseUrl}/${id}`);
+    return this.http
+      .get<EstanciaDTO>(`${this.baseUrl}/${id}`)
+      .pipe(map((estancia) => this.normalizarEstancia(estancia)));
+  }
+
+  private normalizarEstancia(estancia: EstanciaDTO): EstanciaDTO {
+    return {
+      ...estancia,
+      cliente: estancia.cliente ?? null,
+      acompanantes: estancia.acompanantes ?? [],
+    };
   }
 
   obtenerTabla(filtros: EstanciaTablaFiltros, page: number, size: number, sort: string[]) {

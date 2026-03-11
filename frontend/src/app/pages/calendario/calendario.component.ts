@@ -6,6 +6,7 @@ import { Router, RouterModule } from '@angular/router';
 import { DetalleCalendarioUnidadDTO } from '../../models/detalle-calendario.model';
 import { EstanciaDTO } from '../../models/estancia-detalle.model';
 import { EstadoEstancia, EstadoReserva, TipoUnidad } from '../../models/enums';
+import { OcupanteDTO } from '../../models/ocupante.model';
 import { ReservaDTO } from '../../models/reserva.model';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import { EstanciaService } from '../../services/estancia.service';
@@ -406,6 +407,140 @@ export class CalendarioComponent implements OnInit {
     return texto.charAt(0).toUpperCase() + texto.slice(1);
   }
 
+  formatearCanalReserva(valor: string | null | undefined): string {
+    if (!valor) {
+      return '-';
+    }
+
+    const canalSinPrefijo = valor.startsWith('PLATAFORMA_')
+      ? valor.replace('PLATAFORMA_', '')
+      : valor;
+
+    return this.formatearEtiqueta(canalSinPrefijo);
+  }
+
+  obtenerTotalPagadoEstancia(item: CalendarioRegistroView): number {
+    return (item.estancia?.pagos ?? [])
+      .filter((pago) => pago.estado === 'COMPLETADO')
+      .reduce((total, pago) => total + Number(pago.monto ?? 0), 0);
+  }
+
+  irATablaReservasPorCodigo(codigoReserva: string | null | undefined): void {
+    const codigo = (codigoReserva ?? '').trim();
+    if (!codigo) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/reservas'], {
+      queryParams: { codigoReserva: codigo },
+    });
+  }
+
+  irATablaEstanciasPorCodigo(codigoEstancia: string | null | undefined): void {
+    const codigo = (codigoEstancia ?? '').trim();
+    if (!codigo) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/estancias'], {
+      queryParams: { codigoEstancia: codigo },
+    });
+  }
+
+  irATablaClientes(cliente: OcupanteDTO | null | undefined): void {
+    if (!cliente) {
+      return;
+    }
+
+    const queryParams = this.construirFiltrosCliente(cliente);
+    if (Object.keys(queryParams).length === 0) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/ocupantes/tabla-clientes'], { queryParams });
+  }
+
+  esClienteNavegable(cliente: OcupanteDTO | null | undefined): boolean {
+    if (!cliente) {
+      return false;
+    }
+
+    const queryParams = this.construirFiltrosCliente(cliente);
+    return Object.keys(queryParams).length > 0;
+  }
+
+  puedeIrAClientesPorEstancia(estancia: EstanciaDTO | null | undefined): boolean {
+    return this.obtenerDocumentosPersonasEstancia(estancia).length > 0;
+  }
+
+  irAClientesPorPersonasEstancia(estancia: EstanciaDTO | null | undefined): void {
+    const documentos = this.obtenerDocumentosPersonasEstancia(estancia);
+    if (!documentos.length) {
+      return;
+    }
+
+    this.cerrarDetalle();
+    this.router.navigate(['/ocupantes/tabla-clientes'], {
+      queryParams: {
+        documentos: documentos.join(','),
+      },
+    });
+  }
+
+  private construirFiltrosCliente(cliente: OcupanteDTO): Record<string, string> {
+    const params: Record<string, string> = {};
+    const numeroDocumento = (cliente.numeroDocumento ?? '').trim();
+    const tipoDocumento = (cliente.tipoDocumento ?? '').trim();
+
+    if (numeroDocumento) {
+      params['numeroDocumento'] = numeroDocumento;
+      if (tipoDocumento) {
+        params['tipoDocumento'] = tipoDocumento;
+      }
+      return params;
+    }
+
+    const nombre = (cliente.nombres ?? '').trim();
+    const apellido = (cliente.apellidos ?? '').trim();
+
+    if (nombre) {
+      params['nombre'] = nombre;
+    }
+
+    if (apellido) {
+      params['apellido'] = apellido;
+    }
+
+    return params;
+  }
+
+  private obtenerDocumentosPersonasEstancia(estancia: EstanciaDTO | null | undefined): string[] {
+    if (!estancia) {
+      return [];
+    }
+
+    const personas: OcupanteDTO[] = [
+      ...(estancia.cliente ? [estancia.cliente] : []),
+      ...(estancia.acompanantes ?? []),
+    ];
+
+    return Array.from(
+      new Set(
+        personas
+          .map((persona) => (persona.numeroDocumento ?? '').trim())
+          .filter((numeroDocumento) => Boolean(numeroDocumento))
+      )
+    );
+  }
+
+  mostrarCodigoEstanciaReserva(item: CalendarioRegistroView): boolean {
+    const codigoEstancia = item.reserva?.codigoEstancia?.trim();
+    return item.estado !== 'CONFIRMADA' && Boolean(codigoEstancia);
+  }
+
   private cargarCalendarioSemana(): void {
     this.error = '';
 
@@ -416,16 +551,6 @@ export class CalendarioComponent implements OnInit {
     const codigoUnidad = this.filtroCodigo.trim() || undefined;
     const estadosReserva = this.filtroEstadosReserva;
     const estadosEstancia = this.filtroEstadosEstancia;
-
-    if (!estadosReserva.length && !estadosEstancia.length) {
-      this.filas = [];
-      this.registrosPorFilaDia.clear();
-      this.segmentosPorFila.clear();
-      this.cargando = false;
-      this.reservaSeleccionada = null;
-      this.estanciaSeleccionada = null;
-      return;
-    }
 
     const claveFiltros = this.construirClaveFiltros(
       tipoUnidad,
@@ -562,6 +687,7 @@ export class CalendarioComponent implements OnInit {
 
   private construirFilas(detalle: DetalleCalendarioUnidadDTO[]): CalendarioFilaView[] {
     const filas: CalendarioFilaView[] = [];
+    const mostrarSoloHabitaciones = this.filtroTipoUnidad === 'HABITACION';
     const unidadesOrdenadas = [...detalle].sort((a, b) => {
       const prioridad = (tipo: TipoUnidad | null | undefined): number => {
         if (tipo === 'APARTAMENTO') {
@@ -590,7 +716,7 @@ export class CalendarioComponent implements OnInit {
       const filasHabitaciones: CalendarioFilaView[] = [];
       const registrosIndividualesHabitaciones: CalendarioRegistroView[] = [];
 
-      if (item.unidad?.tipo === 'APARTAMENTO') {
+      if (item.unidad?.tipo === 'APARTAMENTO' || mostrarSoloHabitaciones) {
         (item.habitaciones ?? []).forEach((habitacion) => {
           const codigoHabitacion = habitacion.habitacion?.codigo ?? 'Habitacion';
           const registrosHabitacion = [
@@ -639,16 +765,18 @@ export class CalendarioComponent implements OnInit {
         codigoUnidad,
       );
 
-      filas.push({
-        id: `unidad-${item.unidad.id}`,
-        nombre: codigoUnidad,
-        subtitulo: this.formatearEtiqueta(tipoUnidad),
-        tipoUnidad,
-        nivel: 'unidad',
-        esHabitacionDeApartamento: false,
-        informacionAdicional: item.unidad?.informacionAdicional ?? null,
-        registros: registrosUnidadNormalizados,
-      });
+      if (!mostrarSoloHabitaciones) {
+        filas.push({
+          id: `unidad-${item.unidad.id}`,
+          nombre: codigoUnidad,
+          subtitulo: this.formatearEtiqueta(tipoUnidad),
+          tipoUnidad,
+          nivel: 'unidad',
+          esHabitacionDeApartamento: false,
+          informacionAdicional: item.unidad?.informacionAdicional ?? null,
+          registros: registrosUnidadNormalizados,
+        });
+      }
 
       filas.push(...filasHabitaciones);
     });
@@ -680,8 +808,8 @@ export class CalendarioComponent implements OnInit {
         codigoUnidad,
         tipoUnidad,
         numeroPersonas: reserva.numeroPersonas ?? null,
-        nombreCliente: reserva.nombreCliente ?? null,
-        idCliente: reserva.idCliente ?? null,
+        nombreCliente: this.obtenerNombreClienteReserva(reserva),
+        idCliente: reserva.cliente?.id ?? null,
         codigoHabitacion: codigoUnidad,
         reserva,
       }));
@@ -705,6 +833,7 @@ export class CalendarioComponent implements OnInit {
           !!(estancia.salidaEstimada || estancia.salidaReal),
       )
       .reduce<CalendarioRegistroView[]>((acumulado, estancia) => {
+        const ocupantes = this.obtenerOcupantesEstancia(estancia);
         const estadoEstancia = this.resolverEstadoEstancia(estancia, informacionAdicional);
         if (!this.filtroEstadosEstancia.includes(estadoEstancia)) {
           return acumulado;
@@ -713,7 +842,7 @@ export class CalendarioComponent implements OnInit {
           estadoEstancia === 'FINALIZADA' && estancia.salidaReal
             ? estancia.salidaReal
             : estancia.salidaEstimada || estancia.salidaReal || estancia.entradaReal;
-        const cliente = (estancia.ocupantes ?? []).find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        const cliente = ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
         acumulado.push({
           id: estancia.id,
           tipo: 'ESTANCIA' as const,
@@ -724,7 +853,7 @@ export class CalendarioComponent implements OnInit {
           fin: fechaFin,
           codigoUnidad,
           tipoUnidad,
-          numeroPersonas: (estancia.ocupantes ?? []).length,
+          numeroPersonas: ocupantes.length,
           nombreCliente: cliente ? `${cliente.nombres} ${cliente.apellidos}`.trim() : null,
           idCliente: cliente?.id ?? null,
           codigoHabitacion: codigoUnidad,
@@ -929,6 +1058,18 @@ export class CalendarioComponent implements OnInit {
     return 'ACTIVA';
   }
 
+  private obtenerNombreClienteReserva(reserva: ReservaDTO): string | null {
+    const nombres = reserva.cliente?.nombres?.trim() ?? '';
+    const apellidos = reserva.cliente?.apellidos?.trim() ?? '';
+    const nombre = `${nombres} ${apellidos}`.trim();
+    return nombre || null;
+  }
+
+  private obtenerOcupantesEstancia(estancia: EstanciaDTO) {
+    const cliente = estancia.cliente ? [estancia.cliente] : [];
+    return [...cliente, ...(estancia.acompanantes ?? [])];
+  }
+
   private debePintarRegistroSegunModo(
     modoOcupacion: string | null | undefined,
     tipoUnidad: TipoUnidad | null,
@@ -1021,7 +1162,7 @@ export class CalendarioComponent implements OnInit {
           id: item.reserva.id,
           codigo: item.codigoUnidad,
           tipoUnidad: item.tipoUnidad ?? undefined,
-          idOcupante: item.reserva.idCliente ?? undefined,
+          idOcupante: item.reserva.cliente?.id ?? undefined,
           nombreCliente: item.nombreCliente ?? undefined,
           numeroPersonas: item.numeroPersonas ?? undefined,
           canalReserva: item.reserva.canalReserva,
@@ -1044,7 +1185,7 @@ export class CalendarioComponent implements OnInit {
         flujo: 'INGRESO',
         idReserva: item.reserva.id,
         idEstancia: item.reserva.idEstancia ?? undefined,
-        idCliente: item.reserva.idCliente ?? undefined,
+        idCliente: item.reserva.cliente?.id ?? undefined,
         codigoReserva: item.reserva.codigoReserva ?? '',
         nombreCliente: item.nombreCliente ?? '',
         codigo: item.codigoUnidad,
@@ -1166,7 +1307,8 @@ export class CalendarioComponent implements OnInit {
 
     this.estanciaService.obtenerEstanciaPorId(item.estancia.id).subscribe({
       next: (estancia) => {
-        const cliente = estancia.ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
+        const ocupantes = this.obtenerOcupantesEstancia(estancia);
+        const cliente = ocupantes.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE');
         const nombreCliente = [cliente?.nombres, cliente?.apellidos]
           .filter((valor) => Boolean(valor?.trim()))
           .join(' ');
@@ -1180,7 +1322,7 @@ export class CalendarioComponent implements OnInit {
             tipo: item.tipoUnidad,
             entrada: estancia.entradaReal,
             salida: estancia.salidaEstimada,
-            numeroPersonas: estancia.ocupantes.length,
+            numeroPersonas: ocupantes.length,
             nombreCliente,
           },
         });

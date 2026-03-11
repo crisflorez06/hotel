@@ -76,7 +76,7 @@ public class Reserva {
     @EqualsAndHashCode.Exclude
     private List<Habitacion> habitaciones;
 
-    @OneToOne(mappedBy = "reserva")
+    @OneToOne(mappedBy = "reserva", fetch = FetchType.LAZY)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Estancia estancia;

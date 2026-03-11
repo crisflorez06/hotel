@@ -1,4 +1,5 @@
 import { CanalReserva, TipoUnidad } from './enums';
+import { OcupanteDTO } from './ocupante.model';
 
 export interface ReservaNuevoRequest {
   tipoUnidad: TipoUnidad;
@@ -16,8 +17,7 @@ export interface ReservaDTO {
   codigoReserva: string;
   idEstancia?: number | null;
   codigoEstancia?: string | null;
-  idCliente?: number | null;
-  nombreCliente?: string | null;
+  cliente?: OcupanteDTO | null;
   fechaCreacion: string;
   entradaEstimada: string;
   salidaEstimada: string;
