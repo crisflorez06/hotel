@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
+import { Observable, of, Subject, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
 
 import { DetalleCalendarioUnidadDTO } from '../../models/detalle-calendario.model';
 import { EstanciaDTO } from '../../models/estancia-detalle.model';
@@ -11,6 +12,13 @@ import { ReservaDTO } from '../../models/reserva.model';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import { EstanciaService } from '../../services/estancia.service';
 import { ReservaService } from '../../services/reserva.service';
+import { CalendarioInfoCardComponent } from './calendario-info-card/calendario-info-card.component';
+import {
+  construirQueryClientesPorEstancia,
+  construirQueryClientesPorOcupante,
+  construirQueryEstanciasPorCodigo,
+  construirQueryReservasPorCodigo,
+} from './calendario-navigation.util';
 
 type TipoRegistro = 'RESERVA' | 'ESTANCIA';
 
@@ -60,11 +68,11 @@ interface CalendarioSeleccion {
 @Component({
   selector: 'app-calendario',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, CalendarioInfoCardComponent],
   templateUrl: './calendario.component.html',
   styleUrl: './calendario.component.css',
 })
-export class CalendarioComponent implements OnInit {
+export class CalendarioComponent implements OnInit, OnDestroy {
   private readonly diasVisibles = 15;
   private readonly margenPrefetchDias = 21;
   private readonly estadosReservaPorDefecto: EstadoReserva[] = ['CONFIRMADA', 'EXPIRADA'];
@@ -93,6 +101,8 @@ export class CalendarioComponent implements OnInit {
 
   reservaSeleccionada: CalendarioRegistroView | null = null;
   estanciaSeleccionada: CalendarioRegistroView | null = null;
+  private readonly recargaCalendario$ = new Subject<void>();
+  private readonly destroy$ = new Subject<void>();
 
   private filtroCodigoTimeout: ReturnType<typeof setTimeout> | null = null;
   eliminandoEstancia = false;
@@ -124,7 +134,26 @@ export class CalendarioComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.recargaCalendario$
+      .pipe(
+        switchMap(() => this.ejecutarCargaCalendarioSemana()),
+        takeUntil(this.destroy$),
+      )
+      .subscribe();
+
     this.cargarCalendarioSemana();
+  }
+
+  ngOnDestroy(): void {
+    this.ocultarTooltipSeleccion();
+    if (this.filtroCodigoTimeout) {
+      clearTimeout(this.filtroCodigoTimeout);
+      this.filtroCodigoTimeout = null;
+    }
+
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.recargaCalendario$.complete();
   }
 
   get diasSemana(): Date[] {
@@ -309,7 +338,7 @@ export class CalendarioComponent implements OnInit {
   }
 
   get mostrarMensajeSinDatos(): boolean {
-    return this.filtroEstadosReserva.length > 0 || this.filtroEstadosEstancia.length > 0;
+    return !this.cargando;
   }
 
   get puedeAgregarEstanciaDesdeSeleccion(): boolean {
@@ -426,36 +455,32 @@ export class CalendarioComponent implements OnInit {
   }
 
   irATablaReservasPorCodigo(codigoReserva: string | null | undefined): void {
-    const codigo = (codigoReserva ?? '').trim();
-    if (!codigo) {
+    const queryParams = construirQueryReservasPorCodigo(codigoReserva);
+    if (!queryParams) {
       return;
     }
 
     this.cerrarDetalle();
     this.router.navigate(['/reservas'], {
-      queryParams: { codigoReserva: codigo },
+      queryParams,
     });
   }
 
   irATablaEstanciasPorCodigo(codigoEstancia: string | null | undefined): void {
-    const codigo = (codigoEstancia ?? '').trim();
-    if (!codigo) {
+    const queryParams = construirQueryEstanciasPorCodigo(codigoEstancia);
+    if (!queryParams) {
       return;
     }
 
     this.cerrarDetalle();
     this.router.navigate(['/estancias'], {
-      queryParams: { codigoEstancia: codigo },
+      queryParams,
     });
   }
 
   irATablaClientes(cliente: OcupanteDTO | null | undefined): void {
-    if (!cliente) {
-      return;
-    }
-
-    const queryParams = this.construirFiltrosCliente(cliente);
-    if (Object.keys(queryParams).length === 0) {
+    const queryParams = construirQueryClientesPorOcupante(cliente);
+    if (!queryParams) {
       return;
     }
 
@@ -464,76 +489,23 @@ export class CalendarioComponent implements OnInit {
   }
 
   esClienteNavegable(cliente: OcupanteDTO | null | undefined): boolean {
-    if (!cliente) {
-      return false;
-    }
-
-    const queryParams = this.construirFiltrosCliente(cliente);
-    return Object.keys(queryParams).length > 0;
+    return !!construirQueryClientesPorOcupante(cliente);
   }
 
   puedeIrAClientesPorEstancia(estancia: EstanciaDTO | null | undefined): boolean {
-    return this.obtenerDocumentosPersonasEstancia(estancia).length > 0;
+    return !!construirQueryClientesPorEstancia(estancia);
   }
 
   irAClientesPorPersonasEstancia(estancia: EstanciaDTO | null | undefined): void {
-    const documentos = this.obtenerDocumentosPersonasEstancia(estancia);
-    if (!documentos.length) {
+    const queryParams = construirQueryClientesPorEstancia(estancia);
+    if (!queryParams) {
       return;
     }
 
     this.cerrarDetalle();
     this.router.navigate(['/ocupantes/tabla-clientes'], {
-      queryParams: {
-        documentos: documentos.join(','),
-      },
+      queryParams,
     });
-  }
-
-  private construirFiltrosCliente(cliente: OcupanteDTO): Record<string, string> {
-    const params: Record<string, string> = {};
-    const numeroDocumento = (cliente.numeroDocumento ?? '').trim();
-    const tipoDocumento = (cliente.tipoDocumento ?? '').trim();
-
-    if (numeroDocumento) {
-      params['numeroDocumento'] = numeroDocumento;
-      if (tipoDocumento) {
-        params['tipoDocumento'] = tipoDocumento;
-      }
-      return params;
-    }
-
-    const nombre = (cliente.nombres ?? '').trim();
-    const apellido = (cliente.apellidos ?? '').trim();
-
-    if (nombre) {
-      params['nombre'] = nombre;
-    }
-
-    if (apellido) {
-      params['apellido'] = apellido;
-    }
-
-    return params;
-  }
-
-  private obtenerDocumentosPersonasEstancia(estancia: EstanciaDTO | null | undefined): string[] {
-    if (!estancia) {
-      return [];
-    }
-
-    const personas: OcupanteDTO[] = [
-      ...(estancia.cliente ? [estancia.cliente] : []),
-      ...(estancia.acompanantes ?? []),
-    ];
-
-    return Array.from(
-      new Set(
-        personas
-          .map((persona) => (persona.numeroDocumento ?? '').trim())
-          .filter((numeroDocumento) => Boolean(numeroDocumento))
-      )
-    );
   }
 
   mostrarCodigoEstanciaReserva(item: CalendarioRegistroView): boolean {
@@ -542,6 +514,10 @@ export class CalendarioComponent implements OnInit {
   }
 
   private cargarCalendarioSemana(): void {
+    this.recargaCalendario$.next();
+  }
+
+  private ejecutarCargaCalendarioSemana(): Observable<DetalleCalendarioUnidadDTO[] | null> {
     this.error = '';
 
     const visibleDesde = this.inicioDelDia(this.semanaInicio);
@@ -561,7 +537,7 @@ export class CalendarioComponent implements OnInit {
 
     if (this.cubreRangoEnCache(visibleDesde, visibleHasta) && this.cacheClaveFiltros === claveFiltros) {
       this.actualizarVistaDesdeCache();
-      return;
+      return of(null);
     }
 
     const desdeConsulta = new Date(visibleDesde);
@@ -577,10 +553,10 @@ export class CalendarioComponent implements OnInit {
       this.cargando = true;
     }
 
-    this.reservaService
+    return this.reservaService
       .obtenerCalendarioDetalle(desde, hasta, tipoUnidad, codigoUnidad, estadosReserva, estadosEstancia)
-      .subscribe({
-        next: (detalle) => {
+      .pipe(
+        tap((detalle) => {
           this.detalleCache = detalle ?? [];
           this.cacheDesde = this.inicioDelDia(desdeConsulta);
           this.cacheHasta = this.inicioDelDia(hastaConsulta);
@@ -588,9 +564,8 @@ export class CalendarioComponent implements OnInit {
           this.actualizarVistaDesdeCache();
           this.reservaSeleccionada = null;
           this.estanciaSeleccionada = null;
-          this.cargando = false;
-        },
-        error: (errorResponse: unknown) => {
+        }),
+        catchError((errorResponse: unknown) => {
           this.error = extractBackendErrorMessage(
             errorResponse,
             'No fue posible cargar el calendario operativo.',
@@ -599,9 +574,12 @@ export class CalendarioComponent implements OnInit {
             this.filas = [];
             this.registrosPorFilaDia.clear();
           }
+          return of(null);
+        }),
+        finalize(() => {
           this.cargando = false;
-        },
-      });
+        }),
+      );
   }
 
   private actualizarVistaDesdeCache(): void {
@@ -791,7 +769,7 @@ export class CalendarioComponent implements OnInit {
     destino: 'unidad' | 'habitacion',
   ): CalendarioRegistroView[] {
     return reservas
-      .filter((reserva) => this.debePintarRegistroSegunModo(reserva.modoOcupacion, tipoUnidad, destino))
+      .filter((reserva) => this.debePintarRegistroSegunModo(tipoUnidad, destino))
       .filter((reserva) => {
         const estado = (reserva.estadoReserva ?? 'CONFIRMADA') as EstadoReserva;
         return this.filtroEstadosReserva.includes(estado);
@@ -824,7 +802,7 @@ export class CalendarioComponent implements OnInit {
   ): CalendarioRegistroView[] {
     return estancias
       .filter((estancia) =>
-        this.debePintarRegistroSegunModo(estancia.modoOcupacion, tipoUnidad, destino)
+        this.debePintarRegistroSegunModo(tipoUnidad, destino)
       )
       .filter(
         (estancia) =>
@@ -1071,7 +1049,6 @@ export class CalendarioComponent implements OnInit {
   }
 
   private debePintarRegistroSegunModo(
-    modoOcupacion: string | null | undefined,
     tipoUnidad: TipoUnidad | null,
     destino: 'unidad' | 'habitacion',
   ): boolean {
@@ -1140,7 +1117,15 @@ export class CalendarioComponent implements OnInit {
     return item.estado === 'ACTIVA' || item.estado === 'EXCEDIDA';
   }
 
-  puedeGestionarReservaModal(item: CalendarioRegistroView): boolean {
+  puedeEditarEliminarReservaModal(item: CalendarioRegistroView): boolean {
+    if (!item.reserva?.id) {
+      return false;
+    }
+
+    return item.estado === 'CONFIRMADA' || item.estado === 'EXPIRADA';
+  }
+
+  puedeDarEntradaReservaModal(item: CalendarioRegistroView): boolean {
     if (!item.reserva?.id) {
       return false;
     }
@@ -1149,7 +1134,7 @@ export class CalendarioComponent implements OnInit {
   }
 
   editarReservaDesdeModal(item: CalendarioRegistroView): void {
-    if (!this.puedeGestionarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
+    if (!this.puedeEditarEliminarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
       return;
     }
 
@@ -1174,7 +1159,7 @@ export class CalendarioComponent implements OnInit {
   }
 
   darEntradaReservaDesdeModal(item: CalendarioRegistroView): void {
-    if (!this.puedeGestionarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
+    if (!this.puedeDarEntradaReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
       return;
     }
 
@@ -1198,7 +1183,7 @@ export class CalendarioComponent implements OnInit {
   }
 
   eliminarReservaDesdeModal(item: CalendarioRegistroView): void {
-    if (!this.puedeGestionarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
+    if (!this.puedeEditarEliminarReservaModal(item) || this.eliminandoReserva || !item.reserva?.id) {
       return;
     }
 

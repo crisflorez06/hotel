@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject, Observable, of, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
 
 import { PageResponse } from '../../models/page.model';
 import { CanalReserva, EstadoReserva, TipoUnidad } from '../../models/enums';
@@ -19,6 +19,7 @@ interface ResumenFiltroItem {
 
 type RangoRapido = 'HOY' | 'MANANA' | 'ESTA_SEMANA' | 'PROXIMOS_7_DIAS' | 'ESTE_MES';
 type RangoRapidoCampo = 'rangoGeneral' | 'creacion' | 'entrada' | 'salida';
+type AccionReserva = 'editar' | 'eliminar' | 'dar entrada';
 
 @Component({
   selector: 'app-reservas',
@@ -74,6 +75,8 @@ export class ReservasComponent implements OnInit, OnDestroy {
   };
 
   private queryParamsSub: Subscription | null = null;
+  private readonly recargaTabla$ = new Subject<void>();
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
     private readonly reservaService: ReservaService,
@@ -82,6 +85,13 @@ export class ReservasComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    this.recargaTabla$
+      .pipe(
+        switchMap(() => this.ejecutarCargaReservas()),
+        takeUntil(this.destroy$)
+      )
+      .subscribe();
+
     this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
       const codigoReserva = (params.get('codigoReserva') ?? '').trim();
       const codigoUnidad = (params.get('codigoUnidad') ?? '').trim();
@@ -99,6 +109,9 @@ export class ReservasComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.queryParamsSub?.unsubscribe();
     this.queryParamsSub = null;
+    this.destroy$.next();
+    this.destroy$.complete();
+    this.recargaTabla$.complete();
   }
 
   aplicarFiltros(): void {
@@ -392,6 +405,15 @@ export class ReservasComponent implements OnInit, OnDestroy {
     this.editarReserva(reserva);
   }
 
+  darEntradaReservaSeleccionada(): void {
+    const reserva = this.obtenerReservaSeleccionada();
+    if (!reserva) {
+      return;
+    }
+
+    this.darEntradaReserva(reserva);
+  }
+
   eliminarReservaSeleccionada(): void {
     const reserva = this.obtenerReservaSeleccionada();
     if (!reserva) {
@@ -406,17 +428,26 @@ export class ReservasComponent implements OnInit, OnDestroy {
     return !!reserva && this.puedeGestionarReserva(reserva);
   }
 
+  puedeDarEntradaReservaSeleccionada(): boolean {
+    const reserva = this.obtenerReservaSeleccionada();
+    return !!reserva && this.puedeDarEntradaReserva(reserva);
+  }
+
   estaEliminandoReservaSeleccionada(): boolean {
     const reserva = this.obtenerReservaSeleccionada();
     return !!reserva && this.eliminandoReservaId === reserva.id;
   }
 
   obtenerTooltipEditarSeleccionada(): string | null {
-    return this.obtenerTooltipAccionGestionSeleccionada('editar');
+    return this.obtenerTooltipAccionSeleccionada('editar');
   }
 
   obtenerTooltipEliminarSeleccionada(): string | null {
-    return this.obtenerTooltipAccionGestionSeleccionada('eliminar');
+    return this.obtenerTooltipAccionSeleccionada('eliminar');
+  }
+
+  obtenerTooltipDarEntradaSeleccionada(): string | null {
+    return this.obtenerTooltipAccionSeleccionada('dar entrada');
   }
 
   formatearEtiqueta(valor: string | null | undefined): string {
@@ -436,22 +467,6 @@ export class ReservasComponent implements OnInit, OnDestroy {
       : canal;
 
     return this.formatearEtiqueta(canalSinPrefijo);
-  }
-
-  formatearFecha(fecha: string | null | undefined): string {
-    if (!fecha) {
-      return '-';
-    }
-
-    const date = new Date(fecha);
-    if (Number.isNaN(date.getTime())) {
-      return fecha;
-    }
-
-    return new Intl.DateTimeFormat('es-CO', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
   }
 
   formatearSoloFecha(fecha: string | null | undefined): string {
@@ -553,6 +568,14 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
   irATablaClientes(reserva: ReservaTablaItem): void {
     const numeroDocumento = reserva.numeroDocumentoCliente?.trim() ?? '';
+    if (!numeroDocumento) {
+      this.accionError = 'La reserva no tiene documento de cliente para buscar.';
+      this.accionExito = '';
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
 
     this.router.navigate(['/ocupantes/tabla-clientes'], {
       queryParams: {
@@ -570,12 +593,42 @@ export class ReservasComponent implements OnInit, OnDestroy {
   }
 
   puedeGestionarReserva(reserva: ReservaTablaItem): boolean {
-    return reserva.estadoReserva !== 'COMPLETADA' && reserva.estadoReserva !== 'CANCELADA';
+    return this.estaReservaEnEstadoEditable(reserva);
+  }
+
+  puedeDarEntradaReserva(reserva: ReservaTablaItem): boolean {
+    return this.estaReservaEnEstadoEditable(reserva);
+  }
+
+  darEntradaReserva(reserva: ReservaTablaItem): void {
+    if (!this.puedeDarEntradaReserva(reserva)) {
+      this.accionError = this.obtenerMensajeEstadoInvalido('dar entrada');
+      this.accionExito = '';
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
+    this.router.navigate(['/estancias/nueva'], {
+      state: {
+        returnTo: this.router.url,
+        flujo: 'INGRESO',
+        idReserva: reserva.id,
+        idCliente: reserva.idCliente ?? undefined,
+        codigoReserva: reserva.codigoReserva ?? '',
+        nombreCliente: reserva.nombreCliente ?? '',
+        codigo: reserva.codigoUnidad,
+        tipo: reserva.tipoUnidad,
+        entrada: reserva.entradaEstimada,
+        salida: reserva.salidaEstimada,
+        numeroPersonasReserva: reserva.numeroPersonas,
+      },
+    });
   }
 
   editarReserva(reserva: ReservaTablaItem): void {
     if (!this.puedeGestionarReserva(reserva)) {
-      this.accionError = 'No se pueden editar reservas completadas o canceladas.';
+      this.accionError = this.obtenerMensajeEstadoInvalido('editar');
       this.accionExito = '';
       return;
     }
@@ -590,8 +643,8 @@ export class ReservasComponent implements OnInit, OnDestroy {
           id: reserva.id,
           codigo: reserva.codigoUnidad,
           tipoUnidad: reserva.tipoUnidad,
-          idOcupante: reserva.idCliente,
-          nombreCliente: reserva.nombreCliente,
+          idOcupante: reserva.idCliente ?? undefined,
+          nombreCliente: reserva.nombreCliente ?? '',
           numeroPersonas: reserva.numeroPersonas,
           canalReserva: reserva.canalReserva,
           entradaEstimada: reserva.entradaEstimada,
@@ -643,7 +696,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
   private abrirModalEliminarReserva(reserva: ReservaTablaItem): void {
     if (!this.puedeGestionarReserva(reserva)) {
-      this.accionError = 'No se pueden eliminar reservas completadas o canceladas.';
+      this.accionError = this.obtenerMensajeEstadoInvalido('eliminar');
       this.accionExito = '';
       return;
     }
@@ -654,6 +707,10 @@ export class ReservasComponent implements OnInit, OnDestroy {
   }
 
   private cargarReservas(): void {
+    this.recargaTabla$.next();
+  }
+
+  private ejecutarCargaReservas(): Observable<PageResponse<ReservaTablaItem> | null> {
     this.cargando = true;
     this.error = '';
 
@@ -671,8 +728,8 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
     const sort = ['fechaCreacion,desc'];
 
-    this.reservaService.obtenerTabla(filtros, this.page, this.size, sort).subscribe({
-      next: (response: PageResponse<ReservaTablaItem>) => {
+    return this.reservaService.obtenerTabla(filtros, this.page, this.size, sort).pipe(
+      tap((response: PageResponse<ReservaTablaItem>) => {
         this.reservas = response.content;
         if (this.reservaSeleccionadaId !== null) {
           const reservaSigueDisponible = this.reservas.some(
@@ -686,9 +743,8 @@ export class ReservasComponent implements OnInit, OnDestroy {
         this.totalPages = response.totalPages;
         this.page = response.number ?? this.page;
         this.size = response.size;
-        this.cargando = false;
-      },
-      error: (errorResponse: unknown) => {
+      }),
+      catchError((errorResponse: unknown) => {
         this.error = extractBackendErrorMessage(
           errorResponse,
           'No fue posible cargar la tabla de reservas.'
@@ -697,12 +753,15 @@ export class ReservasComponent implements OnInit, OnDestroy {
         this.reservaSeleccionadaId = null;
         this.totalElements = 0;
         this.totalPages = 0;
+        return of(null);
+      }),
+      finalize(() => {
         this.cargando = false;
-      },
-    });
+      })
+    );
   }
 
-  private obtenerTooltipAccionGestionSeleccionada(accion: 'editar' | 'eliminar'): string | null {
+  private obtenerTooltipAccionSeleccionada(accion: AccionReserva): string | null {
     const reserva = this.obtenerReservaSeleccionada();
     if (!reserva) {
       return `Selecciona una reserva para ${accion}.`;
@@ -712,11 +771,31 @@ export class ReservasComponent implements OnInit, OnDestroy {
       return 'Se esta eliminando la reserva seleccionada.';
     }
 
-    if (!this.puedeGestionarReserva(reserva)) {
-      return `No se puede ${accion} una reserva completada o cancelada.`;
+    if (!this.puedeAccionarReserva(reserva, accion)) {
+      return this.obtenerMensajeEstadoInvalido(accion);
     }
 
     return null;
+  }
+
+  private puedeAccionarReserva(reserva: ReservaTablaItem, accion: AccionReserva): boolean {
+    if (accion === 'dar entrada') {
+      return this.puedeDarEntradaReserva(reserva);
+    }
+
+    return this.puedeGestionarReserva(reserva);
+  }
+
+  private estaReservaEnEstadoEditable(reserva: ReservaTablaItem): boolean {
+    return reserva.estadoReserva === 'CONFIRMADA' || reserva.estadoReserva === 'EXPIRADA';
+  }
+
+  private obtenerMensajeEstadoInvalido(accion: AccionReserva): string {
+    if (accion === 'dar entrada') {
+      return 'Solo se puede dar entrada a reservas confirmadas o expiradas.';
+    }
+
+    return `Solo se pueden ${accion} reservas confirmadas o expiradas.`;
   }
 
   private crearFiltrosVacios(): ReservaTablaFiltros {

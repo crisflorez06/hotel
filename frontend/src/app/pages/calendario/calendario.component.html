@@ -9,7 +9,7 @@
 
   <section class="calendario__filters">
     <div class="calendario__filters-head">
-      <h2>Filtros de busqueda</h2>
+      <h2>Filtros operativos</h2>
       <p>Filtra por unidad, codigo y estados para enfocar el calendario operativo.</p>
     </div>
 
@@ -235,51 +235,48 @@
         </ng-container>
         <ng-template #detalleReservaCompleto>
         <div class="modal__info-grid">
-          <article
-            class="modal__info-item modal__info-item--clickable"
-            data-tooltip="Ir a reservas"
-            (click)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta)"
-            (keydown.enter)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta)"
-            (keydown.space)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta); $event.preventDefault()"
-            tabindex="0"
-          ><i class="bi bi-upc-scan modal__info-icon"></i><div><span>Codigo</span><strong>{{ item.reserva?.codigoReserva || item.etiqueta }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-flag modal__info-icon"></i><div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-building modal__info-icon"></i><div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-diagram-3 modal__info-icon"></i><div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div></article>
-          <article
-            class="modal__info-item"
-            [class.modal__info-item--clickable]="esClienteNavegable(item.reserva?.cliente)"
-            [attr.data-tooltip]="esClienteNavegable(item.reserva?.cliente) ? 'Ir a clientes' : null"
-            [attr.tabindex]="esClienteNavegable(item.reserva?.cliente) ? '0' : null"
-            (click)="irATablaClientes(item.reserva?.cliente)"
-            (keydown.enter)="irATablaClientes(item.reserva?.cliente)"
-            (keydown.space)="irATablaClientes(item.reserva?.cliente); $event.preventDefault()"
-          ><i class="bi bi-person modal__info-icon"></i><div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-people modal__info-icon"></i><div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-broadcast modal__info-icon"></i><div><span>Canal reserva</span><strong>{{ formatearCanalReserva(item.reserva?.canalReserva) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-grid-3x2-gap modal__info-icon"></i><div><span>Modo ocupacion</span><strong>{{ formatearEtiqueta(item.reserva?.modoOcupacion) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-calendar-plus modal__info-icon"></i><div><span>Creada</span><strong>{{ formatearFecha(item.reserva?.fechaCreacion) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-box-arrow-in-right modal__info-icon"></i><div><span>Inicio</span><strong>{{ formatearFecha(item.inicio) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-box-arrow-right modal__info-icon"></i><div><span>Fin</span><strong>{{ formatearFecha(item.fin) }}</strong></div></article>
-          <article
-            class="modal__info-item modal__info-item--clickable"
+          <app-calendario-info-card
+            icon="bi-upc-scan"
+            label="Codigo"
+            tooltip="Ir a reservas"
+            [clickable]="true"
+            (activate)="irATablaReservasPorCodigo(item.reserva?.codigoReserva || item.etiqueta)"
+          >{{ item.reserva?.codigoReserva || item.etiqueta }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-flag" label="Estado">{{ formatearEtiqueta(item.estado) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-building" label="Unidad">{{ item.codigoUnidad }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-diagram-3" label="Tipo">{{ formatearEtiqueta(item.tipoUnidad) }}</app-calendario-info-card>
+          <app-calendario-info-card
+            icon="bi-person"
+            label="Cliente"
+            tooltip="Ir a clientes"
+            [clickable]="esClienteNavegable(item.reserva?.cliente)"
+            (activate)="irATablaClientes(item.reserva?.cliente)"
+          >{{ item.nombreCliente || '-' }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-people" label="Personas">{{ item.numeroPersonas ?? '-' }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-broadcast" label="Canal reserva">{{ formatearCanalReserva(item.reserva?.canalReserva) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-grid-3x2-gap" label="Modo ocupacion">{{ formatearEtiqueta(item.reserva?.modoOcupacion) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-calendar-plus" label="Creada">{{ formatearFecha(item.reserva?.fechaCreacion) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-box-arrow-in-right" label="Inicio">{{ formatearFecha(item.inicio) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-box-arrow-right" label="Fin">{{ formatearFecha(item.fin) }}</app-calendario-info-card>
+          <app-calendario-info-card
             *ngIf="mostrarCodigoEstanciaReserva(item)"
-            data-tooltip="Ir a estancias"
-            (click)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia)"
-            (keydown.enter)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia)"
-            (keydown.space)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia); $event.preventDefault()"
-            tabindex="0"
-          ><i class="bi bi-link-45deg modal__info-icon"></i><div><span>Codigo estancia</span><strong>{{ item.reserva?.codigoEstancia }}</strong></div></article>
-          <article class="modal__info-item modal__info-item--full"><i class="bi bi-journal-text modal__info-icon"></i><div><span>Notas</span><strong>{{ item.reserva?.notas || 'Sin notas' }}</strong></div></article>
+            icon="bi-link-45deg"
+            label="Codigo estancia"
+            tooltip="Ir a estancias"
+            [clickable]="true"
+            (activate)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia)"
+          >{{ item.reserva?.codigoEstancia }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-journal-text" label="Notas" [full]="true">{{ item.reserva?.notas || 'Sin notas' }}</app-calendario-info-card>
         </div>
         </ng-template>
       </div>
 
-      <div class="modal__actions modal__actions--split" *ngIf="!item.mostrarResumenIndividualUnidad && puedeGestionarReservaModal(item)">
+      <div class="modal__actions modal__actions--split" *ngIf="!item.mostrarResumenIndividualUnidad && (puedeEditarEliminarReservaModal(item) || puedeDarEntradaReservaModal(item))">
         <button
           type="button"
           class="btn btn--danger"
           [disabled]="eliminandoReserva"
+          *ngIf="puedeEditarEliminarReservaModal(item)"
           (click)="eliminarReservaDesdeModal(item)"
         >
           <i class="bi bi-trash btn__icon-font" aria-hidden="true"></i>
@@ -290,6 +287,7 @@
             type="button"
             class="btn btn--ghost"
             [disabled]="eliminandoReserva"
+            *ngIf="puedeEditarEliminarReservaModal(item)"
             (click)="editarReservaDesdeModal(item)"
           >
             <i class="bi bi-pencil-square btn__icon-font" aria-hidden="true"></i>
@@ -299,6 +297,7 @@
             type="button"
             class="btn btn--primary"
             [disabled]="eliminandoReserva"
+            *ngIf="puedeDarEntradaReservaModal(item)"
             (click)="darEntradaReservaDesdeModal(item)"
           >
             <i class="bi bi-box-arrow-in-right btn__icon-font" aria-hidden="true"></i>
@@ -327,53 +326,47 @@
         </ng-container>
         <ng-template #detalleEstanciaCompleto>
         <div class="modal__info-grid">
-          <article
-            class="modal__info-item modal__info-item--clickable"
-            data-tooltip="Ir a estancias"
-            (click)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta)"
-            (keydown.enter)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta)"
-            (keydown.space)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta); $event.preventDefault()"
-            tabindex="0"
-          ><i class="bi bi-upc-scan modal__info-icon"></i><div><span>Codigo</span><strong>{{ item.estancia?.codigoFolio || item.etiqueta }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-flag modal__info-icon"></i><div><span>Estado</span><strong>{{ formatearEtiqueta(item.estado) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-building modal__info-icon"></i><div><span>Unidad</span><strong>{{ item.codigoUnidad }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-diagram-3 modal__info-icon"></i><div><span>Tipo</span><strong>{{ formatearEtiqueta(item.tipoUnidad) }}</strong></div></article>
-          <article
-            class="modal__info-item"
-            [class.modal__info-item--clickable]="esClienteNavegable(item.estancia?.cliente)"
-            [attr.data-tooltip]="esClienteNavegable(item.estancia?.cliente) ? 'Ir a clientes' : null"
-            [attr.tabindex]="esClienteNavegable(item.estancia?.cliente) ? '0' : null"
-            (click)="irATablaClientes(item.estancia?.cliente)"
-            (keydown.enter)="irATablaClientes(item.estancia?.cliente)"
-            (keydown.space)="irATablaClientes(item.estancia?.cliente); $event.preventDefault()"
-          ><i class="bi bi-person modal__info-icon"></i><div><span>Cliente</span><strong>{{ item.nombreCliente || '-' }}</strong></div></article>
-          <article
-            class="modal__info-item"
-            [class.modal__info-item--clickable]="puedeIrAClientesPorEstancia(item.estancia)"
-            [attr.data-tooltip]="puedeIrAClientesPorEstancia(item.estancia) ? 'Ver personas en clientes' : null"
-            [attr.tabindex]="puedeIrAClientesPorEstancia(item.estancia) ? '0' : null"
-            (click)="irAClientesPorPersonasEstancia(item.estancia)"
-            (keydown.enter)="irAClientesPorPersonasEstancia(item.estancia)"
-            (keydown.space)="irAClientesPorPersonasEstancia(item.estancia); $event.preventDefault()"
-          ><i class="bi bi-people modal__info-icon"></i><div><span>Personas</span><strong>{{ item.numeroPersonas ?? '-' }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-grid-3x2-gap modal__info-icon"></i><div><span>Modo ocupacion</span><strong>{{ formatearEtiqueta(item.estancia?.modoOcupacion) }}</strong></div></article>
-          <article
+          <app-calendario-info-card
+            icon="bi-upc-scan"
+            label="Codigo"
+            tooltip="Ir a estancias"
+            [clickable]="true"
+            (activate)="irATablaEstanciasPorCodigo(item.estancia?.codigoFolio || item.etiqueta)"
+          >{{ item.estancia?.codigoFolio || item.etiqueta }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-flag" label="Estado">{{ formatearEtiqueta(item.estado) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-building" label="Unidad">{{ item.codigoUnidad }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-diagram-3" label="Tipo">{{ formatearEtiqueta(item.tipoUnidad) }}</app-calendario-info-card>
+          <app-calendario-info-card
+            icon="bi-person"
+            label="Cliente"
+            tooltip="Ir a clientes"
+            [clickable]="esClienteNavegable(item.estancia?.cliente)"
+            (activate)="irATablaClientes(item.estancia?.cliente)"
+          >{{ item.nombreCliente || '-' }}</app-calendario-info-card>
+          <app-calendario-info-card
+            icon="bi-people"
+            label="Personas"
+            tooltip="Ver personas en clientes"
+            [clickable]="puedeIrAClientesPorEstancia(item.estancia)"
+            (activate)="irAClientesPorPersonasEstancia(item.estancia)"
+          >{{ item.numeroPersonas ?? '-' }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-grid-3x2-gap" label="Modo ocupacion">{{ formatearEtiqueta(item.estancia?.modoOcupacion) }}</app-calendario-info-card>
+          <app-calendario-info-card
             *ngIf="item.estancia?.codigoReserva as codigoReserva; else codigoReservaCardVacia"
-            class="modal__info-item modal__info-item--clickable"
-            data-tooltip="Ir a reservas"
-            (click)="irATablaReservasPorCodigo(codigoReserva)"
-            (keydown.enter)="irATablaReservasPorCodigo(codigoReserva)"
-            (keydown.space)="irATablaReservasPorCodigo(codigoReserva); $event.preventDefault()"
-            tabindex="0"
-          ><i class="bi bi-link-45deg modal__info-icon"></i><div><span>Codigo reserva</span><strong>{{ codigoReserva }}</strong></div></article>
+            icon="bi-link-45deg"
+            label="Codigo reserva"
+            tooltip="Ir a reservas"
+            [clickable]="true"
+            (activate)="irATablaReservasPorCodigo(codigoReserva)"
+          >{{ codigoReserva }}</app-calendario-info-card>
           <ng-template #codigoReservaCardVacia>
-            <article class="modal__info-item"><i class="bi bi-link-45deg modal__info-icon"></i><div><span>Codigo reserva</span><strong>-</strong></div></article>
+            <app-calendario-info-card icon="bi-link-45deg" label="Codigo reserva">-</app-calendario-info-card>
           </ng-template>
-          <article class="modal__info-item"><i class="bi bi-box-arrow-in-right modal__info-icon"></i><div><span>Entrada real</span><strong>{{ formatearFecha(item.estancia?.entradaReal || item.inicio) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-box-arrow-right modal__info-icon"></i><div><span>Salida estimada</span><strong>{{ formatearFecha(item.estancia?.salidaEstimada || item.fin) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-calendar-check modal__info-icon"></i><div><span>Salida real</span><strong>{{ formatearFecha(item.estancia?.salidaReal) }}</strong></div></article>
-          <article class="modal__info-item"><i class="bi bi-cash-stack modal__info-icon"></i><div><span>Total pagado</span><strong>{{ obtenerTotalPagadoEstancia(item) | currency: 'COP' : 'symbol' : '1.0-0' }}</strong></div></article>
-          <article class="modal__info-item modal__info-item--full"><i class="bi bi-journal-text modal__info-icon"></i><div><span>Notas</span><strong>{{ item.estancia?.notas || 'Sin notas' }}</strong></div></article>
+          <app-calendario-info-card icon="bi-box-arrow-in-right" label="Entrada real">{{ formatearFecha(item.estancia?.entradaReal || item.inicio) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-box-arrow-right" label="Salida estimada">{{ formatearFecha(item.estancia?.salidaEstimada || item.fin) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-calendar-check" label="Salida real">{{ formatearFecha(item.estancia?.salidaReal) }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-cash-stack" label="Total pagado">{{ obtenerTotalPagadoEstancia(item) | currency: 'COP' : 'symbol' : '1.0-0' }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-journal-text" label="Notas" [full]="true">{{ item.estancia?.notas || 'Sin notas' }}</app-calendario-info-card>
         </div>
         </ng-template>
       </div>

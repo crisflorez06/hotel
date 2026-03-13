@@ -1,0 +1,15 @@
+<article
+  class="info-card"
+  [class.info-card--full]="full"
+  [class.info-card--clickable]="clickable"
+  [attr.data-tooltip]="clickable ? tooltip : null"
+  [attr.tabindex]="clickable ? '0' : null"
+  (click)="onClick()"
+  (keydown)="onKeydown($event)"
+>
+  <i class="bi info-card__icon" [ngClass]="icon" aria-hidden="true"></i>
+  <div class="info-card__content">
+    <span>{{ label }}</span>
+    <strong><ng-content></ng-content></strong>
+  </div>
+</article>

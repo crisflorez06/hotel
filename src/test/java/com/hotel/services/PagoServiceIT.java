@@ -51,7 +51,7 @@ class PagoServiceIT extends AbstractServiceIT {
         PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
 
         // ---------- WHEN ----------
-        PagoDTO pago = pagoService.crearPago(request, estancia.getId());
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -98,7 +98,7 @@ class PagoServiceIT extends AbstractServiceIT {
         PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
 
         // ---------- WHEN ----------
-        PagoDTO pago = pagoService.crearPago(request, estancia.getId());
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -147,7 +147,7 @@ class PagoServiceIT extends AbstractServiceIT {
         request.setEstado(EstadoPago.COMPLETADO);
 
         // ---------- WHEN ----------
-        PagoDTO pago = pagoService.crearPago(request, estancia.getId());
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -196,7 +196,7 @@ class PagoServiceIT extends AbstractServiceIT {
         request.setEstado(EstadoPago.PENDIENTE);
 
         // ---------- WHEN ----------
-        PagoDTO pago = pagoService.crearPago(request, estancia.getId());
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
 
 
         // ---------- THEN ----------
@@ -247,7 +247,7 @@ class PagoServiceIT extends AbstractServiceIT {
         PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
 
         // ---------- WHEN ----------
-        PagoDTO pago = pagoService.crearPago(request, estancia.getId());
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -298,7 +298,7 @@ class PagoServiceIT extends AbstractServiceIT {
 
 
         // ---------- WHEN ----------
-        PagoDTO pago = pagoService.crearPago(request, estancia.getId());
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -350,7 +350,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No se puede crear un pago de tipo ANTICIPO_RESERVA para una reserva que no está CONFIRMADA. El estado actual de la reserva es: ");
 
@@ -396,7 +396,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No se puede crear un pago de tipo ANTICIPO_RESERVA para una estancia que no tiene una reserva asociada");
 
@@ -437,7 +437,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No se puede crear un pago de tipo ANTICIPO_ESTANCIA para una estancia que no está activada. El estado actual de la estancia es: ");
 
@@ -483,7 +483,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("No se puede crear un pago de tipo ESTANCIA_COMPLETADA para una estancia que no está FINALIZADA. El estado actual de la estancia es: ");
 
@@ -529,7 +529,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("El estado del pago es obligatorio para crear un pago de tipo ESTANCIA_COMPLETADA");
 
@@ -576,7 +576,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("El estado del pago de tipo ESTANCIA_COMPLETADA debe ser COMPLETADO o PENDIENTE");
 
@@ -623,7 +623,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Ya existe un pago de tipo ESTANCIA_COMPLETADA para esta estancia, no se puede crear otro");
 
@@ -669,7 +669,7 @@ class PagoServiceIT extends AbstractServiceIT {
         Long eventosAntes = eventoRepository.count();
 
         // ---------- WHEN ----------
-        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId()))
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("El tipo de pago CAMBIO_UNIDAD no es válido para crear un pago");
 

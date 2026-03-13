@@ -16,17 +16,46 @@
   background: radial-gradient(circle at top right, #d7ebe2 0%, #f8efe1 38%, var(--bg) 100%);
   min-height: calc(100vh - 5rem);
   color: var(--ink);
+  font-family: 'Manrope', sans-serif;
+}
+
+.dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1.1rem;
+  border: 1px solid #e8ddcc;
+  background: linear-gradient(140deg, #ffffff 0%, #fbf6ec 46%, #f4ecdd 100%);
+  box-shadow: 0 12px 24px rgba(34, 29, 22, 0.08);
+}
+
+.dashboard__eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7a5f3d;
+  font-weight: 700;
 }
 
 .dashboard__header h1 {
   margin: 0;
-  font-size: 1.72rem;
-  font-weight: 700;
+  font-size: 2.05rem;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
 }
 
-.dashboard__header p {
-  margin: 0.55rem 0 0;
-  color: var(--ink-soft);
+.dashboard__subtitle {
+  margin: 0.45rem 0 0;
+  color: #5f5345;
+  max-width: 74ch;
+  line-height: 1.48;
+  font-size: 0.93rem;
+  font-weight: 500;
 }
 
 .dashboard-panel {

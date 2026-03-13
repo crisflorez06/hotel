@@ -425,7 +425,7 @@ public class EstanciaService {
         estancia.setSalidaReal(request.getFechaSalidaReal());
 
         logger.info("[finalizarEstancia] Creando pago asociado a la estancia finalizada");
-        pagoService.crearPago(request.getPagoEstancia(), estancia.getId());
+        pagoService.crearPago(request.getPagoEstancia(), estancia.getId(), true);
 
         estancia.setNotas(estancia.getNotas() + " | Notas de salida: " + request.getNotasSalida());
 
@@ -487,8 +487,10 @@ public class EstanciaService {
     private void validarActivacionEstancia(Reserva reserva, Estancia estancia, LocalDateTime entradaReal, LocalDateTime salidaEstimada) {
 
         logger.info("[validarActivacionEstancia] Validando estado de reserva");
-        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
-            throw new IllegalStateException("La reserva debe estar CONFIRMADA para activar la estancia. Estado actual: " + reserva.getEstado());
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA
+                && reserva.getEstado() != EstadoReserva.EXPIRADA) {
+            throw new IllegalStateException(
+                    "La reserva debe estar CONFIRMADA o EXPIRADA para activar la estancia. Estado actual: " + reserva.getEstado());
         }
 
         logger.info("[validarActivacionEstancia] Validando existencia de estancia asociada");

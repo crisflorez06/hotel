@@ -847,7 +847,21 @@ export class EstanciaNuevaComponent implements OnInit {
   }
 
   private normalizarFechaHora(valor: string): string {
-    return valor.replace(' ', 'T');
+    const texto = valor.trim();
+    if (!texto) {
+      return texto;
+    }
+
+    const normalizado = texto.replace(' ', 'T');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalizado)) {
+      return `${normalizado}T00:00:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalizado)) {
+      return `${normalizado}:00`;
+    }
+
+    return normalizado;
   }
 
   private cargarCodigosDisponibles(tipo: TipoUnidad): void {
@@ -944,6 +958,10 @@ export class EstanciaNuevaComponent implements OnInit {
       return '';
     }
     const normalizado = valor.replace(' ', 'T');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalizado)) {
+      return `${normalizado} 00:00`;
+    }
+
     const [fecha, hora] = normalizado.split('T');
     if (!fecha || !hora) {
       return valor;

@@ -32,6 +32,10 @@ export class OcupanteService {
     return this.http.post<OcupanteDTO>(this.baseUrl, request);
   }
 
+  editarOcupante(id: number, request: OcupanteNuevoRequest) {
+    return this.http.put<OcupanteDTO>(`${this.baseUrl}/${id}`, request);
+  }
+
   buscarPorDocumento(documento: string) {
     return this.http.get<OcupanteDTO[]>(`${this.baseUrl}/buscar`, {
       params: { documento },

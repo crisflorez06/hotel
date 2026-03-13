@@ -112,6 +112,42 @@ public class OcupanteService {
         return OcupanteMapper.ocupanteToDto(guardado);
     }
 
+    @Transactional
+    public OcupanteDTO editarOcupante(Long id, OcupanteNuevoRequestDTO request) {
+        logger.info("Editando ocupante con id: {}", id);
+        Ocupante ocupante = buscarPorId(id);
+        String documentoOriginal = ocupante.getNumeroDocumento();
+        TipoDocumento tipoDocumentoOriginal = ocupante.getTipoDocumento();
+
+        ocupante.setNombres(request.getNombres());
+        ocupante.setApellidos(request.getApellidos());
+        ocupante.setTipoDocumento(request.getTipoDocumento());
+        ocupante.setNumeroDocumento(request.getNumeroDocumento());
+        ocupante.setTelefono(request.getTelefono());
+        ocupante.setEmail(request.getEmail());
+        ocupante.setTipoOcupante(request.getTipoOcupante());
+
+        List<Ocupante> ocupantesRelacionados =
+                documentoOriginal == null || documentoOriginal.trim().isEmpty() || tipoDocumentoOriginal == null
+                ? List.of()
+                : ocupanteRepository.findByTipoDocumentoAndNumeroDocumentoNormalizado(tipoDocumentoOriginal, documentoOriginal).stream()
+                .filter(item -> !item.getId().equals(ocupante.getId()))
+                .toList();
+
+        for (Ocupante relacionado : ocupantesRelacionados) {
+            relacionado.setNombres(request.getNombres());
+            relacionado.setApellidos(request.getApellidos());
+            relacionado.setTipoDocumento(request.getTipoDocumento());
+            relacionado.setNumeroDocumento(request.getNumeroDocumento());
+            relacionado.setTelefono(request.getTelefono());
+            relacionado.setEmail(request.getEmail());
+        }
+
+        ocupanteRepository.saveAll(ocupantesRelacionados);
+        Ocupante guardado = ocupanteRepository.save(ocupante);
+        return OcupanteMapper.ocupanteToDto(guardado);
+    }
+
 
 
     private Ocupante crearOcupanteConDiferenteTipo(Ocupante ocupante, TipoOcupante tipoOcupante) {

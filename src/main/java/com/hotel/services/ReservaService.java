@@ -145,8 +145,9 @@ public class ReservaService {
         Reserva reserva = reservaRepository.findById(idReserva)
                 .orElseThrow(() -> new EntityNotFoundException("Reserva no encontrada con id: " + idReserva));
 
-        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
-            throw new IllegalStateException("Solo se puede editar una reserva en estado CONFIRMADA");
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA
+                && reserva.getEstado() != EstadoReserva.EXPIRADA) {
+            throw new IllegalStateException("Solo se puede editar una reserva en estado CONFIRMADA o EXPIRADA");
         }
 
         logger.info("[editarReserva] Validando edición de reserva para codigo de unidad: {} y tipo de unidad: {}", codigo, tipoUnidad);
@@ -233,8 +234,9 @@ public class ReservaService {
         Reserva reserva = reservaRepository.findById(idReserva)
                 .orElseThrow(() -> new EntityNotFoundException("Reserva no encontrada con id: " + idReserva));
 
-        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
-            throw new IllegalStateException("Solo se puede eliminar una reserva en estado CONFIRMADA");
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA
+                && reserva.getEstado() != EstadoReserva.EXPIRADA) {
+            throw new IllegalStateException("Solo se puede eliminar una reserva en estado CONFIRMADA o EXPIRADA");
         }
 
         reserva.setEstado(EstadoReserva.CANCELADA);

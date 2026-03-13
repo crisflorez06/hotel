@@ -20,6 +20,7 @@
   background: radial-gradient(circle at top right, #cfe9df 0%, #f9efe0 38%, var(--bg) 100%);
   min-height: calc(100vh - 5rem);
   color: var(--ink);
+  font-family: 'Manrope', sans-serif;
 }
 
 .estancia-tabla__header {
@@ -27,20 +28,38 @@
   justify-content: space-between;
   gap: 1rem;
   align-items: flex-start;
+  padding: 1rem 1.15rem;
+  border-radius: 1.1rem;
+  border: 1px solid #e8ddcc;
+  background: linear-gradient(140deg, #ffffff 0%, #fbf6ec 46%, #f4ecdd 100%);
+  box-shadow: 0 12px 24px rgba(34, 29, 22, 0.08);
+}
+
+.estancia-tabla__eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7a5f3d;
+  font-weight: 700;
 }
 
 .estancia-tabla__header h1 {
   margin: 0;
-  font-size: 1.72rem;
-  font-weight: 700;
+  font-size: 2.05rem;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
 }
 
-.estancia-tabla__header p {
-  margin: 0.55rem 0 0;
-  color: var(--ink-soft);
-  max-width: 70ch;
-  line-height: 1.5;
-  font-weight: 400;
+.estancia-tabla__subtitle {
+  margin: 0.45rem 0 0;
+  color: #5f5345;
+  max-width: 74ch;
+  line-height: 1.48;
+  font-size: 0.93rem;
+  font-weight: 500;
 }
 
 .btn {
@@ -530,62 +549,6 @@ tbody tr.tabla-fila--seleccionada {
   opacity: 1;
 }
 
-.estado-icon {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.8rem;
-  height: 1.8rem;
-  vertical-align: middle;
-}
-
-.estado-icon svg {
-  width: 1.45rem;
-  height: 1.45rem;
-}
-
-.estado-icon::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  left: 50%;
-  bottom: calc(100% + 0.45rem);
-  transform: translateX(-50%);
-  background: #111827;
-  color: #ffffff;
-  border-radius: 0.4rem;
-  padding: 0.22rem 0.42rem;
-  font-size: 0.72rem;
-  white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-  z-index: 5;
-}
-
-.estado-icon:hover::after {
-  opacity: 1;
-}
-
-.estado-icon--activa {
-  color: #166534;
-}
-
-.estado-icon--reservada {
-  color: #92400e;
-}
-
-.estado-icon--finalizada {
-  color: #1d4ed8;
-}
-
-.estado-icon--excedida {
-  color: #b45309;
-}
-
-.estado-icon--cancelada {
-  color: #991b1b;
-}
 
 .pago-estancia {
   display: flex;
@@ -675,30 +638,34 @@ tbody tr.tabla-fila--seleccionada {
   gap: 0.4rem;
 }
 
-.estancia-reserva__sin {
-  color: var(--ink-soft);
-}
-
 .chip {
   border-radius: 999px;
-  padding: 0.2rem 0.45rem;
+  padding: 0.24rem 0.52rem;
   font-size: 0.78rem;
   font-weight: 600;
   display: inline-block;
 }
 
-.chip--activa,
-.chip--reservada {
+.chip--activa {
   background: #dcfce7;
   color: var(--success);
 }
 
+.chip--reservada {
+  background: #e0f2fe;
+  color: #1e3a8a;
+}
+
 .chip--excedida {
-  background: #fef3c7;
+  background: #ffedd5;
   color: var(--warning);
 }
 
-.chip--finalizada,
+.chip--finalizada {
+  background: #e0f2fe;
+  color: #1e3a8a;
+}
+
 .chip--cancelada {
   background: #fee2e2;
   color: var(--danger);
@@ -725,6 +692,58 @@ tbody tr.tabla-fila--seleccionada {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 0.35rem 0.45rem;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.modal__panel {
+  position: relative;
+  width: min(100%, 30rem);
+  background: linear-gradient(180deg, #fffefb 0%, #f6faf7 100%);
+  border: 1px solid #c7d7cc;
+  border-top: 4px solid rgba(217, 119, 6, 0.42);
+  border-radius: 0.9rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+  padding: 1rem;
+}
+
+.modal__panel--confirm {
+  border-top-color: rgba(185, 28, 28, 0.55);
+}
+
+.modal__header h2 {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal__header p {
+  margin: 0.55rem 0 0;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.modal__actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
 }
 
 @media (max-width: 1080px) {

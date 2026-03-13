@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { EMPTY, Subject, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
 
 import { PageResponse } from '../../models/page.model';
 import { EstadoEstancia, TipoUnidad } from '../../models/enums';
@@ -59,6 +59,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   totalPages = 0;
   estanciaSeleccionadaId: number | null = null;
   eliminandoEstanciaId: number | null = null;
+  estanciaPendienteEliminacion: EstanciaTablaItem | null = null;
   filtrosAvanzadosAbiertos = false;
   rangoRapidoSeleccionado: Record<RangoRapidoCampo, RangoRapido | null> = {
     rangoGeneral: null,
@@ -67,7 +68,8 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     salidaReal: null,
   };
 
-  private queryParamsSub: Subscription | null = null;
+  private readonly destroy$ = new Subject<void>();
+  private readonly recargaTabla$ = new Subject<void>();
 
   constructor(
     private readonly estanciaService: EstanciaService,
@@ -76,7 +78,9 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+    this.inicializarCargaTabla();
+
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const codigoEstancia = (params.get('codigoEstancia') ?? '').trim();
       const codigoUnidad = (params.get('codigoUnidad') ?? '').trim();
       if (codigoEstancia !== this.filtros.codigoEstancia) {
@@ -86,20 +90,20 @@ export class EstanciasComponent implements OnInit, OnDestroy {
         this.filtros.codigoUnidad = codigoUnidad;
       }
       this.page = 0;
-      this.cargarEstancias();
+      this.solicitarRecargaTabla();
     });
   }
 
   ngOnDestroy(): void {
-    this.queryParamsSub?.unsubscribe();
-    this.queryParamsSub = null;
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   aplicarFiltros(): void {
     this.accionError = '';
     this.accionExito = '';
     this.page = 0;
-    this.cargarEstancias();
+    this.solicitarRecargaTabla();
   }
 
   limpiarFiltros(): void {
@@ -113,7 +117,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     this.accionError = '';
     this.accionExito = '';
     this.page = 0;
-    this.cargarEstancias();
+    this.solicitarRecargaTabla();
   }
 
   aplicarRangoRapido(rango: RangoRapido, campo: RangoRapidoCampo = 'rangoGeneral'): void {
@@ -171,7 +175,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
       this.filtros.rangoGeneralDesde = this.formatearFechaInput(desde);
       this.filtros.rangoGeneralHasta = this.formatearFechaInput(hasta);
     } else {
-      this.asignarRangoFechaHora(campo, desde, hasta);
+      this.asignarRangoFecha(campo, desde, hasta);
     }
 
     this.rangoRapidoSeleccionado[campo] = rango;
@@ -303,7 +307,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   cambiarPageSize(size: number): void {
     this.size = size;
     this.page = 0;
-    this.cargarEstancias();
+    this.solicitarRecargaTabla();
   }
 
   irPaginaAnterior(): void {
@@ -312,7 +316,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     }
 
     this.page -= 1;
-    this.cargarEstancias();
+    this.solicitarRecargaTabla();
   }
 
   irPaginaSiguiente(): void {
@@ -321,7 +325,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     }
 
     this.page += 1;
-    this.cargarEstancias();
+    this.solicitarRecargaTabla();
   }
 
   trackByEstanciaId(_: number, estancia: EstanciaTablaItem): number {
@@ -362,10 +366,20 @@ export class EstanciasComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const confirmacion = window.confirm(
-      `Se eliminara la estancia ${estancia.codigoEstancia}. Esta accion no se puede deshacer.`
-    );
-    if (!confirmacion) {
+    this.abrirModalEliminarEstancia(estancia);
+  }
+
+  cerrarModalEliminarEstancia(): void {
+    if (this.eliminandoEstanciaId !== null) {
+      return;
+    }
+
+    this.estanciaPendienteEliminacion = null;
+  }
+
+  confirmarEliminarEstancia(): void {
+    const estancia = this.estanciaPendienteEliminacion;
+    if (!estancia) {
       return;
     }
 
@@ -375,16 +389,40 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     this.estanciaService.eliminarEstancia(estancia.id).subscribe({
       next: () => {
         this.eliminandoEstanciaId = null;
+        this.estanciaPendienteEliminacion = null;
         this.accionExito = 'Estancia eliminada correctamente.';
-        this.cargarEstancias();
+        this.solicitarRecargaTabla();
       },
       error: (errorResponse: unknown) => {
         this.eliminandoEstanciaId = null;
+        this.estanciaPendienteEliminacion = null;
         this.accionError = extractBackendErrorMessage(
           errorResponse,
           'No fue posible eliminar la estancia.'
         );
         this.accionExito = '';
+      },
+    });
+  }
+
+  darSalidaEstanciaSeleccionada(): void {
+    const estancia = this.obtenerEstanciaSeleccionada();
+    if (!estancia || !this.puedeDarSalidaEstancia(estancia) || this.eliminandoEstanciaId !== null) {
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
+    this.router.navigate(['/estancias/salida'], {
+      state: {
+        returnTo: this.router.url,
+        estanciaId: estancia.id,
+        codigo: estancia.codigoUnidad,
+        tipo: estancia.tipoUnidad,
+        entrada: estancia.entradaReal,
+        salida: estancia.salidaEstimada,
+        numeroPersonas: estancia.totalPersonas ?? 1,
+        nombreCliente: estancia.nombreCliente,
       },
     });
   }
@@ -415,6 +453,11 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     return !!estancia && this.puedeGestionarEstancia(estancia);
   }
 
+  puedeDarSalidaSeleccionada(): boolean {
+    const estancia = this.obtenerEstanciaSeleccionada();
+    return !!estancia && this.puedeDarSalidaEstancia(estancia);
+  }
+
   estaEliminandoEstanciaSeleccionada(): boolean {
     const estancia = this.obtenerEstanciaSeleccionada();
     return !!estancia && this.eliminandoEstanciaId === estancia.id;
@@ -426,6 +469,23 @@ export class EstanciasComponent implements OnInit, OnDestroy {
 
   obtenerTooltipEliminarSeleccionada(): string | null {
     return this.obtenerTooltipAccionGestionSeleccionada('eliminar');
+  }
+
+  obtenerTooltipDarSalidaSeleccionada(): string | null {
+    const estancia = this.obtenerEstanciaSeleccionada();
+    if (!estancia) {
+      return 'Selecciona una estancia para dar salida.';
+    }
+
+    if (this.eliminandoEstanciaId === estancia.id) {
+      return 'Se esta eliminando la estancia seleccionada.';
+    }
+
+    if (!this.puedeDarSalidaEstancia(estancia)) {
+      return 'Solo se puede dar salida a estancias activas o excedidas.';
+    }
+
+    return null;
   }
 
   irATablaReservas(estancia: EstanciaTablaItem): void {
@@ -458,22 +518,6 @@ export class EstanciasComponent implements OnInit, OnDestroy {
       .toLowerCase()
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (letra) => letra.toUpperCase());
-  }
-
-  formatearFecha(fecha: string | null | undefined): string {
-    if (!fecha) {
-      return '-';
-    }
-
-    const date = new Date(fecha);
-    if (Number.isNaN(date.getTime())) {
-      return fecha;
-    }
-
-    return new Intl.DateTimeFormat('es-CO', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
   }
 
   formatearSoloFecha(fecha: string | null | undefined): string {
@@ -542,11 +586,40 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     return Math.min((this.page + 1) * this.size, this.totalElements);
   }
 
-  private cargarEstancias(): void {
-    this.cargando = true;
-    this.error = '';
+  private inicializarCargaTabla(): void {
+    this.recargaTabla$
+      .pipe(
+        takeUntil(this.destroy$),
+        tap(() => {
+          this.cargando = true;
+          this.error = '';
+        }),
+        switchMap(() => {
+          const filtros = this.construirFiltrosNormalizados();
+          const sort = ['entradaReal,desc'];
 
-    const filtros: EstanciaTablaFiltros = {
+          return this.estanciaService.obtenerTabla(filtros, this.page, this.size, sort).pipe(
+            finalize(() => {
+              this.cargando = false;
+            }),
+            catchError((errorResponse: unknown) => {
+              this.manejarErrorCargaTabla(errorResponse);
+              return EMPTY;
+            })
+          );
+        })
+      )
+      .subscribe((response: PageResponse<EstanciaTablaItem>) => {
+        this.actualizarTabla(response);
+      });
+  }
+
+  private solicitarRecargaTabla(): void {
+    this.recargaTabla$.next();
+  }
+
+  private construirFiltrosNormalizados(): EstanciaTablaFiltros {
+    return {
       ...this.filtros,
       rangoGeneralDesde: this.normalizarRangoGeneralDesde(this.filtros.rangoGeneralDesde),
       rangoGeneralHasta: this.normalizarRangoGeneralHasta(this.filtros.rangoGeneralHasta),
@@ -557,39 +630,32 @@ export class EstanciasComponent implements OnInit, OnDestroy {
       salidaRealDesde: this.normalizarFechaHoraDesde(this.filtros.salidaRealDesde),
       salidaRealHasta: this.normalizarFechaHoraHasta(this.filtros.salidaRealHasta),
     };
+  }
 
-    const sort = ['entradaReal,desc'];
-
-    this.estanciaService.obtenerTabla(filtros, this.page, this.size, sort).subscribe({
-      next: (response: PageResponse<EstanciaTablaItem>) => {
-        this.estancias = response.content;
-        if (this.estanciaSeleccionadaId !== null) {
-          const estanciaSigueDisponible = this.estancias.some(
-            (estancia) => estancia.id === this.estanciaSeleccionadaId
-          );
-          if (!estanciaSigueDisponible) {
-            this.estanciaSeleccionadaId = null;
-          }
-        }
-        this.totalElements = response.totalElements;
-        this.totalPages = response.totalPages;
-        this.page = response.number ?? this.page;
-        this.size = response.size;
-        this.cargando = false;
-      },
-      error: (errorResponse: unknown) => {
-        this.error = extractBackendErrorMessage(
-          errorResponse,
-          'No fue posible cargar la tabla de estancias.'
-        );
-        this.estancias = [];
+  private actualizarTabla(response: PageResponse<EstanciaTablaItem>): void {
+    this.estancias = response.content;
+    if (this.estanciaSeleccionadaId !== null) {
+      const estanciaSigueDisponible = this.estancias.some(
+        (estancia) => estancia.id === this.estanciaSeleccionadaId
+      );
+      if (!estanciaSigueDisponible) {
         this.estanciaSeleccionadaId = null;
-        this.eliminandoEstanciaId = null;
-        this.totalElements = 0;
-        this.totalPages = 0;
-        this.cargando = false;
-      },
-    });
+      }
+    }
+
+    this.totalElements = response.totalElements;
+    this.totalPages = response.totalPages;
+    this.page = response.number ?? this.page;
+    this.size = response.size;
+  }
+
+  private manejarErrorCargaTabla(errorResponse: unknown): void {
+    this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar la tabla de estancias.');
+    this.estancias = [];
+    this.estanciaSeleccionadaId = null;
+    this.eliminandoEstanciaId = null;
+    this.totalElements = 0;
+    this.totalPages = 0;
   }
 
   private crearFiltrosVacios(): EstanciaTablaFiltros {
@@ -637,6 +703,10 @@ export class EstanciasComponent implements OnInit, OnDestroy {
       return '';
     }
 
+    if (valor.length === 10) {
+      return `${valor}T00:00:00`;
+    }
+
     return valor.length === 16 ? `${valor}:00` : valor;
   }
 
@@ -644,6 +714,10 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     const valor = fecha.trim();
     if (!valor) {
       return '';
+    }
+
+    if (valor.length === 10) {
+      return `${valor}T23:59:59`;
     }
 
     return valor.length === 16 ? `${valor}:59` : valor;
@@ -654,15 +728,6 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
     const day = `${fecha.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
-  }
-
-  private formatearFechaHoraInput(fecha: Date): string {
-    const year = fecha.getFullYear();
-    const month = `${fecha.getMonth() + 1}`.padStart(2, '0');
-    const day = `${fecha.getDate()}`.padStart(2, '0');
-    const hours = `${fecha.getHours()}`.padStart(2, '0');
-    const minutes = `${fecha.getMinutes()}`.padStart(2, '0');
-    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
   private construirResumenRango(etiqueta: string, desde: string, hasta: string): string | null {
@@ -694,14 +759,9 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     }).format(fecha);
   }
 
-  private asignarRangoFechaHora(campo: Exclude<RangoRapidoCampo, 'rangoGeneral'>, desde: Date, hasta: Date): void {
-    const desdeInicio = new Date(desde);
-    desdeInicio.setHours(0, 0, 0, 0);
-    const hastaFin = new Date(hasta);
-    hastaFin.setHours(23, 59, 0, 0);
-
-    const desdeValor = this.formatearFechaHoraInput(desdeInicio);
-    const hastaValor = this.formatearFechaHoraInput(hastaFin);
+  private asignarRangoFecha(campo: Exclude<RangoRapidoCampo, 'rangoGeneral'>, desde: Date, hasta: Date): void {
+    const desdeValor = this.formatearFechaInput(desde);
+    const hastaValor = this.formatearFechaInput(hasta);
 
     if (campo === 'entrada') {
       this.filtros.entradaDesde = desdeValor;
@@ -744,6 +804,22 @@ export class EstanciasComponent implements OnInit, OnDestroy {
 
   private puedeGestionarEstancia(estancia: EstanciaTablaItem): boolean {
     return estancia.estadoEstancia !== 'FINALIZADA' && estancia.estadoEstancia !== 'CANCELADA';
+  }
+
+  private abrirModalEliminarEstancia(estancia: EstanciaTablaItem): void {
+    if (!this.puedeGestionarEstancia(estancia)) {
+      this.accionError = 'No se puede eliminar una estancia finalizada o cancelada.';
+      this.accionExito = '';
+      return;
+    }
+
+    this.accionError = '';
+    this.accionExito = '';
+    this.estanciaPendienteEliminacion = estancia;
+  }
+
+  private puedeDarSalidaEstancia(estancia: EstanciaTablaItem): boolean {
+    return estancia.estadoEstancia === 'ACTIVA' || estancia.estadoEstancia === 'EXCEDIDA';
   }
 
   private obtenerTooltipAccionGestionSeleccionada(accion: 'editar' | 'eliminar'): string | null {

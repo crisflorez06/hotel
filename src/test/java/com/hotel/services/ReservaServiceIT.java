@@ -1993,8 +1993,8 @@ class ReservaServiceIT extends AbstractServiceIT {
         assertThat(dto.getCodigoReserva()).isEqualTo(reserva.getCodigo());
         assertThat(dto.getEstadoReserva()).isEqualTo(EstadoReserva.CONFIRMADA);
         assertThat(dto.getNumeroPersonas()).isEqualTo(reserva.getNumeroPersonas());
-        assertThat(dto.getIdCliente()).isEqualTo(cliente.getId());
-        assertThat(dto.getNombreCliente()).isEqualTo("Mario Lopez");
+        assertThat(dto.getCliente().getId()).isEqualTo(cliente.getId());
+        assertThat(dto.getCliente().getNombres()).isEqualTo("Mario Lopez");
         assertThat(dto.getEntradaEstimada()).isEqualTo(reserva.getEntradaEstimada());
         assertThat(dto.getSalidaEstimada()).isEqualTo(reserva.getSalidaEstimada());
     }

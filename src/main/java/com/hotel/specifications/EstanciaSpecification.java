@@ -193,7 +193,12 @@ public class EstanciaSpecification {
             Join<?, ?> habitacionJoin = root.join("habitaciones", JoinType.LEFT);
             Join<?, ?> unidadJoin = habitacionJoin.join("unidad", JoinType.LEFT);
             if (tipoUnidad != null) {
-                predicates.add(criteriaBuilder.equal(unidadJoin.get("tipo"), tipoUnidad));
+                if (tipoUnidad == TipoUnidad.HABITACION) {
+                    predicates.add(criteriaBuilder.equal(root.get("modoOcupacion"), ModoOcupacion.INDIVIDUAL));
+                } else {
+                    predicates.add(criteriaBuilder.equal(unidadJoin.get("tipo"), tipoUnidad));
+                    predicates.add(criteriaBuilder.equal(root.get("modoOcupacion"), ModoOcupacion.COMPLETO));
+                }
             }
             if (codigoUnidad != null && !codigoUnidad.isBlank()) {
                 Predicate codigoHabitacion = criteriaBuilder.like(

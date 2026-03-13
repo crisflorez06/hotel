@@ -19,7 +19,7 @@ export type EstadoOperativo = 'DISPONIBLE' | 'OCUPADO' | 'RESERVADO' | 'PARCIALM
 
 export type Piso = 'PISO_1' | 'PISO_2' | 'PISO_3';
 
-export type EstadoReserva = 'PENDIENTE' | 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA' | 'EXPIRADA';
+export type EstadoReserva = 'CONFIRMADA' | 'CANCELADA' | 'COMPLETADA' | 'EXPIRADA';
 
 export type EstadoEstancia = 'ACTIVA' | 'RESERVADA' | 'FINALIZADA' | 'EXCEDIDA' | 'CANCELADA';
 

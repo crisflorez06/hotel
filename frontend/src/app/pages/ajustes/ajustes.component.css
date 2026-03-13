@@ -1,40 +1,99 @@
 .ajustes {
+  --bg: #f4efe6;
+  --surface: #fffdfa;
+  --surface-soft: #f8f3ea;
+  --ink: #2f2a25;
+  --ink-soft: #5f574d;
+  --border: #d9cdbd;
+  --primary: #0f766e;
+  --primary-dark: #0c4f49;
+  --warning: #b76a10;
+
   padding: 1.5rem;
   min-height: 100vh;
-  background: radial-gradient(circle at top, rgba(226, 232, 240, 0.5), transparent 60%),
-    linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(226, 183, 117, 0.22) 0%, transparent 38%),
+    radial-gradient(circle at 88% 12%, rgba(15, 118, 110, 0.14) 0%, transparent 40%),
+    linear-gradient(180deg, #f9f4eb 0%, var(--bg) 65%, #f6f0e6 100%);
+  font-family: 'Manrope', sans-serif;
+  color: var(--ink);
 }
 
 .ajustes__header {
   margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+  border-radius: 1.1rem;
+  border: 1px solid #e8ddcc;
+  background: linear-gradient(140deg, #ffffff 0%, #fbf6ec 46%, #f4ecdd 100%);
+  box-shadow: 0 12px 24px rgba(34, 29, 22, 0.08);
 }
 
 .ajustes__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(320px, 520px));
-  gap: 1rem;
+  grid-template-columns: 1fr;
+  gap: 1.1rem;
   align-items: start;
 }
 
-.ajustes__header h1 {
-  margin: 0 0 0.35rem;
-  font-size: 1.9rem;
+.ajustes__form--temporada {
+  width: 100%;
 }
 
-.ajustes__header p {
+.ajustes__eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #7a5f3d;
+  font-weight: 700;
+}
+
+.ajustes__header h1 {
   margin: 0;
-  color: #475569;
+  font-size: 2.05rem;
+  line-height: 1.08;
+  letter-spacing: 0.01em;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+}
+
+.ajustes__subtitle {
+  margin: 0.45rem 0 0;
+  color: #5f5345;
+  max-width: 74ch;
+  line-height: 1.48;
+  font-size: 0.93rem;
+  font-weight: 500;
 }
 
 .ajustes__form {
-  max-width: 520px;
+  max-width: none;
   padding: 1.5rem;
   border-radius: 1rem;
-  border: 1px solid #e2e8f0;
-  background: #ffffff;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
+  border-top: 4px solid rgba(183, 106, 16, 0.42);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-soft) 100%);
+  box-shadow: 0 14px 28px rgba(34, 29, 22, 0.08);
   display: grid;
   gap: 1rem;
+}
+
+.ajustes__form-head h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #3e3326;
+}
+
+.ajustes__form-head p {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
 }
 
 .ajustes__estado {
@@ -43,8 +102,9 @@
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
   border-radius: 0.75rem;
-  background: rgba(15, 23, 42, 0.04);
-  color: #0f172a;
+  border: 1px solid #d7c9b9;
+  background: rgba(255, 255, 255, 0.72);
+  color: #3d3328;
   font-weight: 600;
 }
 
@@ -64,15 +124,24 @@
 
 .campo label {
   font-weight: 600;
-  color: #0f172a;
+  color: #3b3024;
 }
 
 .campo select,
 .campo input {
   padding: 0.6rem 0.75rem;
   border-radius: 0.65rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #ccbda9;
+  background: #fffdf8;
   font-size: 0.95rem;
+  color: #2f2a25;
+}
+
+.campo select:focus,
+.campo input:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.55);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
 .estado {
@@ -88,14 +157,21 @@
 }
 
 button[type='submit'] {
-  border: none;
+  border: 1px solid #9dc2b9;
   border-radius: 0.75rem;
   padding: 0.65rem 1.1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  background: #0f172a;
-  color: #f8fafc;
+  background: #deebe4;
+  color: var(--primary-dark);
   justify-self: start;
+  transition: transform 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+button[type='submit']:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #d1e4da;
+  box-shadow: 0 10px 18px rgba(35, 59, 53, 0.15);
 }
 
 button[type='submit']:disabled {
@@ -107,17 +183,85 @@ button[type='submit']:disabled {
   max-width: none;
 }
 
+.tarifas-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
 .tarifa-card {
   margin: 0;
-  border: 1px solid #dbe3ef;
+  border: 1px solid #d8c9b8;
   border-radius: 0.85rem;
-  padding: 0.75rem;
+  padding: 0.8rem;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.tarifa-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.tarifa-card__header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #3e3326;
+}
+
+.btn-card {
+  border: 1px solid #9dc2b9;
+  background: #deebe4;
+  color: var(--primary-dark);
+  border-radius: 0.65rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-card:hover:not(:disabled) {
+  background: #d1e4da;
+}
+
+.btn-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tarifa-card__datos {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.tarifa-card__datos div {
+  border: 1px solid #eadfd1;
+  border-radius: 0.65rem;
+  background: #fffdf8;
+  padding: 0.45rem 0.55rem;
+}
+
+.tarifa-card__datos dt {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.tarifa-card__datos dd {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #3b3024;
 }
 
 .tarifa-card legend {
   padding: 0 0.35rem;
   font-weight: 700;
-  color: #0f172a;
+  color: #3e3326;
 }
 
 .tarifa-grid {
@@ -126,13 +270,76 @@ button[type='submit']:disabled {
   gap: 0.75rem;
 }
 
+.ajustes-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.ajustes-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.ajustes-modal__panel {
+  position: relative;
+  width: min(100%, 700px);
+  border: 1px solid var(--border);
+  border-top: 4px solid rgba(183, 106, 16, 0.55);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, #fffefb 0%, #f8f3ea 100%);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+  padding: 1rem;
+}
+
+.ajustes-modal__header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.ajustes-modal__header p {
+  margin: 0.42rem 0 0.9rem;
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+}
+
+.ajustes-modal__actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.btn-modal {
+  border: 1px solid #c9bcae;
+  background: #fffdf8;
+  color: #3d352d;
+  border-radius: 0.7rem;
+  padding: 0.55rem 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-modal--primary {
+  border-color: #9dc2b9;
+  background: #deebe4;
+  color: var(--primary-dark);
+}
+
+.btn-modal:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 @media (max-width: 640px) {
   .ajustes {
     padding: 1rem;
-  }
-
-  .ajustes__grid {
-    grid-template-columns: 1fr;
   }
 
   .ajustes__form {
@@ -141,5 +348,19 @@ button[type='submit']:disabled {
 
   .tarifa-grid {
     grid-template-columns: 1fr;
+  }
+
+  .tarifas-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .tarifa-card__datos {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1080px) {
+  .tarifas-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

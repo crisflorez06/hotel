@@ -6,10 +6,10 @@ export interface ReservaTablaItem {
   codigoEstancia?: string | null;
   codigoUnidad: string;
   tipoUnidad: TipoUnidad;
-  nombreCliente: string;
-  idCliente: number;
+  nombreCliente?: string | null;
+  idCliente?: number | null;
   tipoDocumentoCliente?: string | null;
-  numeroDocumentoCliente: string;
+  numeroDocumentoCliente?: string | null;
   numeroPersonas: number;
   canalReserva: CanalReserva;
   modoOcupacion: ModoOcupacion;

@@ -52,7 +52,7 @@ public class PagoController {
     public ResponseEntity<PagoDTO> crear(
             @RequestParam("idEstancia") Long idEstancia,
             @Valid @RequestBody PagoNuevoRequestDTO request) {
-        PagoDTO creado = pagoService.crearPago(request, idEstancia);
+        PagoDTO creado = pagoService.crearPago(request, idEstancia, true);
         return ResponseEntity.ok(creado);
     }
 
@@ -64,6 +64,20 @@ public class PagoController {
     @PutMapping("/eliminar/{id}")
     public ResponseEntity<Void> eliminar(@PathVariable("id") Long idPago) {
         pagoService.eliminarPago(idPago);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/pagar-pendiente/{id}")
+    public ResponseEntity<Void> pagarPagoPendiente(@PathVariable("id") Long idPago) {
+        pagoService.pagarPagoPendiente(idPago);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/eliminar-estancia-completada/{id}")
+    public ResponseEntity<Void> eliminarPagoEstanciaCompletada(
+            @PathVariable("id") Long idPago,
+            @Valid @RequestBody PagoNuevoRequestDTO request) {
+        pagoService.eliminarPagoEstanciaCompletada(request, idPago);
         return ResponseEntity.noContent().build();
     }
 }

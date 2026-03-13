@@ -1,13 +1,22 @@
 <section class="ajustes">
   <header class="ajustes__header">
     <div>
+      <p class="ajustes__eyebrow">Recepcion · Ajustes</p>
       <h1>Ajustes de temporada</h1>
-      <p>Activa la temporada vigente para actualizar las tarifas.</p>
+      <p class="ajustes__subtitle">
+        Configura temporada activa y tarifas base para mantener sincronizada la politica comercial
+        del hotel con la operacion diaria.
+      </p>
     </div>
   </header>
 
   <div class="ajustes__grid">
-    <form class="ajustes__form" (ngSubmit)="activarTemporada()">
+    <form class="ajustes__form ajustes__form--temporada" (ngSubmit)="activarTemporada()">
+      <div class="ajustes__form-head">
+        <h2>Temporada operativa</h2>
+        <p>Define la temporada activa para alinear precios, promociones y decisiones de recepcion.</p>
+      </div>
+
       <div class="ajustes__estado">
         <span>Temporada activa:</span>
         <strong *ngIf="!cargandoActual; else cargandoActualTpl">
@@ -41,7 +50,12 @@
       </button>
     </form>
 
-    <form class="ajustes__form ajustes__form--tarifas" (ngSubmit)="guardarTarifasBase()">
+    <section class="ajustes__form ajustes__form--tarifas">
+      <div class="ajustes__form-head">
+        <h2>Tarifas base por unidad</h2>
+        <p>Ajusta los valores de referencia para mantener coherencia entre temporada y ocupacion.</p>
+      </div>
+
       <div class="ajustes__estado">
         <span>Tarifas base</span>
         <strong *ngIf="!cargandoTarifas; else cargandoTarifasTpl">
@@ -52,98 +66,149 @@
         </ng-template>
       </div>
 
-      <ng-container *ngFor="let tarifa of tarifasBase; trackBy: trackByTipoUnidad">
-        <fieldset class="tarifa-card">
-          <legend>{{ formatearEtiquetaUnidad(tarifa.tipoUnidad) }}</legend>
+      <div class="tarifas-cards">
+        <article class="tarifa-card" *ngFor="let tarifa of tarifasBase; trackBy: trackByTipoUnidad">
+          <header class="tarifa-card__header">
+            <h3>{{ formatearEtiquetaUnidad(tarifa.tipoUnidad) }}</h3>
+            <button
+              type="button"
+              class="btn-card"
+              (click)="abrirModalEditarTarifa(tarifa)"
+              [disabled]="guardandoTarifa"
+            >
+              Editar
+            </button>
+          </header>
 
-          <div class="tarifa-grid">
-            <label class="campo">
-              <span>Dia tem. baja</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                [name]="'precioDiaTemBaja-' + tarifa.tipoUnidad"
-                [(ngModel)]="tarifa.precioDiaTemBaja"
-                (ngModelChange)="limpiarMensajesTarifas()"
-                required
-              />
-            </label>
-
-            <label class="campo">
-              <span>Dia tem. alta</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                [name]="'precioDiaTemAlta-' + tarifa.tipoUnidad"
-                [(ngModel)]="tarifa.precioDiaTemAlta"
-                (ngModelChange)="limpiarMensajesTarifas()"
-                required
-              />
-            </label>
-
-            <label class="campo">
-              <span>Estadia corta</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                [name]="'precioEstadiaCorta-' + tarifa.tipoUnidad"
-                [(ngModel)]="tarifa.precioEstadiaCorta"
-                (ngModelChange)="limpiarMensajesTarifas()"
-                required
-              />
-            </label>
-
-            <label class="campo">
-              <span>Adicional tem. baja</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                [name]="'precioPersonaAdicionalTemBaja-' + tarifa.tipoUnidad"
-                [(ngModel)]="tarifa.precioPersonaAdicionalTemBaja"
-                (ngModelChange)="limpiarMensajesTarifas()"
-                required
-              />
-            </label>
-
-            <label class="campo">
-              <span>Adicional tem. alta</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                [name]="'precioPersonaAdicionalTemAlta-' + tarifa.tipoUnidad"
-                [(ngModel)]="tarifa.precioPersonaAdicionalTemAlta"
-                (ngModelChange)="limpiarMensajesTarifas()"
-                required
-              />
-            </label>
-
-            <label class="campo">
-              <span>Estadia adic. corta</span>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                [name]="'precioEstadiaPersonaAdicionalCorta-' + tarifa.tipoUnidad"
-                [(ngModel)]="tarifa.precioEstadiaPersonaAdicionalCorta"
-                (ngModelChange)="limpiarMensajesTarifas()"
-                required
-              />
-            </label>
-          </div>
-        </fieldset>
-      </ng-container>
+          <dl class="tarifa-card__datos">
+            <div>
+              <dt>Dia temp. baja</dt>
+              <dd>{{ tarifa.precioDiaTemBaja | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>Dia temp. alta</dt>
+              <dd>{{ tarifa.precioDiaTemAlta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>Estadia corta</dt>
+              <dd>{{ tarifa.precioEstadiaCorta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>Adicional temp. baja</dt>
+              <dd>{{ tarifa.precioPersonaAdicionalTemBaja | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>Adicional temp. alta</dt>
+              <dd>{{ tarifa.precioPersonaAdicionalTemAlta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>Adic. estadia corta</dt>
+              <dd>{{ tarifa.precioEstadiaPersonaAdicionalCorta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+          </dl>
+        </article>
+      </div>
 
       <p class="estado estado--error" *ngIf="errorTarifas">{{ errorTarifas }}</p>
-      <p class="estado estado--ok" *ngIf="exitoTarifas">{{ exitoTarifas }}</p>
+    </section>
+  </div>
 
-      <button type="submit" [disabled]="guardandoTarifas || cargandoTarifas || !tarifasBase.length">
-        {{ guardandoTarifas ? 'Guardando...' : 'Guardar tarifas base' }}
-      </button>
+  <div class="ajustes-modal" *ngIf="modalEditarTarifaAbierto && tarifaEditando as tarifa">
+    <div class="ajustes-modal__backdrop" (click)="cerrarModalEditarTarifa()"></div>
+    <form class="ajustes-modal__panel" (ngSubmit)="confirmarEditarTarifa()" (click)="$event.stopPropagation()">
+      <header class="ajustes-modal__header">
+        <h3>Editar tarifa · {{ formatearEtiquetaUnidad(tarifa.tipoUnidad) }}</h3>
+        <p>Ajusta los valores y confirma para guardar cambios en esta unidad.</p>
+      </header>
+
+      <div class="tarifa-grid">
+        <label class="campo">
+          <span>Dia temp. baja</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioDiaTemBaja"
+            [(ngModel)]="tarifa.precioDiaTemBaja"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
+          <span>Dia temp. alta</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioDiaTemAlta"
+            [(ngModel)]="tarifa.precioDiaTemAlta"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
+          <span>Estadia corta</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioEstadiaCorta"
+            [(ngModel)]="tarifa.precioEstadiaCorta"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
+          <span>Adicional temp. baja</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioPersonaAdicionalTemBaja"
+            [(ngModel)]="tarifa.precioPersonaAdicionalTemBaja"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
+          <span>Adicional temp. alta</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioPersonaAdicionalTemAlta"
+            [(ngModel)]="tarifa.precioPersonaAdicionalTemAlta"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
+          <span>Adic. estadia corta</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioEstadiaPersonaAdicionalCorta"
+            [(ngModel)]="tarifa.precioEstadiaPersonaAdicionalCorta"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+      </div>
+
+      <div class="ajustes-modal__actions">
+        <button type="button" class="btn-modal" (click)="cerrarModalEditarTarifa()" [disabled]="guardandoTarifa">
+          Cancelar
+        </button>
+        <button type="submit" class="btn-modal btn-modal--primary" [disabled]="guardandoTarifa">
+          {{ guardandoTarifa ? 'Guardando...' : 'Confirmar cambios' }}
+        </button>
+      </div>
     </form>
   </div>
 </section>

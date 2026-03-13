@@ -1,15 +1,22 @@
 <section class="clientes-tabla">
   <header class="clientes-tabla__header">
     <div>
+      <p class="clientes-tabla__eyebrow">Recepcion · Clientes</p>
       <h1>Clientes</h1>
-      <p>Consulta clientes por nombre, documento y datos de contacto.</p>
+      <p class="clientes-tabla__subtitle">
+        Consulta y segmenta la base de clientes por nombre, documento y contacto para abrir rapido
+        su historial desde los modulos operativos.
+      </p>
     </div>
   </header>
 
   <section class="clientes-tabla__filtros">
     <div class="clientes-tabla__filtros-head">
-      <h2>Filtros de busqueda</h2>
-      <p>Configura los filtros y luego haz clic en "Aplicar filtros".</p>
+      <h2>Filtros operativos</h2>
+      <p>
+        Aplica filtros por identificacion y contacto para localizar clientes en segundos y enlazar
+        su informacion con reservas y estancias.
+      </p>
     </div>
 
     <div class="clientes-tabla__filtros-grid">
@@ -65,6 +72,32 @@
     </div>
   </section>
 
+  <section class="clientes-tabla__acciones-seleccion">
+    <div class="clientes-tabla__acciones-botones">
+      <button
+        type="button"
+        class="btn btn--primary btn--small"
+        (click)="abrirModalCrearCliente()"
+        [disabled]="cargando || guardandoEdicion || guardandoCreacion"
+      >
+        <i class="bi bi-person-plus" aria-hidden="true"></i>
+        Nuevo cliente
+      </button>
+
+      <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipEditarSeleccionado()">
+        <button
+          type="button"
+          class="btn btn--small"
+          (click)="editarClienteSeleccionado()"
+          [disabled]="!clienteSeleccionadoKey || cargando || guardandoEdicion"
+        >
+          <i class="bi bi-pencil-square" aria-hidden="true"></i>
+          Editar
+        </button>
+      </span>
+    </div>
+  </section>
+
   <p class="estado estado--error" *ngIf="error">{{ error }}</p>
 
   <section class="clientes-tabla__contenido">
@@ -74,6 +107,7 @@
       <table>
         <thead>
           <tr>
+            <th class="col-check"></th>
             <th>Nombres</th>
             <th>Apellidos</th>
             <th>Tipo<br />doc.</th>
@@ -81,12 +115,25 @@
             <th>Telefono</th>
             <th>Email</th>
             <th>Tipo<br />ocupante</th>
-            <th>#<br />Reservas</th>
-            <th>#<br />Estancias</th>
+            <th>Reservas</th>
+            <th>Estancias</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let cliente of clientes; trackBy: trackByCliente">
+          <tr
+            *ngFor="let cliente of clientes; trackBy: trackByCliente"
+            (click)="seleccionarCliente(cliente)"
+            [class.tabla-fila--seleccionada]="esClienteSeleccionado(cliente)"
+          >
+            <td class="col-check">
+              <input
+                type="checkbox"
+                class="fila-check"
+                [checked]="esClienteSeleccionado(cliente)"
+                (click)="seleccionarCliente(cliente); $event.stopPropagation()"
+                aria-label="Seleccionar cliente"
+              />
+            </td>
             <td>{{ cliente.nombres || '-' }}</td>
             <td>{{ cliente.apellidos || '-' }}</td>
             <td>{{ cliente.tipoDocumento || '-' }}</td>
@@ -94,17 +141,23 @@
             <td>{{ cliente.telefono || '-' }}</td>
             <td>{{ cliente.email || '-' }}</td>
             <td>
-              <span class="chip chip--tipo-ocupante">{{ formatearEtiqueta(cliente.tipoOcupante) }}</span>
+              <span
+                class="chip"
+                [ngClass]="obtenerClaseTipoOcupante(cliente.tipoOcupante)"
+              >
+                {{ formatearEtiqueta(cliente.tipoOcupante) }}
+              </span>
             </td>
             <td>
               <div class="contador-accion">
                 <span>{{ cliente.reservas.length }}</span>
                 <button
                   type="button"
-                  class="icono-ojo-btn"
-                  (click)="abrirModalReservas(cliente)"
+                  class="celda-accion__icon-btn"
+                  (click)="abrirModalReservas(cliente); $event.stopPropagation()"
                   [disabled]="cliente.reservas.length === 0"
                   aria-label="Ver reservas"
+                  data-tooltip="Ver reservas"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path
@@ -120,10 +173,11 @@
                 <span>{{ cliente.estancias.length }}</span>
                 <button
                   type="button"
-                  class="icono-ojo-btn"
-                  (click)="abrirModalEstancias(cliente)"
+                  class="celda-accion__icon-btn"
+                  (click)="abrirModalEstancias(cliente); $event.stopPropagation()"
                   [disabled]="cliente.estancias.length === 0"
                   aria-label="Ver estancias"
+                  data-tooltip="Ver estancias"
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path
@@ -136,7 +190,7 @@
             </td>
           </tr>
           <tr *ngIf="!clientes.length">
-            <td colspan="9" class="tabla-vacia">No hay clientes con los filtros actuales.</td>
+            <td colspan="10" class="tabla-vacia">No hay clientes con los filtros actuales.</td>
           </tr>
         </tbody>
       </table>
@@ -191,6 +245,8 @@
             <tr>
               <th>Codigo</th>
               <th>Estado</th>
+              <th>Entrada</th>
+              <th>Salida</th>
               <th>Ver<br />mas</th>
             </tr>
           </thead>
@@ -198,8 +254,12 @@
             <tr *ngFor="let item of modalItems">
               <td>{{ item.codigo }}</td>
               <td>
-                <span class="chip">{{ formatearEtiqueta(item.estado) }}</span>
+                <span class="chip" [ngClass]="'chip--' + item.estado.toLowerCase()">
+                  {{ formatearEtiqueta(item.estado) }}
+                </span>
               </td>
+              <td>{{ formatearFecha(item.entrada) }}</td>
+              <td>{{ formatearFecha(item.salida) }}</td>
               <td>
                 <button type="button" class="btn btn--small" (click)="verMas(item.codigo)">
                   Ver mas
@@ -212,6 +272,165 @@
         <ng-template #modalVacio>
           <p class="tabla-vacia">No hay registros para mostrar.</p>
         </ng-template>
+      </div>
+    </div>
+  </div>
+
+  <div class="clientes-modal-backdrop" *ngIf="modalEditarAbierto" (click)="cerrarModalEditarCliente()">
+    <div
+      class="clientes-modal clientes-modal--editar"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Editar cliente"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="clientes-modal__header">
+        <h3>Editar cliente</h3>
+        <button type="button" class="btn btn--small" (click)="cerrarModalEditarCliente()">Cerrar</button>
+      </header>
+
+      <div class="clientes-modal__body">
+        <div class="clientes-modal__form-grid">
+          <div class="campo">
+            <label for="editarNombres">Nombres</label>
+            <input id="editarNombres" type="text" [(ngModel)]="formularioEdicion.nombres" />
+          </div>
+
+          <div class="campo">
+            <label for="editarApellidos">Apellidos</label>
+            <input id="editarApellidos" type="text" [(ngModel)]="formularioEdicion.apellidos" />
+          </div>
+
+          <div class="campo">
+            <label for="editarTipoDocumento">Tipo documento</label>
+            <select id="editarTipoDocumento" [(ngModel)]="formularioEdicion.tipoDocumento">
+              <option *ngFor="let tipo of tiposDocumentoDisponibles" [ngValue]="tipo.value || undefined">
+                {{ tipo.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="editarNumeroDocumento">Numero documento</label>
+            <input id="editarNumeroDocumento" type="text" [(ngModel)]="formularioEdicion.numeroDocumento" />
+          </div>
+
+          <div class="campo">
+            <label for="editarTelefono">Telefono</label>
+            <input id="editarTelefono" type="text" [(ngModel)]="formularioEdicion.telefono" />
+          </div>
+
+          <div class="campo">
+            <label for="editarEmail">Email</label>
+            <input id="editarEmail" type="text" [(ngModel)]="formularioEdicion.email" />
+          </div>
+
+        </div>
+
+        <p class="estado estado--error" *ngIf="errorEdicion">{{ errorEdicion }}</p>
+
+        <div class="clientes-modal__actions">
+          <button
+            type="button"
+            class="btn"
+            (click)="cerrarModalEditarCliente()"
+            [disabled]="guardandoEdicion"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            (click)="guardarEdicionCliente()"
+            [disabled]="guardandoEdicion"
+          >
+            {{ guardandoEdicion ? 'Guardando...' : 'Guardar cambios' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="clientes-modal-backdrop" *ngIf="modalCrearAbierto" (click)="cerrarModalCrearCliente()">
+    <div
+      class="clientes-modal clientes-modal--editar"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Crear cliente"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="clientes-modal__header">
+        <h3>Crear cliente</h3>
+        <button type="button" class="btn btn--small" (click)="cerrarModalCrearCliente()">Cerrar</button>
+      </header>
+
+      <div class="clientes-modal__body">
+        <div class="clientes-modal__form-grid">
+          <div class="campo">
+            <label for="crearNombres">Nombres</label>
+            <input id="crearNombres" type="text" [(ngModel)]="formularioCreacion.nombres" />
+          </div>
+
+          <div class="campo">
+            <label for="crearApellidos">Apellidos</label>
+            <input id="crearApellidos" type="text" [(ngModel)]="formularioCreacion.apellidos" />
+          </div>
+
+          <div class="campo">
+            <label for="crearTipoDocumento">Tipo documento</label>
+            <select id="crearTipoDocumento" [(ngModel)]="formularioCreacion.tipoDocumento">
+              <option *ngFor="let tipo of tiposDocumentoDisponibles" [ngValue]="tipo.value || undefined">
+                {{ tipo.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="campo">
+            <label for="crearNumeroDocumento">Numero documento</label>
+            <input id="crearNumeroDocumento" type="text" [(ngModel)]="formularioCreacion.numeroDocumento" />
+          </div>
+
+          <div class="campo">
+            <label for="crearTelefono">Telefono</label>
+            <input id="crearTelefono" type="text" [(ngModel)]="formularioCreacion.telefono" />
+          </div>
+
+          <div class="campo">
+            <label for="crearEmail">Email</label>
+            <input id="crearEmail" type="text" [(ngModel)]="formularioCreacion.email" />
+          </div>
+
+          <div class="campo campo--full">
+            <label for="crearTipoOcupante">Tipo ocupante</label>
+            <select id="crearTipoOcupante" [(ngModel)]="formularioCreacion.tipoOcupante">
+              <option *ngFor="let tipo of tiposOcupanteEdicion" [ngValue]="tipo">
+                {{ formatearEtiqueta(tipo) }}
+              </option>
+            </select>
+          </div>
+
+        </div>
+
+        <p class="estado estado--error" *ngIf="errorCreacion">{{ errorCreacion }}</p>
+
+        <div class="clientes-modal__actions">
+          <button
+            type="button"
+            class="btn"
+            (click)="cerrarModalCrearCliente()"
+            [disabled]="guardandoCreacion"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            class="btn btn--primary"
+            (click)="guardarNuevoCliente()"
+            [disabled]="guardandoCreacion"
+          >
+            {{ guardandoCreacion ? 'Guardando...' : 'Guardar cliente' }}
+          </button>
+        </div>
       </div>
     </div>
   </div>

@@ -2,10 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { EMPTY, Subject, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
 
 import { EstadoPago, MedioPago, TipoPago } from '../../models/enums';
+import { PageResponse } from '../../models/page.model';
 import { PagoDTO } from '../../models/pago-detalle.model';
+import { PagoNuevoRequest } from '../../models/pago.model';
 import { PagoService } from '../../services/pago.service';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 
@@ -20,6 +22,7 @@ export class PagosComponent implements OnInit, OnDestroy {
   pagos: PagoDTO[] = [];
   cargando = false;
   error = '';
+  exito = '';
 
   paginaActual = 0;
   totalPaginas = 0;
@@ -52,7 +55,34 @@ export class PagosComponent implements OnInit, OnDestroy {
     'ANTICIPO_ESTANCIA',
     'ESTANCIA_COMPLETADA',
   ];
-  private queryParamsSub: Subscription | null = null;
+
+  mostrarModalCrearPago = false;
+  creandoPago = false;
+  mostrarModalEliminarPago = false;
+  mostrarModalReemplazoPagoEstancia = false;
+  mostrarModalConfirmarPagoPendiente = false;
+  eliminandoPago = false;
+  pagandoPendiente = false;
+  modoPagarPendientes = false;
+  pagoPendienteObjetivo: PagoDTO | null = null;
+
+  nuevoPago = {
+    idEstancia: '',
+    tipoPago: 'ANTICIPO_ESTANCIA' as TipoPago,
+    monto: '',
+    medioPago: 'EFECTIVO' as MedioPago,
+    fecha: '',
+    estado: 'COMPLETADO' as EstadoPago,
+  };
+
+  reemplazoPagoEstancia = {
+    monto: '',
+    medioPago: 'EFECTIVO' as MedioPago,
+    fecha: '',
+    estado: 'COMPLETADO' as EstadoPago,
+  };
+  private readonly destroy$ = new Subject<void>();
+  private readonly recargaTabla$ = new Subject<void>();
 
   constructor(
     private readonly pagoService: PagoService,
@@ -61,7 +91,9 @@ export class PagosComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+    this.inicializarCargaTabla();
+
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       const codigoReserva = (params.get('codigoReserva') ?? '').trim();
       const codigoEstancia = (params.get('codigoEstancia') ?? '').trim();
       const tipoPago = this.parsearTipoPago(params.get('tipoPago'));
@@ -80,50 +112,13 @@ export class PagosComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.queryParamsSub?.unsubscribe();
-    this.queryParamsSub = null;
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   cargarPagos(pagina = this.paginaActual): void {
-    this.cargando = true;
-    this.error = '';
-
-    this.pagoService
-      .buscarPagos({
-        pageable: {
-          page: pagina,
-          size: this.tamanoPagina,
-          sort: ['fecha,desc'],
-        },
-        estados: this.filtroEstados.length ? this.filtroEstados : undefined,
-        mediosPago: this.filtroMediosPago.length ? this.filtroMediosPago : undefined,
-        tipoPago: this.filtroTipoPago || undefined,
-        codigoReserva: this.filtroCodigoReserva.trim() || undefined,
-        codigoEstancia: this.filtroCodigoEstancia.trim() || undefined,
-        fechaDesde: this.normalizarFechaFiltro(this.filtroFechaDesde),
-        fechaHasta: this.normalizarFechaFiltro(this.filtroFechaHasta),
-      })
-      .subscribe({
-        next: (response) => {
-          this.pagos = response.content;
-          if (this.pagoSeleccionadoId !== null) {
-            const pagoSigueDisponible = this.pagos.some((pago) => pago.id === this.pagoSeleccionadoId);
-            if (!pagoSigueDisponible) {
-              this.pagoSeleccionadoId = null;
-            }
-          }
-          this.paginaActual = response.number;
-          this.totalPaginas = response.totalPages;
-          this.totalElementos = response.totalElements;
-          this.cargando = false;
-        },
-        error: (errorResponse: unknown) => {
-          this.pagos = [];
-          this.pagoSeleccionadoId = null;
-          this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los pagos.');
-          this.cargando = false;
-        },
-      });
+    this.paginaActual = pagina;
+    this.solicitarRecargaTabla();
   }
 
   aplicarFiltros(): void {
@@ -131,6 +126,9 @@ export class PagosComponent implements OnInit, OnDestroy {
   }
 
   limpiarFiltros(): void {
+    this.modoPagarPendientes = false;
+    this.pagoPendienteObjetivo = null;
+    this.mostrarModalConfirmarPagoPendiente = false;
     this.filtroEstados = [];
     this.filtroMediosPago = [];
     this.filtroTipoPago = '';
@@ -139,6 +137,268 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.filtroFechaDesde = '';
     this.filtroFechaHasta = '';
     this.cargarPagos(0);
+  }
+
+  abrirModalCrearPago(): void {
+    if (this.cargando || this.creandoPago || this.eliminandoPago || this.pagandoPendiente) {
+      return;
+    }
+
+    this.error = '';
+    this.exito = '';
+    this.nuevoPago = {
+      idEstancia: '',
+      tipoPago: 'ANTICIPO_ESTANCIA',
+      monto: '',
+      medioPago: 'EFECTIVO',
+      fecha: this.obtenerFechaHoraActualInput(),
+      estado: 'COMPLETADO',
+    };
+    this.mostrarModalCrearPago = true;
+  }
+
+  cerrarModalCrearPago(): void {
+    if (this.creandoPago) {
+      return;
+    }
+    this.mostrarModalCrearPago = false;
+  }
+
+  guardarPago(): void {
+    if (this.creandoPago) {
+      return;
+    }
+
+    const idEstancia = Number.parseInt(this.nuevoPago.idEstancia.trim(), 10);
+    const monto = Number.parseFloat(this.nuevoPago.monto);
+    const fecha = this.normalizarFechaHoraLocal(this.nuevoPago.fecha);
+    if (!Number.isInteger(idEstancia) || idEstancia <= 0) {
+      this.error = 'El id de estancia debe ser un numero entero mayor a cero.';
+      return;
+    }
+    if (!Number.isFinite(monto) || monto <= 0) {
+      this.error = 'El monto debe ser mayor a cero.';
+      return;
+    }
+    if (!fecha) {
+      this.error = 'La fecha del pago es obligatoria.';
+      return;
+    }
+
+    const request: PagoNuevoRequest = {
+      tipoPago: this.nuevoPago.tipoPago,
+      monto,
+      medioPago: this.nuevoPago.medioPago,
+      fecha,
+      estado: this.nuevoPago.estado,
+    };
+
+    this.creandoPago = true;
+    this.error = '';
+    this.exito = '';
+    this.pagoService.crearPago(idEstancia, request).subscribe({
+      next: () => {
+        this.creandoPago = false;
+        this.mostrarModalCrearPago = false;
+        this.exito = 'Pago creado correctamente.';
+        this.cargarPagos(0);
+      },
+      error: (errorResponse: unknown) => {
+        this.creandoPago = false;
+        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible crear el pago.');
+      },
+    });
+  }
+
+  abrirModalEliminarPago(): void {
+    if (
+      !this.puedeEliminarPagoSeleccionado() ||
+      this.eliminandoPago ||
+      this.creandoPago ||
+      this.pagandoPendiente
+    ) {
+      return;
+    }
+
+    const pago = this.obtenerPagoSeleccionado();
+    if (!pago) {
+      return;
+    }
+
+    this.error = '';
+    this.exito = '';
+
+    if (pago.tipoPago === 'ESTANCIA_COMPLETADA') {
+      this.abrirModalReemplazoPagoEstancia(pago);
+      return;
+    }
+
+    this.mostrarModalEliminarPago = true;
+  }
+
+  cerrarModalEliminarPago(): void {
+    if (this.eliminandoPago) {
+      return;
+    }
+    this.mostrarModalEliminarPago = false;
+  }
+
+  confirmarEliminarPago(): void {
+    const pago = this.obtenerPagoSeleccionado();
+    if (!pago || !this.puedeEliminarPago(pago) || this.eliminandoPago) {
+      return;
+    }
+
+    this.eliminandoPago = true;
+    this.error = '';
+    this.exito = '';
+    this.pagoService.eliminarPago(pago.id).subscribe({
+      next: () => {
+        this.eliminandoPago = false;
+        this.mostrarModalEliminarPago = false;
+        this.exito = 'Pago eliminado correctamente.';
+        this.cargarPagos(this.paginaActual);
+      },
+      error: (errorResponse: unknown) => {
+        this.eliminandoPago = false;
+        this.mostrarModalEliminarPago = false;
+        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible eliminar el pago.');
+      },
+    });
+  }
+
+  cerrarModalReemplazoPagoEstancia(): void {
+    if (this.eliminandoPago) {
+      return;
+    }
+
+    this.mostrarModalReemplazoPagoEstancia = false;
+  }
+
+  confirmarReemplazoPagoEstancia(): void {
+    const pago = this.obtenerPagoSeleccionado();
+    if (!pago || pago.tipoPago !== 'ESTANCIA_COMPLETADA' || this.eliminandoPago) {
+      return;
+    }
+
+    const monto = Number.parseFloat(this.reemplazoPagoEstancia.monto);
+    const fecha = this.normalizarFechaHoraLocal(this.reemplazoPagoEstancia.fecha);
+    if (!Number.isFinite(monto) || monto <= 0) {
+      this.error = 'El monto del nuevo pago debe ser mayor a cero.';
+      return;
+    }
+
+    if (!fecha) {
+      this.error = 'La fecha del nuevo pago es obligatoria.';
+      return;
+    }
+
+    const request: PagoNuevoRequest = {
+      tipoPago: 'ESTANCIA_COMPLETADA',
+      monto,
+      medioPago: this.reemplazoPagoEstancia.medioPago,
+      fecha,
+      estado: this.reemplazoPagoEstancia.estado,
+    };
+
+    this.eliminandoPago = true;
+    this.error = '';
+    this.exito = '';
+    this.pagoService.eliminarPagoEstanciaCompletada(pago.id, request).subscribe({
+      next: () => {
+        this.eliminandoPago = false;
+        this.mostrarModalReemplazoPagoEstancia = false;
+        this.exito = 'Pago de estancia completada reemplazado correctamente.';
+        this.cargarPagos(this.paginaActual);
+      },
+      error: (errorResponse: unknown) => {
+        this.eliminandoPago = false;
+        this.mostrarModalReemplazoPagoEstancia = false;
+        this.error = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible reemplazar el pago de estancia completada.'
+        );
+      },
+    });
+  }
+
+  activarFiltroPagarPendientes(): void {
+    if (this.cargando || this.creandoPago || this.eliminandoPago || this.pagandoPendiente) {
+      return;
+    }
+
+    this.modoPagarPendientes = true;
+    this.filtroEstados = ['PENDIENTE'];
+    this.filtroMediosPago = [];
+    this.filtroTipoPago = 'ESTANCIA_COMPLETADA';
+    this.filtroCodigoReserva = '';
+    this.filtroCodigoEstancia = '';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.pagoSeleccionadoId = null;
+    this.error = '';
+    this.exito = '';
+    this.cargarPagos(0);
+  }
+
+  cancelarModoPagarPendientes(): void {
+    if (this.pagandoPendiente) {
+      return;
+    }
+
+    this.modoPagarPendientes = false;
+    this.pagoPendienteObjetivo = null;
+    this.mostrarModalConfirmarPagoPendiente = false;
+    this.restablecerFiltrosVistaPorDefecto();
+    this.cargarPagos(0);
+  }
+
+  abrirModalConfirmarPagoPendiente(pago: PagoDTO): void {
+    if (!this.puedePagarPendiente(pago) || this.pagandoPendiente) {
+      return;
+    }
+
+    this.pagoPendienteObjetivo = pago;
+    this.error = '';
+    this.exito = '';
+    this.mostrarModalConfirmarPagoPendiente = true;
+  }
+
+  cerrarModalConfirmarPagoPendiente(): void {
+    if (this.pagandoPendiente) {
+      return;
+    }
+
+    this.mostrarModalConfirmarPagoPendiente = false;
+    this.pagoPendienteObjetivo = null;
+  }
+
+  confirmarPagoPendienteDesdeModal(): void {
+    const pago = this.pagoPendienteObjetivo;
+    if (!pago || !this.puedePagarPendiente(pago) || this.pagandoPendiente) {
+      return;
+    }
+
+    this.pagandoPendiente = true;
+    this.error = '';
+    this.exito = '';
+    this.pagoService.pagarPagoPendiente(pago.id).subscribe({
+      next: () => {
+        this.pagandoPendiente = false;
+        this.mostrarModalConfirmarPagoPendiente = false;
+        this.pagoPendienteObjetivo = null;
+        this.modoPagarPendientes = false;
+        this.exito = 'Pago pendiente marcado como completado.';
+        this.restablecerFiltrosVistaPorDefecto();
+        this.cargarPagos(0);
+      },
+      error: (errorResponse: unknown) => {
+        this.pagandoPendiente = false;
+        this.mostrarModalConfirmarPagoPendiente = false;
+        this.pagoPendienteObjetivo = null;
+        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible pagar el pendiente.');
+      },
+    });
   }
 
   toggleEstado(estado: EstadoPago, checked: boolean): void {
@@ -175,11 +435,6 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.cargarPagos(this.paginaActual + 1);
   }
 
-  formatearFecha(fecha: string): string {
-    const fechaObj = new Date(fecha);
-    return Number.isNaN(fechaObj.getTime()) ? fecha : fechaObj.toLocaleString('es-CO');
-  }
-
   formatearEtiqueta(valor: string | null | undefined): string {
     if (!valor) {
       return '-';
@@ -196,11 +451,46 @@ export class PagosComponent implements OnInit, OnDestroy {
   }
 
   seleccionarPago(pago: PagoDTO): void {
+    if (this.modoPagarPendientes && this.puedePagarPendiente(pago)) {
+      this.abrirModalConfirmarPagoPendiente(pago);
+      return;
+    }
+
     this.pagoSeleccionadoId = this.pagoSeleccionadoId === pago.id ? null : pago.id;
   }
 
   esPagoSeleccionado(pago: PagoDTO): boolean {
     return this.pagoSeleccionadoId === pago.id;
+  }
+
+  puedeEliminarPagoSeleccionado(): boolean {
+    const pago = this.obtenerPagoSeleccionado();
+    return !!pago && this.puedeEliminarPago(pago);
+  }
+
+  obtenerTooltipEliminarPagoSeleccionado(): string | null {
+    const pago = this.obtenerPagoSeleccionado();
+    if (!pago) {
+      return 'Selecciona un pago para eliminar.';
+    }
+
+    if (!this.puedeEliminarPago(pago)) {
+      return 'Solo se pueden eliminar pagos COMPLETADO o PENDIENTE.';
+    }
+
+    if (pago.tipoPago === 'ESTANCIA_COMPLETADA') {
+      return 'Se abrira un modal para reemplazar el pago de estancia completada.';
+    }
+
+    return null;
+  }
+
+  obtenerTooltipPagarPendiente(): string | null {
+    if (this.modoPagarPendientes) {
+      return 'Haz clic en una fila para pagar ese pendiente.';
+    }
+
+    return 'Filtra pagos PENDIENTE de tipo ESTANCIA_COMPLETADA para pagarlos por fila.';
   }
 
   obtenerTipoPago(pago: PagoDTO): string {
@@ -271,19 +561,106 @@ export class PagosComponent implements OnInit, OnDestroy {
     }).format(date);
   }
 
-  private normalizarFechaFiltro(fecha: string): string | undefined {
+  private obtenerPagoSeleccionado(): PagoDTO | undefined {
+    if (this.pagoSeleccionadoId === null) {
+      return undefined;
+    }
+
+    return this.pagos.find((pago) => pago.id === this.pagoSeleccionadoId);
+  }
+
+  private puedeEliminarPago(pago: PagoDTO): boolean {
+    const estadoValido = pago.estado === 'COMPLETADO' || pago.estado === 'PENDIENTE';
+    const tipoEliminable = pago.tipoPago !== 'CAMBIO_UNIDAD';
+    return estadoValido && tipoEliminable;
+  }
+
+  private puedePagarPendiente(pago: PagoDTO): boolean {
+    return pago.estado === 'PENDIENTE' && pago.tipoPago === 'ESTANCIA_COMPLETADA';
+  }
+
+  private abrirModalReemplazoPagoEstancia(pago: PagoDTO): void {
+    this.reemplazoPagoEstancia = {
+      monto: `${pago.monto ?? ''}`,
+      medioPago: pago.medioPago ?? 'EFECTIVO',
+      fecha: this.formatearFechaHoraInputDesdeFecha(pago.fecha),
+      estado: pago.estado === 'PENDIENTE' ? 'PENDIENTE' : 'COMPLETADO',
+    };
+    this.mostrarModalReemplazoPagoEstancia = true;
+  }
+
+  private formatearFechaHoraInputDesdeFecha(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return this.obtenerFechaHoraActualInput();
+    }
+
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return this.obtenerFechaHoraActualInput();
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hours = `${date.getHours()}`.padStart(2, '0');
+    const minutes = `${date.getMinutes()}`.padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  private normalizarFechaHoraLocal(valor: string): string {
+    const texto = valor.trim();
+    if (!texto) {
+      return '';
+    }
+
+    const normalizado = texto.replace(' ', 'T');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalizado)) {
+      return `${normalizado}T00:00:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(normalizado)) {
+      return `${normalizado}:00`;
+    }
+
+    return normalizado;
+  }
+
+  private obtenerFechaHoraActualInput(): string {
+    const ahora = new Date();
+    const year = ahora.getFullYear();
+    const month = `${ahora.getMonth() + 1}`.padStart(2, '0');
+    const day = `${ahora.getDate()}`.padStart(2, '0');
+    const hours = `${ahora.getHours()}`.padStart(2, '0');
+    const minutes = `${ahora.getMinutes()}`.padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  private normalizarFechaFiltro(fecha: string, limite: 'desde' | 'hasta'): string | undefined {
     if (!fecha) {
       return undefined;
     }
 
-    const fechaLocal = fecha.length === 16 ? `${fecha}:00` : fecha;
-    const fechaDate = new Date(fechaLocal);
-
-    if (Number.isNaN(fechaDate.getTime())) {
-      return fechaLocal;
+    const valor = fecha.trim();
+    if (!valor) {
+      return undefined;
     }
 
-    return fechaDate.toISOString();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+      return limite === 'desde' ? `${valor}T00:00:00` : `${valor}T23:59:59`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(valor)) {
+      return limite === 'desde' ? `${valor}:00` : `${valor}:59`;
+    }
+
+    const fechaDate = new Date(valor);
+
+    if (Number.isNaN(fechaDate.getTime())) {
+      return valor;
+    }
+
+    const iso = fechaDate.toISOString();
+    return limite === 'desde' ? iso : iso.replace(/\.\d{3}Z$/, '.999Z');
   }
 
   private parsearTipoPago(valor: string | null): TipoPago | '' {
@@ -292,5 +669,83 @@ export class PagosComponent implements OnInit, OnDestroy {
     }
 
     return this.tiposPago.includes(valor as TipoPago) ? (valor as TipoPago) : '';
+  }
+
+  private restablecerFiltrosVistaPorDefecto(): void {
+    this.filtroEstados = [];
+    this.filtroMediosPago = [];
+    this.filtroTipoPago = '';
+    this.filtroCodigoReserva = '';
+    this.filtroCodigoEstancia = '';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.pagoSeleccionadoId = null;
+  }
+
+  private inicializarCargaTabla(): void {
+    this.recargaTabla$
+      .pipe(
+        takeUntil(this.destroy$),
+        tap(() => {
+          this.cargando = true;
+          this.error = '';
+        }),
+        switchMap(() =>
+          this.pagoService.buscarPagos(this.construirParametrosBusqueda()).pipe(
+            finalize(() => {
+              this.cargando = false;
+            }),
+            catchError((errorResponse: unknown) => {
+              this.manejarErrorCargaTabla(errorResponse);
+              return EMPTY;
+            })
+          )
+        )
+      )
+      .subscribe((response) => {
+        this.actualizarTabla(response);
+      });
+  }
+
+  private solicitarRecargaTabla(): void {
+    this.recargaTabla$.next();
+  }
+
+  private construirParametrosBusqueda() {
+    return {
+      pageable: {
+        page: this.paginaActual,
+        size: this.tamanoPagina,
+        sort: ['fecha,desc'],
+      },
+      estados: this.filtroEstados.length ? this.filtroEstados : undefined,
+      mediosPago: this.filtroMediosPago.length ? this.filtroMediosPago : undefined,
+      tipoPago: this.filtroTipoPago || undefined,
+      codigoReserva: this.filtroCodigoReserva.trim() || undefined,
+      codigoEstancia: this.filtroCodigoEstancia.trim() || undefined,
+      fechaDesde: this.normalizarFechaFiltro(this.filtroFechaDesde, 'desde'),
+      fechaHasta: this.normalizarFechaFiltro(this.filtroFechaHasta, 'hasta'),
+    };
+  }
+
+  private actualizarTabla(response: PageResponse<PagoDTO>): void {
+    this.pagos = response.content;
+    if (this.pagoSeleccionadoId !== null) {
+      const pagoSigueDisponible = this.pagos.some((pago) => pago.id === this.pagoSeleccionadoId);
+      if (!pagoSigueDisponible) {
+        this.pagoSeleccionadoId = null;
+      }
+    }
+    this.paginaActual = response.number;
+    this.totalPaginas = response.totalPages;
+    this.totalElementos = response.totalElements;
+  }
+
+  private manejarErrorCargaTabla(errorResponse: unknown): void {
+    this.pagos = [];
+    this.pagoSeleccionadoId = null;
+    this.totalElementos = 0;
+    this.totalPaginas = 0;
+    this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los pagos.');
   }
 }

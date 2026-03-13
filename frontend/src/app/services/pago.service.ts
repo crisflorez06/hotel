@@ -105,4 +105,12 @@ export class PagoService {
   eliminarPago(idPago: number) {
     return this.http.put<void>(`${this.baseUrl}/eliminar/${idPago}`, {});
   }
+
+  pagarPagoPendiente(idPago: number) {
+    return this.http.put<void>(`${this.baseUrl}/pagar-pendiente/${idPago}`, {});
+  }
+
+  eliminarPagoEstanciaCompletada(idPago: number, request: PagoNuevoRequest) {
+    return this.http.put<void>(`${this.baseUrl}/eliminar-estancia-completada/${idPago}`, request);
+  }
 }

@@ -7,6 +7,7 @@ import { AjusteTemporadaService } from '../../services/ajuste-temporada.service'
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import { TarifaBaseActualizacionDTO, TarifaBaseDTO } from '../../models/tarifa-base.model';
 import { TarifaBaseService } from '../../services/tarifa-base.service';
+import { FeedbackToastService } from '../../core/services/feedback-toast.service';
 
 @Component({
   selector: 'app-ajustes',
@@ -34,10 +35,14 @@ export class AjustesComponent implements OnInit {
   guardandoTarifas = false;
   errorTarifas = '';
   exitoTarifas = '';
+  modalEditarTarifaAbierto = false;
+  guardandoTarifa = false;
+  tarifaEditando: TarifaBaseActualizacionDTO | null = null;
 
   constructor(
     private readonly ajusteTemporadaService: AjusteTemporadaService,
-    private readonly tarifaBaseService: TarifaBaseService
+    private readonly tarifaBaseService: TarifaBaseService,
+    private readonly feedbackToast: FeedbackToastService
   ) {}
 
   ngOnInit(): void {
@@ -61,6 +66,7 @@ export class AjustesComponent implements OnInit {
         this.temporadaActiva = this.temporadaSeleccionada as Temporada;
         this.exito = `La temporada ${this.temporadaSeleccionada.toLowerCase()} fue activada.`;
         this.guardando = false;
+        this.feedbackToast.showSuccess('Temporada activa actualizada correctamente.');
       },
       error: (errorResponse: unknown) => {
         this.error = extractBackendErrorMessage(
@@ -107,6 +113,50 @@ export class AjustesComponent implements OnInit {
   limpiarMensajesTarifas(): void {
     this.errorTarifas = '';
     this.exitoTarifas = '';
+  }
+
+  abrirModalEditarTarifa(tarifa: TarifaBaseActualizacionDTO): void {
+    this.limpiarMensajesTarifas();
+    this.tarifaEditando = { ...tarifa };
+    this.modalEditarTarifaAbierto = true;
+  }
+
+  cerrarModalEditarTarifa(): void {
+    if (this.guardandoTarifa) {
+      return;
+    }
+
+    this.modalEditarTarifaAbierto = false;
+    this.tarifaEditando = null;
+  }
+
+  confirmarEditarTarifa(): void {
+    if (!this.tarifaEditando || this.guardandoTarifa) {
+      return;
+    }
+
+    this.guardandoTarifa = true;
+    this.errorTarifas = '';
+    this.exitoTarifas = '';
+    const tarifaObjetivo = { ...this.tarifaEditando };
+
+    this.tarifaBaseService.actualizarTarifasBase([tarifaObjetivo]).subscribe({
+      next: (tarifasActualizadas) => {
+        this.aplicarTarifaActualizada(tarifasActualizadas, tarifaObjetivo);
+        this.exitoTarifas = 'Tarifa actualizada correctamente.';
+        this.guardandoTarifa = false;
+        this.modalEditarTarifaAbierto = false;
+        this.tarifaEditando = null;
+        this.feedbackToast.showSuccess('Tarifa base actualizada correctamente.');
+      },
+      error: (errorResponse: unknown) => {
+        this.errorTarifas = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible actualizar la tarifa de la unidad.'
+        );
+        this.guardandoTarifa = false;
+      },
+    });
   }
 
   trackByTipoUnidad(_: number, tarifa: TarifaBaseActualizacionDTO): TipoUnidad {
@@ -159,6 +209,21 @@ export class AjustesComponent implements OnInit {
     const prioridades = new Map(this.tiposTarifaBase.map((tipo, indice) => [tipo, indice]));
     return [...tarifas].sort(
       (a, b) => (prioridades.get(a.tipoUnidad) ?? 999) - (prioridades.get(b.tipoUnidad) ?? 999)
+    );
+  }
+
+  private aplicarTarifaActualizada(
+    respuesta: TarifaBaseDTO[],
+    tarifaFallback: TarifaBaseActualizacionDTO
+  ): void {
+    if (respuesta.length > 1) {
+      this.tarifasBase = this.ordenarTarifas(respuesta).map((tarifa) => ({ ...tarifa }));
+      return;
+    }
+
+    const tarifaActualizada = respuesta[0] ?? tarifaFallback;
+    this.tarifasBase = this.tarifasBase.map((tarifa) =>
+      tarifa.tipoUnidad === tarifaActualizada.tipoUnidad ? { ...tarifaActualizada } : tarifa
     );
   }
 }

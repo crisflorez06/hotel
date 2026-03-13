@@ -2,11 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, catchError, forkJoin, of } from 'rxjs';
+import { EMPTY, Subject, catchError, finalize, forkJoin, of, switchMap, takeUntil, tap } from 'rxjs';
 
-import { TipoDocumento } from '../../models/enums';
+import { TipoDocumento, TipoOcupante } from '../../models/enums';
 import { ClienteTablaFiltros, ClienteTablaItem } from '../../models/cliente-tabla.model';
 import { PageResponse } from '../../models/page.model';
+import { OcupanteDTO, OcupanteNuevoRequest } from '../../models/ocupante.model';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import { OcupanteService } from '../../services/ocupante.service';
 
@@ -40,12 +41,25 @@ export class ClientesComponent implements OnInit, OnDestroy {
   size = 20;
   totalElements = 0;
   totalPages = 0;
+  clienteSeleccionadoKey: string | null = null;
   modalAbierto = false;
   modalTitulo = '';
   modalTipo: 'RESERVA' | 'ESTANCIA' | null = null;
-  modalItems: Array<{ codigo: string; estado: string }> = [];
+  modalItems: Array<{ codigo: string; estado: string; entrada: string | null; salida: string | null }> =
+    [];
+  modalEditarAbierto = false;
+  modalCrearAbierto = false;
+  guardandoEdicion = false;
+  guardandoCreacion = false;
+  ocupanteEditandoId: number | null = null;
+  errorEdicion = '';
+  errorCreacion = '';
+  readonly tiposOcupanteEdicion: TipoOcupante[] = ['CLIENTE', 'ACOMPANANTE'];
+  formularioEdicion: OcupanteNuevoRequest = this.crearFormularioVacio();
+  formularioCreacion: OcupanteNuevoRequest = this.crearFormularioVacio();
 
-  private queryParamsSub: Subscription | null = null;
+  private readonly destroy$ = new Subject<void>();
+  private readonly recargaTabla$ = new Subject<void>();
   private documentosPrefiltro: string[] = [];
 
   constructor(
@@ -55,7 +69,9 @@ export class ClientesComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+    this.inicializarCargaTabla();
+
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
       this.documentosPrefiltro = this.parsearDocumentos(params.get('documentos'));
       this.filtros.nombre = (params.get('nombre') ?? '').trim();
       this.filtros.apellido = (params.get('apellido') ?? '').trim();
@@ -64,36 +80,30 @@ export class ClientesComponent implements OnInit, OnDestroy {
       this.filtros.telefono = (params.get('telefono') ?? '').trim();
       this.filtros.email = (params.get('email') ?? '').trim();
       this.page = 0;
-
-      if (this.documentosPrefiltro.length) {
-        this.cargarClientesPorDocumentos(this.documentosPrefiltro);
-        return;
-      }
-
-      this.cargarClientes();
+      this.solicitarRecargaTabla();
     });
   }
 
   ngOnDestroy(): void {
-    this.queryParamsSub?.unsubscribe();
-    this.queryParamsSub = null;
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   aplicarFiltros(): void {
     this.page = 0;
-    this.cargarClientes();
+    this.solicitarRecargaTabla();
   }
 
   limpiarFiltros(): void {
     this.filtros = this.crearFiltrosVacios();
     this.page = 0;
-    this.cargarClientes();
+    this.solicitarRecargaTabla();
   }
 
   cambiarPageSize(size: number): void {
     this.size = size;
     this.page = 0;
-    this.cargarClientes();
+    this.solicitarRecargaTabla();
   }
 
   irPaginaAnterior(): void {
@@ -102,7 +112,7 @@ export class ClientesComponent implements OnInit, OnDestroy {
     }
 
     this.page -= 1;
-    this.cargarClientes();
+    this.solicitarRecargaTabla();
   }
 
   irPaginaSiguiente(): void {
@@ -111,11 +121,37 @@ export class ClientesComponent implements OnInit, OnDestroy {
     }
 
     this.page += 1;
-    this.cargarClientes();
+    this.solicitarRecargaTabla();
   }
 
   trackByCliente(_: number, cliente: ClienteTablaItem): string {
     return `${cliente.tipoDocumento ?? ''}-${cliente.numeroDocumento ?? ''}-${cliente.email ?? ''}`;
+  }
+
+  seleccionarCliente(cliente: ClienteTablaItem): void {
+    const key = this.trackByCliente(0, cliente);
+    this.clienteSeleccionadoKey = this.clienteSeleccionadoKey === key ? null : key;
+  }
+
+  esClienteSeleccionado(cliente: ClienteTablaItem): boolean {
+    return this.trackByCliente(0, cliente) === this.clienteSeleccionadoKey;
+  }
+
+  editarClienteSeleccionado(): void {
+    const cliente = this.obtenerClienteSeleccionado();
+    if (!cliente || this.cargando || this.guardandoEdicion) {
+      return;
+    }
+
+    this.abrirModalEditarCliente(cliente);
+  }
+
+  obtenerTooltipEditarSeleccionado(): string | null {
+    if (!this.obtenerClienteSeleccionado()) {
+      return 'Selecciona un cliente para editar.';
+    }
+
+    return null;
   }
 
   abrirModalReservas(cliente: ClienteTablaItem): void {
@@ -124,6 +160,8 @@ export class ClientesComponent implements OnInit, OnDestroy {
     this.modalItems = (cliente.reservas ?? []).map((reserva) => ({
       codigo: reserva.codigoReserva,
       estado: reserva.estado,
+      entrada: reserva.entradaEstimada,
+      salida: reserva.salidaEstimada,
     }));
     this.modalAbierto = true;
   }
@@ -134,6 +172,8 @@ export class ClientesComponent implements OnInit, OnDestroy {
     this.modalItems = (cliente.estancias ?? []).map((estancia) => ({
       codigo: estancia.codigoEstancia,
       estado: estancia.estado,
+      entrada: estancia.entradaReal,
+      salida: estancia.salidaReal ?? estancia.salidaEstimada,
     }));
     this.modalAbierto = true;
   }
@@ -143,6 +183,132 @@ export class ClientesComponent implements OnInit, OnDestroy {
     this.modalTitulo = '';
     this.modalTipo = null;
     this.modalItems = [];
+  }
+
+  abrirModalEditarCliente(cliente: ClienteTablaItem): void {
+    const numeroDocumento = (cliente.numeroDocumento ?? '').trim();
+    if (!numeroDocumento) {
+      this.error = 'No se puede editar un cliente sin numero de documento.';
+      return;
+    }
+
+    this.error = '';
+    this.errorEdicion = '';
+    this.cargando = true;
+    this.ocupanteService.buscarPorDocumento(numeroDocumento).subscribe({
+      next: (ocupantes) => {
+        const ocupante = this.seleccionarOcupanteParaEdicion(ocupantes ?? [], cliente);
+        if (!ocupante) {
+          this.error = 'No se encontro un ocupante editable para el cliente seleccionado.';
+          this.cargando = false;
+          return;
+        }
+
+        this.ocupanteEditandoId = ocupante.id;
+        this.formularioEdicion = {
+          nombres: ocupante.nombres,
+          apellidos: ocupante.apellidos,
+          tipoDocumento: ocupante.tipoDocumento,
+          numeroDocumento: ocupante.numeroDocumento,
+          telefono: ocupante.telefono,
+          email: ocupante.email,
+          tipoOcupante: ocupante.tipoOcupante,
+        };
+        this.modalEditarAbierto = true;
+        this.cargando = false;
+      },
+      error: (errorResponse: unknown) => {
+        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar el cliente para editar.');
+        this.cargando = false;
+      },
+    });
+  }
+
+  abrirModalCrearCliente(): void {
+    if (this.cargando || this.guardandoCreacion || this.guardandoEdicion) {
+      return;
+    }
+
+    this.error = '';
+    this.errorCreacion = '';
+    this.formularioCreacion = this.crearFormularioVacio();
+    this.modalCrearAbierto = true;
+  }
+
+  cerrarModalCrearCliente(): void {
+    if (this.guardandoCreacion) {
+      return;
+    }
+
+    this.modalCrearAbierto = false;
+    this.errorCreacion = '';
+    this.formularioCreacion = this.crearFormularioVacio();
+  }
+
+  guardarNuevoCliente(): void {
+    if (this.guardandoCreacion) {
+      return;
+    }
+
+    const request = this.normalizarFormulario(this.formularioCreacion);
+    if (!request.nombres || !request.apellidos || !request.tipoDocumento || !request.numeroDocumento) {
+      this.errorCreacion = 'Nombres, apellidos, tipo y numero de documento son obligatorios.';
+      return;
+    }
+
+    this.guardandoCreacion = true;
+    this.errorCreacion = '';
+    this.ocupanteService.crearOcupante(request).subscribe({
+      next: () => {
+        this.guardandoCreacion = false;
+        this.modalCrearAbierto = false;
+        this.formularioCreacion = this.crearFormularioVacio();
+        this.solicitarRecargaTabla();
+      },
+      error: (errorResponse: unknown) => {
+        this.guardandoCreacion = false;
+        this.errorCreacion = extractBackendErrorMessage(errorResponse, 'No fue posible crear el cliente.');
+      },
+    });
+  }
+
+  cerrarModalEditarCliente(): void {
+    if (this.guardandoEdicion) {
+      return;
+    }
+
+    this.modalEditarAbierto = false;
+    this.ocupanteEditandoId = null;
+    this.errorEdicion = '';
+    this.formularioEdicion = this.crearFormularioVacio();
+  }
+
+  guardarEdicionCliente(): void {
+    if (this.guardandoEdicion || this.ocupanteEditandoId === null) {
+      return;
+    }
+
+    const request = this.normalizarFormulario(this.formularioEdicion);
+    if (!request.nombres || !request.apellidos || !request.tipoDocumento || !request.numeroDocumento) {
+      this.errorEdicion = 'Nombres, apellidos, tipo y numero de documento son obligatorios.';
+      return;
+    }
+
+    this.guardandoEdicion = true;
+    this.errorEdicion = '';
+    this.ocupanteService.editarOcupante(this.ocupanteEditandoId, request).subscribe({
+      next: () => {
+        this.guardandoEdicion = false;
+        this.modalEditarAbierto = false;
+        this.ocupanteEditandoId = null;
+        this.formularioEdicion = this.crearFormularioVacio();
+        this.solicitarRecargaTabla();
+      },
+      error: (errorResponse: unknown) => {
+        this.guardandoEdicion = false;
+        this.errorEdicion = extractBackendErrorMessage(errorResponse, 'No fue posible editar el cliente.');
+      },
+    });
   }
 
   verMas(codigo: string): void {
@@ -173,6 +339,11 @@ export class ClientesComponent implements OnInit, OnDestroy {
       .replace(/\b\w/g, (letra) => letra.toUpperCase());
   }
 
+  obtenerClaseTipoOcupante(tipoOcupante: string | null | undefined): string {
+    const sufijo = (tipoOcupante ?? '').toLowerCase().replace(/_/g, '-');
+    return `chip--tipo-ocupante-${sufijo}`;
+  }
+
   formatearFecha(fecha: string | null | undefined): string {
     if (!fecha) {
       return '-';
@@ -185,7 +356,6 @@ export class ClientesComponent implements OnInit, OnDestroy {
 
     return new Intl.DateTimeFormat('es-CO', {
       dateStyle: 'medium',
-      timeStyle: 'short',
     }).format(date);
   }
 
@@ -197,52 +367,56 @@ export class ClientesComponent implements OnInit, OnDestroy {
     return Math.min((this.page + 1) * this.size, this.totalElements);
   }
 
-  private cargarClientes(): void {
-    if (this.documentosPrefiltro.length) {
-      this.cargarClientesPorDocumentos(this.documentosPrefiltro);
-      return;
-    }
-
-    this.cargando = true;
-    this.error = '';
-
-    this.ocupanteService
-      .buscarTablaClientes({
-        nombre: this.filtros.nombre,
-        apellido: this.filtros.apellido,
-        tipoDocumento: this.filtros.tipoDocumento || undefined,
-        numeroDocumento: this.filtros.numeroDocumento,
-        telefono: this.filtros.telefono,
-        email: this.filtros.email,
-        pageable: {
-          page: this.page,
-          size: this.size,
-          sort: ['nombres,asc'],
-        },
-      })
-      .subscribe({
-        next: (response) => {
-          this.clientes = response.content ?? [];
-          this.totalElements = response.totalElements;
-          this.totalPages = response.totalPages;
-          this.page = response.number;
-          this.cargando = false;
-        },
-        error: (errorResponse: unknown) => {
-          this.clientes = [];
-          this.error = extractBackendErrorMessage(
-            errorResponse,
-            'No fue posible cargar la tabla de clientes.'
-          );
-          this.cargando = false;
-        },
+  private inicializarCargaTabla(): void {
+    this.recargaTabla$
+      .pipe(
+        takeUntil(this.destroy$),
+        tap(() => {
+          this.cargando = true;
+          this.error = '';
+        }),
+        switchMap(() =>
+          this.obtenerClientes$().pipe(
+            finalize(() => {
+              this.cargando = false;
+            }),
+            catchError((errorResponse: unknown) => {
+              this.manejarErrorCargaTabla(errorResponse);
+              return EMPTY;
+            })
+          )
+        )
+      )
+      .subscribe((response) => {
+        this.actualizarTabla(response);
       });
   }
 
-  private cargarClientesPorDocumentos(documentos: string[]): void {
-    this.cargando = true;
-    this.error = '';
+  private solicitarRecargaTabla(): void {
+    this.recargaTabla$.next();
+  }
 
+  private obtenerClientes$() {
+    if (this.documentosPrefiltro.length) {
+      return this.obtenerClientesPorDocumentos$(this.documentosPrefiltro);
+    }
+
+    return this.ocupanteService.buscarTablaClientes({
+      nombre: this.filtros.nombre,
+      apellido: this.filtros.apellido,
+      tipoDocumento: this.filtros.tipoDocumento || undefined,
+      numeroDocumento: this.filtros.numeroDocumento,
+      telefono: this.filtros.telefono,
+      email: this.filtros.email,
+      pageable: {
+        page: this.page,
+        size: this.size,
+        sort: ['nombres,asc'],
+      },
+    });
+  }
+
+  private obtenerClientesPorDocumentos$(documentos: string[]) {
     const solicitudes = documentos.map((numeroDocumento) =>
       this.ocupanteService
         .buscarTablaClientes({
@@ -264,36 +438,44 @@ export class ClientesComponent implements OnInit, OnDestroy {
         )
     );
 
-    forkJoin(solicitudes).subscribe({
-      next: (responses) => {
+    return forkJoin(solicitudes).pipe(
+      switchMap((responses) => {
         const clientesUnicos = new Map<string, ClienteTablaItem>();
         responses.forEach((response) => {
-          if (!response) {
-            return;
-          }
-          (response.content ?? []).forEach((cliente: ClienteTablaItem) => {
+          (response.content ?? []).forEach((cliente) => {
             clientesUnicos.set(this.trackByCliente(0, cliente), cliente);
           });
         });
 
-        this.clientes = Array.from(clientesUnicos.values());
-        this.totalElements = this.clientes.length;
-        this.totalPages = this.clientes.length ? 1 : 0;
-        this.page = 0;
-        this.cargando = false;
-      },
-      error: (errorResponse: unknown) => {
-        this.clientes = [];
-        this.error = extractBackendErrorMessage(
-          errorResponse,
-          'No fue posible cargar los clientes filtrados.'
-        );
-        this.totalElements = 0;
-        this.totalPages = 0;
-        this.page = 0;
-        this.cargando = false;
-      },
-    });
+        const content = Array.from(clientesUnicos.values());
+        return of<PageResponse<ClienteTablaItem>>({
+          content,
+          totalElements: content.length,
+          totalPages: content.length ? 1 : 0,
+          number: 0,
+          size: 20,
+          first: true,
+          last: true,
+        });
+      })
+    );
+  }
+
+  private actualizarTabla(response: PageResponse<ClienteTablaItem>): void {
+    this.clientes = response.content ?? [];
+    this.sincronizarSeleccionCliente();
+    this.totalElements = response.totalElements;
+    this.totalPages = response.totalPages;
+    this.page = response.number;
+  }
+
+  private manejarErrorCargaTabla(errorResponse: unknown): void {
+    this.clientes = [];
+    this.totalElements = 0;
+    this.totalPages = 0;
+    this.page = 0;
+    this.clienteSeleccionadoKey = null;
+    this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar la tabla de clientes.');
   }
 
   private crearFiltrosVacios(): ClienteTablaFiltros {
@@ -329,5 +511,75 @@ export class ClientesComponent implements OnInit, OnDestroy {
           .filter((item) => Boolean(item))
       )
     );
+  }
+
+  private seleccionarOcupanteParaEdicion(
+    ocupantes: OcupanteDTO[],
+    clienteTabla: ClienteTablaItem
+  ): OcupanteDTO | null {
+    const documentoObjetivo = (clienteTabla.numeroDocumento ?? '').trim().toLowerCase();
+    const exactos = ocupantes.filter(
+      (ocupante) => (ocupante.numeroDocumento ?? '').trim().toLowerCase() === documentoObjetivo
+    );
+    const candidatos = exactos.length ? exactos : ocupantes;
+
+    if (!candidatos.length) {
+      return null;
+    }
+
+    const tipoConsolidado = (clienteTabla.tipoOcupante ?? '').toUpperCase();
+    if (tipoConsolidado === 'CLIENTE') {
+      return candidatos.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE') ?? candidatos[0];
+    }
+    if (tipoConsolidado === 'ACOMPANANTE') {
+      return candidatos.find((ocupante) => ocupante.tipoOcupante === 'ACOMPANANTE') ?? candidatos[0];
+    }
+
+    return candidatos.find((ocupante) => ocupante.tipoOcupante === 'CLIENTE') ?? candidatos[0];
+  }
+
+  private crearFormularioVacio(): OcupanteNuevoRequest {
+    return {
+      nombres: '',
+      apellidos: '',
+      tipoDocumento: undefined,
+      numeroDocumento: '',
+      telefono: '',
+      email: '',
+      tipoOcupante: 'CLIENTE',
+    };
+  }
+
+  private normalizarFormulario(formulario: OcupanteNuevoRequest): OcupanteNuevoRequest {
+    return {
+      nombres: formulario.nombres.trim(),
+      apellidos: formulario.apellidos.trim(),
+      tipoDocumento: formulario.tipoDocumento,
+      numeroDocumento: formulario.numeroDocumento?.trim(),
+      telefono: formulario.telefono?.trim(),
+      email: formulario.email?.trim(),
+      tipoOcupante: formulario.tipoOcupante,
+    };
+  }
+
+  private obtenerClienteSeleccionado(): ClienteTablaItem | undefined {
+    if (!this.clienteSeleccionadoKey) {
+      return undefined;
+    }
+
+    return this.clientes.find((cliente) => this.trackByCliente(0, cliente) === this.clienteSeleccionadoKey);
+  }
+
+  private sincronizarSeleccionCliente(): void {
+    if (!this.clienteSeleccionadoKey) {
+      return;
+    }
+
+    const existe = this.clientes.some(
+      (cliente) => this.trackByCliente(0, cliente) === this.clienteSeleccionadoKey
+    );
+    if (!existe) {
+      this.clienteSeleccionadoKey = null;
+    }
   }
 }

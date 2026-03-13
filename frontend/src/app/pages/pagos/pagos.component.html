@@ -1,15 +1,22 @@
 <section class="pagos-tabla">
   <header class="pagos-tabla__header">
     <div>
+      <p class="pagos-tabla__eyebrow">Recepcion · Pagos</p>
       <h1>Pagos</h1>
-      <p>Consulta pagos por estado, medio, tipo y rango de fecha.</p>
+      <p class="pagos-tabla__subtitle">
+        Controla anticipos y movimientos de caja filtrando pagos por estado, medio, tipo y periodo
+        para validar rapidamente la operacion diaria.
+      </p>
     </div>
   </header>
 
   <section class="pagos-tabla__filtros">
     <div class="pagos-tabla__filtros-head">
-      <h2>Filtros de busqueda</h2>
-      <p>Configura los filtros y luego haz clic en "Aplicar filtros".</p>
+      <h2>Filtros operativos</h2>
+      <p>
+        Cruza tipo, medio y rango de tiempo para auditar rapidamente anticipos, abonos y pagos
+        finales registrados en recepcion.
+      </p>
     </div>
 
     <div class="pagos-tabla__filtros-grid pagos-tabla__filtros-grid--principal">
@@ -52,7 +59,7 @@
           <label for="filtroFechaDesde">Fecha desde</label>
           <input
             id="filtroFechaDesde"
-            type="datetime-local"
+            type="date"
             [(ngModel)]="filtroFechaDesde"
             name="filtroFechaDesde"
           />
@@ -61,7 +68,7 @@
           <label for="filtroFechaHasta">Fecha hasta</label>
           <input
             id="filtroFechaHasta"
-            type="datetime-local"
+            type="date"
             [(ngModel)]="filtroFechaHasta"
             name="filtroFechaHasta"
           />
@@ -119,7 +126,54 @@
     </div>
   </section>
 
+  <section class="pagos-tabla__acciones-seleccion">
+    <div class="pagos-tabla__acciones-botones">
+      <button type="button" class="btn btn--primary" (click)="abrirModalCrearPago()" [disabled]="cargando">
+        <i class="bi bi-plus-circle" aria-hidden="true"></i>
+        Nuevo pago
+      </button>
+
+      <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipPagarPendiente()">
+        <button
+          type="button"
+          class="btn btn--accent"
+          (click)="activarFiltroPagarPendientes()"
+          [disabled]="cargando || pagandoPendiente || modoPagarPendientes"
+        >
+          <i class="bi bi-cash-coin" aria-hidden="true"></i>
+          Filtrar para pagar pendientes
+        </button>
+      </span>
+
+      <button
+        type="button"
+        class="btn"
+        (click)="cancelarModoPagarPendientes()"
+        [disabled]="pagandoPendiente"
+        *ngIf="modoPagarPendientes"
+      >
+        Salir modo pago pendiente
+      </button>
+
+      <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipEliminarPagoSeleccionado()">
+        <button
+          type="button"
+          class="btn btn--danger"
+          (click)="abrirModalEliminarPago()"
+          [disabled]="!puedeEliminarPagoSeleccionado() || cargando"
+        >
+          <i class="bi bi-trash" aria-hidden="true"></i>
+          Eliminar pago
+        </button>
+      </span>
+    </div>
+  </section>
+
+  <p class="estado estado--ok" *ngIf="exito">{{ exito }}</p>
   <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+  <p class="estado estado--info" *ngIf="modoPagarPendientes">
+    Modo pago pendiente activo: haz clic en una fila para marcar ese pago como completado.
+  </p>
 
   <section class="pagos-tabla__contenido">
     <div class="pagos-tabla__estado" *ngIf="cargando">Cargando pagos...</div>
@@ -197,55 +251,8 @@
             <td>{{ obtenerMonto(pago) ?? 0 | currency: 'COP' : 'symbol' : '1.0-0' }}</td>
             <td>{{ formatearEtiqueta(pago.medioPago) }}</td>
             <td>
-              <span
-                class="estado-icon estado-icon--{{ pago.estado.toLowerCase() }}"
-                [attr.title]="formatearEtiqueta(pago.estado)"
-                [attr.aria-label]="formatearEtiqueta(pago.estado)"
-                [attr.data-tooltip]="formatearEtiqueta(pago.estado)"
-              >
-                <ng-container [ngSwitch]="pago.estado">
-                  <svg *ngSwitchCase="'COMPLETADO'" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M9.2 16.6 4.9 12.3a1 1 0 1 1 1.4-1.4l2.9 2.9 8.5-8.5a1 1 0 1 1 1.4 1.4l-9.9 9.9Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <svg *ngSwitchCase="'PENDIENTE'" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 6a1 1 0 0 1 1 1v4.5l3.2 1.9a1 1 0 0 1-1 1.7l-3.7-2.2a1 1 0 0 1-.5-.9V7a1 1 0 0 1 1-1Z"
-                      fill="currentColor"
-                    />
-                    <path
-                      d="M12 2.8a9.2 9.2 0 1 0 0 18.4 9.2 9.2 0 0 0 0-18.4Zm0 2a7.2 7.2 0 1 1 0 14.4 7.2 7.2 0 0 1 0-14.4Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <svg *ngSwitchCase="'MODIFICADO'" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M4 16.8V20h3.2l8.9-8.9-3.2-3.2L4 16.8Zm12.7-9.9a1 1 0 0 1 1.4 0l1 1a1 1 0 0 1 0 1.4l-1.4 1.4-3.2-3.2 1.2-1.2Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <svg *ngSwitchCase="'FALLIDO'" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 2.8a9.2 9.2 0 1 0 0 18.4 9.2 9.2 0 0 0 0-18.4Zm0 2a7.2 7.2 0 1 1 0 14.4 7.2 7.2 0 0 1 0-14.4Z"
-                      fill="currentColor"
-                    />
-                    <path
-                      d="M8.8 8.8a1 1 0 0 1 1.4 0L12 10.6l1.8-1.8a1 1 0 1 1 1.4 1.4L13.4 12l1.8 1.8a1 1 0 0 1-1.4 1.4L12 13.4l-1.8 1.8a1 1 0 0 1-1.4-1.4l1.8-1.8-1.8-1.8a1 1 0 0 1 0-1.4Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <svg *ngSwitchCase="'ELIMINADO'" viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M9 3.8a1 1 0 0 1 .9-.6h4.2a1 1 0 0 1 .9.6l.6 1.2H19a1 1 0 1 1 0 2h-1l-.7 11a2 2 0 0 1-2 1.9H8.7a2 2 0 0 1-2-1.9L6 7H5a1 1 0 1 1 0-2h3.4l.6-1.2Zm.7 3.2.6 9.8h3.4l.6-9.8H9.7Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  <svg *ngSwitchDefault viewBox="0 0 24 24" aria-hidden="true">
-                    <circle cx="12" cy="12" r="4" fill="currentColor" />
-                  </svg>
-                </ng-container>
+              <span class="chip" [ngClass]="'chip--' + pago.estado.toLowerCase()">
+                {{ formatearEtiqueta(pago.estado) }}
               </span>
             </td>
             <td>
@@ -289,4 +296,208 @@
       </div>
     </footer>
   </section>
+
+  <div class="modal" *ngIf="mostrarModalCrearPago">
+    <div class="modal__backdrop" (click)="cerrarModalCrearPago()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="modal__header">
+        <h2>Registrar pago</h2>
+        <p>Completa los datos del pago y asociarlo con el id de la estancia.</p>
+      </header>
+
+      <div class="modal__fields">
+        <div class="campo">
+          <label for="nuevoPagoIdEstancia">Id estancia *</label>
+          <input
+            id="nuevoPagoIdEstancia"
+            type="number"
+            min="1"
+            [(ngModel)]="nuevoPago.idEstancia"
+            name="nuevoPagoIdEstancia"
+            placeholder="Ej: 123"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="nuevoPagoTipo">Tipo de pago *</label>
+          <select id="nuevoPagoTipo" [(ngModel)]="nuevoPago.tipoPago" name="nuevoPagoTipo">
+            <option *ngFor="let tipo of tiposPago" [ngValue]="tipo">{{ formatearEtiqueta(tipo) }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="nuevoPagoMonto">Monto *</label>
+          <input
+            id="nuevoPagoMonto"
+            type="number"
+            min="1"
+            step="1000"
+            [(ngModel)]="nuevoPago.monto"
+            name="nuevoPagoMonto"
+            placeholder="Ej: 120000"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="nuevoPagoMedio">Medio de pago *</label>
+          <select id="nuevoPagoMedio" [(ngModel)]="nuevoPago.medioPago" name="nuevoPagoMedio">
+            <option *ngFor="let medio of mediosPago" [ngValue]="medio">{{ formatearEtiqueta(medio) }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="nuevoPagoFecha">Fecha *</label>
+          <input id="nuevoPagoFecha" type="datetime-local" [(ngModel)]="nuevoPago.fecha" name="nuevoPagoFecha" />
+        </div>
+
+        <div class="campo">
+          <label for="nuevoPagoEstado">Estado *</label>
+          <select id="nuevoPagoEstado" [(ngModel)]="nuevoPago.estado" name="nuevoPagoEstado">
+            <option value="COMPLETADO">Completado</option>
+            <option value="PENDIENTE">Pendiente</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button type="button" class="btn" (click)="cerrarModalCrearPago()" [disabled]="creandoPago">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn--primary" (click)="guardarPago()" [disabled]="creandoPago">
+          {{ creandoPago ? 'Guardando...' : 'Guardar pago' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="mostrarModalEliminarPago">
+    <div class="modal__backdrop" (click)="cerrarModalEliminarPago()"></div>
+    <div class="modal__panel modal__panel--confirm" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="modal__header">
+        <h2>Eliminar pago</h2>
+        <p>Se marcara como eliminado el pago seleccionado. Esta accion no se puede deshacer.</p>
+      </header>
+
+      <div class="modal__actions">
+        <button type="button" class="btn" (click)="cerrarModalEliminarPago()" [disabled]="eliminandoPago">
+          Cancelar
+        </button>
+        <button type="button" class="btn btn--danger" (click)="confirmarEliminarPago()" [disabled]="eliminandoPago">
+          {{ eliminandoPago ? 'Eliminando...' : 'Eliminar pago' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="mostrarModalReemplazoPagoEstancia">
+    <div class="modal__backdrop" (click)="cerrarModalReemplazoPagoEstancia()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="modal__header">
+        <h2>Reemplazar pago de estancia finalizada</h2>
+        <p>
+          Este pago pertenece a una estancia finalizada. Se eliminara el pago actual y se creara uno
+          nuevo de tipo <strong>Estancia completada</strong>.
+        </p>
+      </header>
+
+      <div class="modal__fields">
+        <div class="campo">
+          <label for="reemplazoPagoMonto">Monto *</label>
+          <input
+            id="reemplazoPagoMonto"
+            type="number"
+            min="1"
+            step="1000"
+            [(ngModel)]="reemplazoPagoEstancia.monto"
+            name="reemplazoPagoMonto"
+            placeholder="Ej: 120000"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="reemplazoPagoMedio">Medio de pago *</label>
+          <select
+            id="reemplazoPagoMedio"
+            [(ngModel)]="reemplazoPagoEstancia.medioPago"
+            name="reemplazoPagoMedio"
+          >
+            <option *ngFor="let medio of mediosPago" [ngValue]="medio">{{ formatearEtiqueta(medio) }}</option>
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="reemplazoPagoFecha">Fecha *</label>
+          <input
+            id="reemplazoPagoFecha"
+            type="datetime-local"
+            [(ngModel)]="reemplazoPagoEstancia.fecha"
+            name="reemplazoPagoFecha"
+          />
+        </div>
+
+        <div class="campo">
+          <label for="reemplazoPagoEstado">Estado *</label>
+          <select
+            id="reemplazoPagoEstado"
+            [(ngModel)]="reemplazoPagoEstancia.estado"
+            name="reemplazoPagoEstado"
+          >
+            <option value="COMPLETADO">Completado</option>
+            <option value="PENDIENTE">Pendiente</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button
+          type="button"
+          class="btn"
+          (click)="cerrarModalReemplazoPagoEstancia()"
+          [disabled]="eliminandoPago"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--primary"
+          (click)="confirmarReemplazoPagoEstancia()"
+          [disabled]="eliminandoPago"
+        >
+          {{ eliminandoPago ? 'Guardando...' : 'Eliminar y crear pago' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" *ngIf="mostrarModalConfirmarPagoPendiente && pagoPendienteObjetivo as pago">
+    <div class="modal__backdrop" (click)="cerrarModalConfirmarPagoPendiente()"></div>
+    <div class="modal__panel" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <header class="modal__header">
+        <h2>Confirmar pago pendiente</h2>
+        <p>
+          Se marcara como completado el pago de <strong>{{ obtenerMonto(pago) ?? 0 | currency: 'COP' : 'symbol' : '1.0-0' }}</strong>
+          para la estancia <strong>{{ pago.codigoEstancia?.trim() || '-' }}</strong>.
+        </p>
+      </header>
+
+      <div class="modal__actions">
+        <button
+          type="button"
+          class="btn"
+          (click)="cerrarModalConfirmarPagoPendiente()"
+          [disabled]="pagandoPendiente"
+        >
+          Cancelar
+        </button>
+        <button
+          type="button"
+          class="btn btn--accent"
+          (click)="confirmarPagoPendienteDesdeModal()"
+          [disabled]="pagandoPendiente"
+        >
+          {{ pagandoPendiente ? 'Pagando...' : 'Confirmar pago' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </section>

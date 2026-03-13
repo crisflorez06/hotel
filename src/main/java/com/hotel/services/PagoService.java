@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.hotel.utils.EventoModificadoJsonBuilder;
 import com.hotel.utils.EventoNuevoJsonBuilder;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
@@ -50,7 +51,7 @@ public class PagoService {
     }
 
     @Transactional
-    public PagoDTO crearPago(PagoNuevoRequestDTO request, Long idEstancia) {
+    public PagoDTO crearPago(PagoNuevoRequestDTO request, Long idEstancia, boolean crearEvento) {
         if (request == null || idEstancia == null) {
             throw new IllegalArgumentException("No se proporcionó información de pago para crear un nuevo pago");
         }
@@ -87,6 +88,10 @@ public class PagoService {
             codigoEstancia = null;
         } else {
             codigoEstancia = estancia.getCodigoFolio();
+        }
+
+        if(!crearEvento) {
+            return mapearPagoDTOConCodigo(pagoCreado);
         }
 
         eventoService.crearEvento(
@@ -275,6 +280,52 @@ public class PagoService {
     }
 
     @Transactional
+    public void pagarPagoPendiente(Long idPago) {
+        logger.info("[pagarPagoPendiente] Marcando pago con id: {} como COMPLETADO", idPago);
+        Pago pago = pagoRepository.findById(idPago)
+                .orElseThrow(() -> new EntityNotFoundException("Pago no encontrado con id: " + idPago));
+
+        if (pago.getEstado() != EstadoPago.PENDIENTE) {
+            throw new IllegalStateException("Solo se puede pagar un pago en estado PENDIENTE. Estado actual: " + pago.getEstado());
+        }
+
+        if(pago.getTipoPago() == TipoPago.CAMBIO_UNIDAD) {
+            throw new IllegalStateException("No se puede pagar un pago de tipo CAMBIO_UNIDAD, este tipo de pago se maneja automáticamente por el sistema y no debe ser pagado manualmente");
+        }
+
+        if(pago.getTipoPago() != TipoPago.ESTANCIA_COMPLETADA) {
+            throw new IllegalStateException("Solo se pueden pagar manualmente los pagos de tipo ESTANCIA_COMPLETADA. El tipo de pago actual es: " + pago.getTipoPago());
+        }
+
+        Estancia estancia = pago.getEstancia();
+        pago.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(pago);
+
+        logger.info("[pagarPagoPendiente] Registrando evento de pago completado para codigo de estancia: {}", estancia.getCodigoFolio());
+
+        String pagoModificado = new EventoModificadoJsonBuilder()
+                .agregarCambio("Monto", pago.getMonto(), pago.getMonto())
+                .agregarCambio("Estado", EstadoPago.PENDIENTE, EstadoPago.COMPLETADO)
+                .build();
+
+        String codigoEstancia;
+        if (estancia.getEstado().equals(EstadoEstancia.RESERVADA)) {
+            codigoEstancia = null;
+        } else {
+            codigoEstancia = estancia.getCodigoFolio();
+        }
+
+        eventoService.crearEvento(
+                TipoEvento.MODIFICACION_PAGO,
+                TipoEntidad.PAGO,
+                pago.getId(),
+                pagoModificado,
+                codigoEstancia,
+                estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null
+        );
+    }
+
+    @Transactional
     public void eliminarPagoEstanciaCompletada(PagoNuevoRequestDTO requestDTO, long idPago){
         logger.info("[eliminarPagoEstanciaCompletada] Eliminando pago de tipo ESTANCIA_COMPLETADA con id: {}", idPago);
         Pago pago = pagoRepository.findById(idPago)
@@ -300,8 +351,10 @@ public class PagoService {
 
         logger.info("[eliminarPagoEstanciaCompletada] Registrando evento de eliminación de pago de tipo ESTANCIA_COMPLETADA para codigo de estancia: {}", estancia.getCodigoFolio());
 
-        EventoNuevoJsonBuilder pagoEliminadoJson = new EventoNuevoJsonBuilder()
-                .agregarProp("codigoEstancia", estancia.getCodigoFolio());
+        String pagoModificado = new EventoModificadoJsonBuilder()
+                .agregarCambio("Monto", pago.getMonto(), requestDTO.getMonto())
+                .agregarCambio("Estado", pago.getEstado(), requestDTO.getEstado())
+                .build();
 
         String codigoEstancia;
         if (estancia.getEstado().equals(EstadoEstancia.RESERVADA)) {
@@ -311,15 +364,15 @@ public class PagoService {
         }
 
         eventoService.crearEvento(
-                TipoEvento.ELIMINACION_PAGO,
+                TipoEvento.MODIFICACION_PAGO,
                 TipoEntidad.PAGO,
                 pago.getId(),
-                pagoEliminadoJson.build(),
+                pagoModificado,
                 codigoEstancia,
                 estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null
         );
 
-        crearPago(requestDTO, estancia.getId());
+        crearPago(requestDTO, estancia.getId(), false);
 
     }
 
