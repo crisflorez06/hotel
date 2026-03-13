@@ -1,38 +1,39 @@
 package com.hotel.dtos.dashboard;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 import lombok.Data;
 
 @Data
 public class DashboardResumenDTO {
 
     private OperativoResumen operativo;
-    private FinancieroResumen financiero;
     private AlertaResumen alertas;
 
     @Data
     public static class OperativoResumen {
         private Long estanciasActivas;
         private Long reservasConfirmadas;
+        private Map<String, Long> reservasPorCanal;
+        private Long apartamentosOcupados;
+        private Long apartamentosReservados;
+        private Long apartaestudioOcupados;
+        private Long apartaestudioReservados;
+        private Long apartamentosTotales;
+        private Long apartaestudioTotales;
         private Long habitacionesOcupadas;
+        private Long habitacionesReservadas;
         private Long habitacionesTotales;
         private BigDecimal ocupacionPorcentaje;
-    }
-
-    @Data
-    public static class FinancieroResumen {
-        private BigDecimal ingresos;
-        private BigDecimal gastos;
-        private BigDecimal neto;
-        private Long pagosPendientesCantidad;
-        private BigDecimal pagosPendientesMonto;
+        private BigDecimal reservadasPorcentaje;
+        private List<EstanciaMensualDTO> estanciasUltimos12Meses;
     }
 
     @Data
     public static class AlertaResumen {
         private Long reservasExpiradas;
         private Long estanciasExcedidas;
-        private Long pagosPendientesAntiguos;
         private Long totalAlertas;
     }
 }

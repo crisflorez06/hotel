@@ -1,0 +1,287 @@
+<section class="monitor-eventos">
+  <header class="monitor-eventos__header">
+    <div>
+      <p class="monitor-eventos__eyebrow">Recepcion · Monitor</p>
+      <h1>Monitor de eventos</h1>
+      <p class="monitor-eventos__subtitle">
+        Filtra y audita los eventos de reservas, estancias y pagos con acceso rapido al detalle.
+      </p>
+    </div>
+  </header>
+
+  <section class="monitor-eventos__filtros">
+    <div class="monitor-eventos__filtros-head">
+      <h2>Filtros operativos</h2>
+      <p>Selecciona criterios y presiona "Aplicar filtros".</p>
+    </div>
+
+    <div class="monitor-eventos__chips-grid">
+      <div class="monitor-eventos__chips-card">
+        <div class="campo">
+          <label>Tipos de evento</label>
+          <div class="tipos-evento-grupo">
+            <span class="tipos-evento-grupo__titulo">Acciones de estancia</span>
+            <div class="checks checks--chips">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                *ngFor="let tipo of tiposEventoEstancia"
+                [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
+                (click)="toggleTipoEvento(tipo)"
+              >
+                <span>{{ formatearEtiqueta(tipo) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="tipos-evento-grupo">
+            <span class="tipos-evento-grupo__titulo">Acciones de reserva</span>
+            <div class="checks checks--chips">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                *ngFor="let tipo of tiposEventoReserva"
+                [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
+                (click)="toggleTipoEvento(tipo)"
+              >
+                <span>{{ formatearEtiqueta(tipo) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="tipos-evento-grupo">
+            <span class="tipos-evento-grupo__titulo">Acciones de pago</span>
+            <div class="checks checks--chips">
+              <button
+                type="button"
+                class="check check--chip-toggle"
+                *ngFor="let tipo of tiposEventoPago"
+                [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
+                (click)="toggleTipoEvento(tipo)"
+              >
+                <span>{{ formatearEtiqueta(tipo) }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="monitor-eventos__chips-card">
+        <div class="campo">
+          <label>Entidades</label>
+          <div class="checks checks--chips">
+            <button
+              type="button"
+              class="check check--chip-toggle"
+              *ngFor="let entidad of entidadesDisponibles"
+              [class.check--chip-active]="estaEntidadSeleccionada(entidad)"
+              (click)="toggleEntidad(entidad)"
+            >
+              <span>{{ formatearEtiqueta(entidad) }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="monitor-eventos__filtros-grid">
+      <div class="campo">
+        <label for="codigoReserva">Codigo reserva</label>
+        <input
+          id="codigoReserva"
+          type="text"
+          [(ngModel)]="filtros.codigoReserva"
+          name="codigoReserva"
+          placeholder="Ej: RES-50595Z"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="codigoEstancia">Codigo estancia</label>
+        <input
+          id="codigoEstancia"
+          type="text"
+          [(ngModel)]="filtros.codigoEstancia"
+          name="codigoEstancia"
+          placeholder="Ej: EST-50595Z"
+        />
+      </div>
+
+      <div class="campo">
+        <label for="fechaDesde">Fecha desde</label>
+        <input id="fechaDesde" type="date" [(ngModel)]="filtros.fechaDesde" name="fechaDesde" />
+      </div>
+
+      <div class="campo">
+        <label for="fechaHasta">Fecha hasta</label>
+        <input id="fechaHasta" type="date" [(ngModel)]="filtros.fechaHasta" name="fechaHasta" />
+      </div>
+    </div>
+
+    <div class="monitor-eventos__filtros-actions">
+      <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
+        Aplicar filtros
+      </button>
+      <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">Limpiar</button>
+    </div>
+
+    <p class="estado estado--error" *ngIf="error">{{ error }}</p>
+  </section>
+
+  <section class="monitor-eventos__contenido">
+    <div class="monitor-eventos__estado" *ngIf="cargando">Cargando eventos...</div>
+
+    <div class="tabla-wrapper" *ngIf="!cargando">
+      <table>
+        <thead>
+          <tr>
+            <th>Entidad</th>
+            <th>Tipo evento</th>
+            <th>Codigo reserva</th>
+            <th>Codigo estancia</th>
+            <th>Detalle</th>
+            <th>Fecha</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let evento of eventos; trackBy: trackByEventoId">
+            <td>{{ formatearEtiqueta(evento.entidad) }}</td>
+            <td>{{ formatearEtiqueta(evento.tipoEvento) }}</td>
+            <td>
+              <div class="codigo-celda">
+                <span>{{ evento.codigoReserva?.trim() || '-' }}</span>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="irATablaReservas(evento)"
+                  aria-label="Ver reserva asociada"
+                  title="Ver reserva"
+                  [disabled]="!(evento.codigoReserva?.trim())"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+            <td>
+              <div class="codigo-celda">
+                <span>{{ evento.codigoEstancia?.trim() || '-' }}</span>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="irATablaEstancias(evento)"
+                  aria-label="Ver estancia asociada"
+                  title="Ver estancia"
+                  [disabled]="!(evento.codigoEstancia?.trim())"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                      fill="currentColor"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </td>
+            <td class="col-detalle">
+              <button
+                type="button"
+                class="icon-btn"
+                (click)="abrirModalDetalle(evento)"
+                aria-label="Ver detalle del evento"
+                title="Ver detalle"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+                    fill="currentColor"
+                  />
+                </svg>
+              </button>
+            </td>
+            <td>{{ formatearFecha(evento.fecha) }}</td>
+          </tr>
+          <tr *ngIf="!eventos.length">
+            <td colspan="6" class="tabla-vacia">No hay eventos con los filtros actuales.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="monitor-eventos__paginador" *ngIf="!cargando">
+      <div class="monitor-eventos__paginador-info">
+        <span>Total: {{ totalElementos }}</span>
+        <span *ngIf="totalElementos > 0">Mostrando {{ indiceInicio }}-{{ indiceFin }}</span>
+      </div>
+
+      <div class="monitor-eventos__paginador-actions">
+        <button type="button" class="btn" (click)="irPaginaAnterior()" [disabled]="paginaActual <= 0 || cargando">
+          Anterior
+        </button>
+        <span>Pagina {{ paginaActual + 1 }} de {{ totalPaginas || 1 }}</span>
+        <button
+          type="button"
+          class="btn"
+          (click)="irPaginaSiguiente()"
+          [disabled]="totalPaginas === 0 || paginaActual >= totalPaginas - 1 || cargando"
+        >
+          Siguiente
+        </button>
+      </div>
+    </footer>
+  </section>
+</section>
+
+<div class="monitor-modal-backdrop" *ngIf="modalAbierto" (click)="cerrarModalDetalle()">
+  <section
+    class="monitor-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Detalle del evento"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="monitor-modal__header">
+      <div>
+        <h3>Detalle del evento</h3>
+        <p *ngIf="eventoDetalleSeleccionado">
+          {{ formatearEtiqueta(eventoDetalleSeleccionado.entidad) }} |
+          {{ formatearEtiqueta(eventoDetalleSeleccionado.tipoEvento) }}
+        </p>
+      </div>
+      <button type="button" class="icon-btn icon-btn--ghost" (click)="cerrarModalDetalle()" aria-label="Cerrar">
+        ✕
+      </button>
+    </header>
+
+    <div class="monitor-modal__body">
+      <div class="detalle-grid">
+        <article class="detalle-card" *ngFor="let campo of detalleSeleccionadoCampos">
+          <h4>{{ campo.etiqueta }}</h4>
+
+          <div class="detalle-cambio" *ngIf="campo.nuevo !== undefined || campo.anterior !== undefined; else valorUnico">
+            <div class="detalle-cambio__item">
+              <span class="detalle-cambio__label">Anterior</span>
+              <span class="detalle-cambio__value">{{ campo.anterior || '-' }}</span>
+            </div>
+            <div class="detalle-cambio__item">
+              <span class="detalle-cambio__label">Nuevo</span>
+              <span class="detalle-cambio__value">{{ campo.nuevo || '-' }}</span>
+            </div>
+          </div>
+
+          <ng-template #valorUnico>
+            <p class="detalle-valor-unico">{{ campo.valor || '-' }}</p>
+          </ng-template>
+        </article>
+      </div>
+    </div>
+
+    <footer class="monitor-modal__footer">
+      <button type="button" class="btn" (click)="cerrarModalDetalle()">Cerrar</button>
+    </footer>
+  </section>
+</div>

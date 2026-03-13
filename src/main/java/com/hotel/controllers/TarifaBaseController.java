@@ -27,7 +27,7 @@ public class TarifaBaseController {
     }
 
     @PutMapping
-    public List<TarifaBaseDTO> actualizarTarifasBase(@Valid @RequestBody List<@Valid TarifaBaseActualizacionDTO> actualizaciones) {
-        return tarifaBaseAdminService.actualizarTarifasBase(actualizaciones);
+    public List<TarifaBaseDTO> actualizarTarifasBase(@Valid @RequestBody TarifaBaseActualizacionDTO actualizacion) {
+        return tarifaBaseAdminService.actualizarTarifasBase(actualizacion);
     }
 }

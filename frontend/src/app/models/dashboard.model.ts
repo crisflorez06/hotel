@@ -1,47 +1,35 @@
-export type DashboardGranularidad = 'DAY' | 'WEEK' | 'MONTH';
-
 export interface DashboardResumenOperativoDTO {
   estanciasActivas: number;
   reservasConfirmadas: number;
+  reservasPorCanal: Record<string, number>;
+  apartamentosOcupados: number;
+  apartamentosReservados: number;
+  apartaestudioOcupados: number;
+  apartaestudioReservados: number;
+  apartamentosTotales: number;
+  apartaestudioTotales: number;
   habitacionesOcupadas: number;
+  habitacionesReservadas: number;
   habitacionesTotales: number;
   ocupacionPorcentaje: number;
+  reservadasPorcentaje: number;
+  estanciasUltimos12Meses: EstanciaMensualDTO[];
 }
 
-export interface DashboardResumenFinancieroDTO {
-  ingresos: number;
-  gastos: number;
-  neto: number;
-  pagosPendientesCantidad: number;
-  pagosPendientesMonto: number;
+export interface EstanciaMensualDTO {
+  periodo: string;
+  cantidad: number;
 }
 
 export interface DashboardResumenAlertasDTO {
   reservasExpiradas: number;
   estanciasExcedidas: number;
-  pagosPendientesAntiguos: number;
   totalAlertas: number;
 }
 
 export interface DashboardResumenDTO {
   operativo: DashboardResumenOperativoDTO;
-  financiero: DashboardResumenFinancieroDTO;
   alertas: DashboardResumenAlertasDTO;
-}
-
-export interface DashboardConteoUnidadDTO {
-  tipoUnidad: string;
-  disponible: number;
-  ocupado: number;
-  parcialmente: number;
-  total: number;
-}
-
-export interface DashboardSerieFinancieraDTO {
-  periodo: string;
-  ingresos: number;
-  gastos: number;
-  neto: number;
 }
 
 export interface CategoriaMontoDTO {
@@ -49,26 +37,19 @@ export interface CategoriaMontoDTO {
   monto: number;
 }
 
+export interface CategoriaMontoConteoDTO {
+  categoria: string;
+  monto: number;
+  conteoPagos: number;
+}
+
 export interface DashboardDistribucionFinancieraDTO {
+  ingresosTotales: number;
+  ingresosPagos: number;
+  gastos: number;
+  neto: number;
+  ingresosPendientesCantidad: number;
+  ingresosPendientesMonto: number;
   ingresosPorTipoPago: CategoriaMontoDTO[];
-  ingresosPorMedioPago: CategoriaMontoDTO[];
-  gastosPorConcepto: CategoriaMontoDTO[];
-}
-
-export interface DashboardAlertaItemDTO {
-  tipo: string;
-  severidad: string;
-  codigoReserva?: string | null;
-  codigoEstancia?: string | null;
-  fechaReferencia: string;
-  mensaje: string;
-}
-
-export interface DashboardAlertasResponseDTO {
-  resumen: DashboardResumenAlertasDTO;
-  items: DashboardAlertaItemDTO[];
-  page: number;
-  size: number;
-  totalItems: number;
-  totalPages: number;
+  ingresosPorMedioPago: CategoriaMontoConteoDTO[];
 }

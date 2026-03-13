@@ -3,13 +3,11 @@ package com.hotel.services;
 import com.hotel.dtos.DetalleCalendarioUnidadDTO;
 import com.hotel.dtos.HabitacionDTO;
 import com.hotel.dtos.UnidadDTO;
+import com.hotel.dtos.dashboard.CategoriaMontoConteoDTO;
 import com.hotel.dtos.dashboard.CategoriaMontoDTO;
-import com.hotel.dtos.dashboard.DashboardAlertaItemDTO;
-import com.hotel.dtos.dashboard.DashboardAlertasDTO;
-import com.hotel.dtos.dashboard.DashboardConteoUnidadDTO;
 import com.hotel.dtos.dashboard.DashboardDistribucionFinancieraDTO;
 import com.hotel.dtos.dashboard.DashboardResumenDTO;
-import com.hotel.dtos.dashboard.DashboardSerieFinancieraDTO;
+import com.hotel.dtos.dashboard.EstanciaMensualDTO;
 import com.hotel.dtos.estancia.EstanciaDTO;
 import com.hotel.dtos.reserva.ReservaDTO;
 import com.hotel.dtos.DetalleCalendarioHabitacionDTO;
@@ -19,13 +17,14 @@ import com.hotel.mappers.ReservaMapper;
 import com.hotel.mappers.UnidadMapper;
 import com.hotel.models.Estancia;
 import com.hotel.models.Habitacion;
-import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
 import com.hotel.models.Unidad;
+import com.hotel.models.enums.CanalReserva;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.EstadoPago;
 import com.hotel.models.enums.EstadoReserva;
+import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.GastoRepository;
@@ -38,19 +37,16 @@ import com.hotel.specifications.ReservaSpecification;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +56,10 @@ public class DetalleService {
     private static final List<EstadoEstancia> ESTADOS_ESTANCIA_ACTIVA = List.of(
             EstadoEstancia.ACTIVA,
             EstadoEstancia.EXCEDIDA);
+
+    private static final List<EstadoEstancia> ESTADOS_ESTANCIA_ACTIVA_FINALIZADA = List.of(
+            EstadoEstancia.ACTIVA,
+            EstadoEstancia.FINALIZADA);
 
     private static final List<EstadoPago> ESTADOS_PAGO_INGRESO = List.of(
             EstadoPago.PENDIENTE,
@@ -242,180 +242,110 @@ public class DetalleService {
 
 
     @Transactional(readOnly = true)
-    public DashboardResumenDTO obtenerDashboardResumen(LocalDateTime desde, LocalDateTime hasta) {
-        validarRangoFechas(desde, hasta);
+    public DashboardResumenDTO obtenerDashboardResumen() {
 
         long estanciasActivas = estanciaRepository.countByEstadoIn(ESTADOS_ESTANCIA_ACTIVA);
-        long reservasConfirmadas = reservaRepository
-                .countByEstadoAndEntradaEstimadaLessThanEqualAndSalidaEstimadaGreaterThanEqual(
-                        EstadoReserva.CONFIRMADA,
-                        hasta,
-                        desde);
+        long reservasConfirmadas = reservaRepository.countByEstadoIn(List.of(EstadoReserva.CONFIRMADA, EstadoReserva.EXPIRADA));
+        Map<String, Long> reservasPorCanal = construirReservasPorCanal();
 
-        long habitacionesOcupadas = estanciaRepository.countHabitacionesOcupadasPorEstados(ESTADOS_ESTANCIA_ACTIVA);
-        long habitacionesTotales = habitacionRepository.count();
+        long apartamentosTotales = unidadRepository.countByTipo(TipoUnidad.APARTAMENTO);
+        long apartaestudioTotales = unidadRepository.countByTipo(TipoUnidad.APARTAESTUDIO);
+        long apartamentosOcupados = unidadRepository.countUnidadesConTodasHabitacionesEnEstadoPorTipo(
+                TipoUnidad.APARTAMENTO,
+                EstadoOperativo.OCUPADO);
+        long apartamentosReservados = unidadRepository.countUnidadesConTodasHabitacionesEnEstadoPorTipo(
+                TipoUnidad.APARTAMENTO,
+                EstadoOperativo.RESERVADO);
+        long apartaestudioOcupados = unidadRepository.countUnidadesConHabitacionEnEstadoPorTipo(
+                TipoUnidad.APARTAESTUDIO,
+                EstadoOperativo.OCUPADO);
+        long apartaestudioReservados = unidadRepository.countUnidadesConHabitacionEnEstadoPorTipo(
+                TipoUnidad.APARTAESTUDIO,
+                EstadoOperativo.RESERVADO);
 
-        BigDecimal ingresos = pagoRepository.sumarMontoPorEstadosYRango(ESTADOS_PAGO_INGRESO, desde, hasta);
-        BigDecimal gastos = gastoRepository.sumarMontoEnRango(desde, hasta);
-        BigDecimal neto = ingresos.subtract(gastos);
+        long habitacionesOcupadas = habitacionRepository.countByUnidadTipoAndEstadoOperativo(
+                TipoUnidad.APARTAMENTO,
+                EstadoOperativo.OCUPADO);
+        long habitacionesReservadas = habitacionRepository.countByUnidadTipoAndEstadoOperativo(
+                TipoUnidad.APARTAMENTO,
+                EstadoOperativo.RESERVADO);
+        long habitacionesTotales = habitacionRepository.countByUnidadTipo(TipoUnidad.APARTAMENTO);
 
-        long pagosPendientesCantidad = pagoRepository.countByEstadoAndFechaBetween(EstadoPago.PENDIENTE, desde, hasta);
-        BigDecimal pagosPendientesMonto = pagoRepository.sumarMontoPorEstadoYRango(EstadoPago.PENDIENTE, desde, hasta);
+        long habitacionesGlobalOcupadas = habitacionRepository.countByEstadoOperativo(EstadoOperativo.OCUPADO);
+        long habitacionesGlobalReservadas = habitacionRepository.countByEstadoOperativo(EstadoOperativo.RESERVADO);
+        long habitacionesGlobalTotales = habitacionRepository.count();
+        List<EstanciaMensualDTO> estanciasUltimos12Meses = construirEstanciasUltimos12Meses();
 
-        long reservasExpiradas = reservaRepository.countReservasExpiradas(
-                List.of(EstadoReserva.CONFIRMADA),
-                LocalDateTime.now());
+        long reservasExpiradas = reservaRepository.countByEstado(EstadoReserva.EXPIRADA);
         long estanciasExcedidas = estanciaRepository.countByEstado(EstadoEstancia.EXCEDIDA);
-        long pagosPendientesAntiguos = pagoRepository.countPendientesHastaFecha(
-                EstadoPago.PENDIENTE,
-                LocalDateTime.now().minusDays(7));
 
         DashboardResumenDTO.OperativoResumen operativo = new DashboardResumenDTO.OperativoResumen();
         operativo.setEstanciasActivas(estanciasActivas);
         operativo.setReservasConfirmadas(reservasConfirmadas);
+        operativo.setReservasPorCanal(reservasPorCanal);
+        operativo.setApartamentosOcupados(apartamentosOcupados);
+        operativo.setApartamentosReservados(apartamentosReservados);
+        operativo.setApartaestudioOcupados(apartaestudioOcupados);
+        operativo.setApartaestudioReservados(apartaestudioReservados);
+        operativo.setApartamentosTotales(apartamentosTotales);
+        operativo.setApartaestudioTotales(apartaestudioTotales);
         operativo.setHabitacionesOcupadas(habitacionesOcupadas);
+        operativo.setHabitacionesReservadas(habitacionesReservadas);
         operativo.setHabitacionesTotales(habitacionesTotales);
-        operativo.setOcupacionPorcentaje(calcularPorcentaje(habitacionesOcupadas, habitacionesTotales));
-
-        DashboardResumenDTO.FinancieroResumen financiero = new DashboardResumenDTO.FinancieroResumen();
-        financiero.setIngresos(ingresos);
-        financiero.setGastos(gastos);
-        financiero.setNeto(neto);
-        financiero.setPagosPendientesCantidad(pagosPendientesCantidad);
-        financiero.setPagosPendientesMonto(pagosPendientesMonto);
+        operativo.setOcupacionPorcentaje(calcularPorcentaje(habitacionesGlobalOcupadas, habitacionesGlobalTotales));
+        operativo.setReservadasPorcentaje(calcularPorcentaje(habitacionesGlobalReservadas, habitacionesGlobalTotales));
+        operativo.setEstanciasUltimos12Meses(estanciasUltimos12Meses);
 
         DashboardResumenDTO.AlertaResumen alertas = new DashboardResumenDTO.AlertaResumen();
         alertas.setReservasExpiradas(reservasExpiradas);
         alertas.setEstanciasExcedidas(estanciasExcedidas);
-        alertas.setPagosPendientesAntiguos(pagosPendientesAntiguos);
-        alertas.setTotalAlertas(reservasExpiradas + estanciasExcedidas + pagosPendientesAntiguos);
+        alertas.setTotalAlertas(reservasExpiradas + estanciasExcedidas);
 
         DashboardResumenDTO resumen = new DashboardResumenDTO();
         resumen.setOperativo(operativo);
-        resumen.setFinanciero(financiero);
         resumen.setAlertas(alertas);
         return resumen;
-    }
-
-    @Transactional(readOnly = true)
-    public List<DashboardConteoUnidadDTO> obtenerConteosUnidadPorEstado() {
-        Map<TipoUnidad, DashboardConteoUnidadDTO> porTipo = new EnumMap<>(TipoUnidad.class);
-        for (TipoUnidad tipo : TipoUnidad.values()) {
-            DashboardConteoUnidadDTO dto = new DashboardConteoUnidadDTO();
-            dto.setTipoUnidad(tipo);
-            dto.setDisponible(0L);
-            dto.setOcupado(0L);
-            dto.setParcialmente(0L);
-            dto.setTotal(0L);
-            porTipo.put(tipo, dto);
-        }
-
-        List<Object[]> conteos = unidadRepository.contarPorTipoYEstadoOperativo();
-        for (Object[] fila : conteos) {
-            TipoUnidad tipo = (TipoUnidad) fila[0];
-            EstadoOperativo estado = (EstadoOperativo) fila[1];
-            long cantidad = ((Number) fila[2]).longValue();
-
-            DashboardConteoUnidadDTO dto = porTipo.get(tipo);
-            if (dto == null) {
-                continue;
-            }
-
-            if (estado == EstadoOperativo.DISPONIBLE) {
-                dto.setDisponible(cantidad);
-            } else if (estado == EstadoOperativo.OCUPADO) {
-                dto.setOcupado(cantidad);
-            } else if (estado == EstadoOperativo.RESERVADO) {
-                dto.setOcupado(dto.getOcupado() + cantidad);
-            } else if (estado == EstadoOperativo.PARCIALMENTE) {
-                dto.setParcialmente(cantidad);
-            }
-            dto.setTotal(dto.getDisponible() + dto.getOcupado() + dto.getParcialmente());
-        }
-
-        return List.of(
-                porTipo.get(TipoUnidad.HABITACION),
-                porTipo.get(TipoUnidad.APARTAESTUDIO),
-                porTipo.get(TipoUnidad.APARTAMENTO));
-    }
-
-    @Transactional(readOnly = true)
-    public List<DashboardSerieFinancieraDTO> obtenerSerieFinanciera(
-            LocalDateTime desde,
-            LocalDateTime hasta,
-            String granularidad) {
-        validarRangoFechas(desde, hasta);
-
-        Map<LocalDate, BigDecimal> ingresosDiarios = convertirSerieAMapa(
-                pagoRepository.sumarIngresosDiarios(ESTADOS_PAGO_INGRESO, desde, hasta));
-        Map<LocalDate, BigDecimal> gastosDiarios = convertirSerieAMapa(
-                gastoRepository.sumarGastosDiarios(desde, hasta));
-
-        List<DashboardSerieFinancieraDTO> serieDiaria = new ArrayList<>();
-        LocalDate actual = desde.toLocalDate();
-        LocalDate fin = hasta.toLocalDate();
-
-        while (!actual.isAfter(fin)) {
-            BigDecimal ingreso = ingresosDiarios.getOrDefault(actual, BigDecimal.ZERO);
-            BigDecimal gasto = gastosDiarios.getOrDefault(actual, BigDecimal.ZERO);
-
-            DashboardSerieFinancieraDTO punto = new DashboardSerieFinancieraDTO();
-            punto.setPeriodo(actual);
-            punto.setIngresos(ingreso);
-            punto.setGastos(gasto);
-            punto.setNeto(ingreso.subtract(gasto));
-            serieDiaria.add(punto);
-
-            actual = actual.plusDays(1);
-        }
-
-        return agregarSeriePorGranularidad(serieDiaria, granularidad);
     }
 
     @Transactional(readOnly = true)
     public DashboardDistribucionFinancieraDTO obtenerDistribucionFinanciera(
             LocalDateTime desde,
             LocalDateTime hasta) {
-        validarRangoFechas(desde, hasta);
+        validarRangoFechasOpcional(desde, hasta);
+
+        BigDecimal ingresosPagos = pagoRepository.sumarMontoPorEstadoConRangoOpcional(EstadoPago.COMPLETADO, desde, hasta);
+        long ingresosPendientesCantidad = pagoRepository.countByEstadoAndTipoPagoConRangoOpcional(
+                EstadoPago.PENDIENTE,
+                TipoPago.ESTANCIA_COMPLETADA,
+                desde,
+                hasta);
+        BigDecimal ingresosPendientesMonto = pagoRepository.sumarMontoPorEstadoAndTipoPagoConRangoOpcional(
+                EstadoPago.PENDIENTE,
+                TipoPago.ESTANCIA_COMPLETADA,
+                desde,
+                hasta);
+        BigDecimal ingresosTotales = ingresosPagos.add(ingresosPendientesMonto);
+        BigDecimal gastos = gastoRepository.sumarMontoEnRango(desde, hasta);
+        BigDecimal neto = ingresosPagos.subtract(gastos);
 
         DashboardDistribucionFinancieraDTO dto = new DashboardDistribucionFinancieraDTO();
-        dto.setIngresosPorTipoPago(mapearCategoriasMonto(pagoRepository.sumarIngresosPorTipoPago(ESTADOS_PAGO_INGRESO, desde, hasta)));
-        dto.setIngresosPorMedioPago(mapearCategoriasMonto(pagoRepository.sumarIngresosPorMedioPago(ESTADOS_PAGO_INGRESO, desde, hasta)));
-        dto.setGastosPorConcepto(mapearCategoriasMonto(gastoRepository.sumarGastosPorConcepto(desde, hasta)));
+        dto.setIngresosTotales(ingresosTotales);
+        dto.setIngresosPagos(ingresosPagos);
+        dto.setGastos(gastos);
+        dto.setNeto(neto);
+        dto.setIngresosPendientesCantidad(ingresosPendientesCantidad);
+        dto.setIngresosPendientesMonto(ingresosPendientesMonto);
+        dto.setIngresosPorTipoPago(mapearCategoriasMonto(pagoRepository.sumarIngresosPorTipoPago(
+                ESTADOS_PAGO_INGRESO,
+                TipoPago.ESTANCIA_COMPLETADA,
+                desde,
+                hasta)));
+        dto.setIngresosPorMedioPago(mapearCategoriasMontoConteo(pagoRepository.sumarYContarIngresosPorMedioPago(
+                ESTADOS_PAGO_INGRESO,
+                TipoPago.ESTANCIA_COMPLETADA,
+                desde,
+                hasta)));
         return dto;
-    }
-
-    @Transactional(readOnly = true)
-    public DashboardAlertasDTO obtenerAlertasDashboard(int dias, Pageable pageable) {
-        if (dias <= 0) {
-            throw new IllegalArgumentException("dias debe ser mayor que 0");
-        }
-
-        LocalDateTime ahora = LocalDateTime.now();
-        LocalDateTime fechaLimitePendientes = ahora.minusDays(dias);
-
-        List<DashboardAlertaItemDTO> items = new ArrayList<>();
-        items.addAll(construirAlertasReservasExpiradas(ahora));
-        items.addAll(construirAlertasEstanciasExcedidas());
-        items.addAll(construirAlertasPagosPendientes(fechaLimitePendientes));
-
-        items.sort(Comparator.comparing(DashboardAlertaItemDTO::getFechaReferencia).reversed());
-
-        long totalItems = items.size();
-        int page = pageable.getPageNumber();
-        int size = pageable.getPageSize();
-        int fromIndex = Math.min(page * size, items.size());
-        int toIndex = Math.min(fromIndex + size, items.size());
-        List<DashboardAlertaItemDTO> paginaItems = items.subList(fromIndex, toIndex);
-
-        DashboardAlertasDTO response = new DashboardAlertasDTO();
-        response.setResumen(construirResumenAlertas(ahora, fechaLimitePendientes));
-        response.setItems(paginaItems);
-        response.setPage(page);
-        response.setSize(size);
-        response.setTotalItems(totalItems);
-        response.setTotalPages(size == 0 ? 0 : (int) Math.ceil((double) totalItems / size));
-        return response;
     }
 
     private void validarRangoFechas(LocalDateTime desde, LocalDateTime hasta) {
@@ -423,6 +353,12 @@ public class DetalleService {
             throw new IllegalArgumentException("desde y hasta son obligatorios");
         }
         if (desde.isAfter(hasta)) {
+            throw new IllegalArgumentException("desde no puede ser mayor que hasta");
+        }
+    }
+
+    private void validarRangoFechasOpcional(LocalDateTime desde, LocalDateTime hasta) {
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
             throw new IllegalArgumentException("desde no puede ser mayor que hasta");
         }
     }
@@ -437,138 +373,62 @@ public class DetalleService {
                 .divide(BigDecimal.valueOf(denominador), 2, RoundingMode.HALF_UP);
     }
 
-    private Map<LocalDate, BigDecimal> convertirSerieAMapa(List<Object[]> filas) {
-        Map<LocalDate, BigDecimal> resultado = new HashMap<>();
-        for (Object[] fila : filas) {
-            LocalDate fecha = extraerLocalDate(fila[0]);
-            BigDecimal valor = (BigDecimal) fila[1];
-            resultado.put(fecha, valor);
-        }
-        return resultado;
-    }
-
-    private LocalDate extraerLocalDate(Object value) {
-        if (value instanceof LocalDate fecha) {
-            return fecha;
-        }
-        if (value instanceof java.sql.Date fechaSql) {
-            return fechaSql.toLocalDate();
-        }
-        return LocalDate.parse(value.toString());
-    }
-
-    private List<DashboardSerieFinancieraDTO> agregarSeriePorGranularidad(
-            List<DashboardSerieFinancieraDTO> serieDiaria,
-            String granularidad) {
-        String nivel = granularidad == null || granularidad.isBlank()
-                ? "DAY"
-                : granularidad.trim().toUpperCase();
-
-        if ("DAY".equals(nivel)) {
-            return serieDiaria;
-        }
-
-        Map<LocalDate, DashboardSerieFinancieraDTO> agrupado = new HashMap<>();
-        for (DashboardSerieFinancieraDTO item : serieDiaria) {
-            LocalDate periodo = item.getPeriodo();
-            LocalDate llave;
-            if ("WEEK".equals(nivel)) {
-                llave = periodo.with(DayOfWeek.MONDAY);
-            } else if ("MONTH".equals(nivel)) {
-                llave = periodo.withDayOfMonth(1);
-            } else {
-                throw new IllegalArgumentException("granularidad no soportada. Usa DAY, WEEK o MONTH");
-            }
-
-            DashboardSerieFinancieraDTO acumulado = agrupado.get(llave);
-            if (acumulado == null) {
-                acumulado = new DashboardSerieFinancieraDTO();
-                acumulado.setPeriodo(llave);
-                acumulado.setIngresos(BigDecimal.ZERO);
-                acumulado.setGastos(BigDecimal.ZERO);
-                acumulado.setNeto(BigDecimal.ZERO);
-                agrupado.put(llave, acumulado);
-            }
-
-            acumulado.setIngresos(acumulado.getIngresos().add(item.getIngresos()));
-            acumulado.setGastos(acumulado.getGastos().add(item.getGastos()));
-            acumulado.setNeto(acumulado.getNeto().add(item.getNeto()));
-        }
-
-        return agrupado.values().stream()
-                .sorted(Comparator.comparing(DashboardSerieFinancieraDTO::getPeriodo))
-                .toList();
-    }
-
     private List<CategoriaMontoDTO> mapearCategoriasMonto(List<Object[]> filas) {
         return filas.stream()
                 .map(fila -> new CategoriaMontoDTO(String.valueOf(fila[0]), (BigDecimal) fila[1]))
                 .toList();
     }
 
-    private List<DashboardAlertaItemDTO> construirAlertasReservasExpiradas(LocalDateTime ahora) {
-        List<Reserva> reservasExpiradas = reservaRepository.findReservasExpiradas(
-                List.of(EstadoReserva.CONFIRMADA),
-                ahora);
-
-        return reservasExpiradas.stream().map(reserva -> {
-            DashboardAlertaItemDTO item = new DashboardAlertaItemDTO();
-            item.setTipo("RESERVA_EXPIRADA");
-            item.setSeveridad("ALTA");
-            item.setCodigoReserva(reserva.getCodigo());
-            item.setCodigoEstancia(null);
-            item.setFechaReferencia(reserva.getSalidaEstimada());
-            item.setMensaje("Reserva confirmada vencida sin activacion de estancia.");
-            return item;
-        }).toList();
+    private List<CategoriaMontoConteoDTO> mapearCategoriasMontoConteo(List<Object[]> filas) {
+        return filas.stream()
+                .map(fila -> new CategoriaMontoConteoDTO(
+                        String.valueOf(fila[0]),
+                        (BigDecimal) fila[1],
+                        ((Number) fila[2]).longValue()))
+                .toList();
     }
 
-    private List<DashboardAlertaItemDTO> construirAlertasEstanciasExcedidas() {
-        List<Estancia> estancias = estanciaRepository.findByEstadoConReserva(EstadoEstancia.EXCEDIDA);
-
-        return estancias.stream().map(estancia -> {
-            DashboardAlertaItemDTO item = new DashboardAlertaItemDTO();
-            item.setTipo("ESTANCIA_EXCEDIDA");
-            item.setSeveridad("MEDIA");
-            item.setCodigoReserva(estancia.getReserva() != null ? estancia.getReserva().getCodigo() : null);
-            item.setCodigoEstancia(estancia.getCodigoFolio());
-            item.setFechaReferencia(estancia.getSalidaEstimada());
-            item.setMensaje("Estancia en estado EXCEDIDA; requiere gestion de salida o extension.");
-            return item;
-        }).toList();
+    private Map<String, Long> construirReservasPorCanal() {
+        Map<String, Long> reservasPorCanal = new LinkedHashMap<>();
+        for (CanalReserva canal : CanalReserva.values()) {
+            reservasPorCanal.put(canal.name(), 0L);
+        }
+        for (Object[] fila : reservaRepository.contarReservasPorCanal()) {
+            CanalReserva canal = (CanalReserva) fila[0];
+            long cantidad = ((Number) fila[1]).longValue();
+            reservasPorCanal.put(canal.name(), cantidad);
+        }
+        return reservasPorCanal;
     }
 
-    private List<DashboardAlertaItemDTO> construirAlertasPagosPendientes(LocalDateTime fechaLimitePendientes) {
-        List<Pago> pagosPendientes = pagoRepository.findPendientesHastaFecha(EstadoPago.PENDIENTE, fechaLimitePendientes);
+    private List<EstanciaMensualDTO> construirEstanciasUltimos12Meses() {
+        YearMonth mesActual = YearMonth.from(LocalDate.now());
+        YearMonth mesInicio = mesActual.minusMonths(11);
 
-        return pagosPendientes.stream().map(pago -> {
-            DashboardAlertaItemDTO item = new DashboardAlertaItemDTO();
-            item.setTipo("PAGO_PENDIENTE_ANTIGUO");
-            item.setSeveridad("MEDIA");
-            item.setCodigoReserva(pago.getEstancia() != null && pago.getEstancia().getReserva() != null
-                    ? pago.getEstancia().getReserva().getCodigo()
-                    : null);
-            item.setCodigoEstancia(pago.getEstancia() != null ? pago.getEstancia().getCodigoFolio() : null);
-            item.setFechaReferencia(pago.getFecha());
-            item.setMensaje("Pago pendiente con antiguedad superior al umbral configurado.");
-            return item;
-        }).toList();
+        LocalDateTime desde = mesInicio.atDay(1).atStartOfDay();
+        LocalDateTime hasta = mesActual.atEndOfMonth().atTime(23, 59, 59);
+
+        List<Object[]> filas = estanciaRepository.contarEstanciasPorMesSegunEntradaRealYEstados(
+                ESTADOS_ESTANCIA_ACTIVA_FINALIZADA,
+                desde,
+                hasta);
+
+        Map<YearMonth, Long> conteoPorMes = new HashMap<>();
+        for (Object[] fila : filas) {
+            int anio = ((Number) fila[0]).intValue();
+            int mes = ((Number) fila[1]).intValue();
+            long cantidad = ((Number) fila[2]).longValue();
+            conteoPorMes.put(YearMonth.of(anio, mes), cantidad);
+        }
+
+        List<EstanciaMensualDTO> resultado = new ArrayList<>();
+        for (int i = 0; i < 12; i++) {
+            YearMonth periodo = mesInicio.plusMonths(i);
+            resultado.add(new EstanciaMensualDTO(
+                    periodo.toString(),
+                    conteoPorMes.getOrDefault(periodo, 0L)));
+        }
+        return resultado;
     }
 
-    private DashboardResumenDTO.AlertaResumen construirResumenAlertas(
-            LocalDateTime ahora,
-            LocalDateTime fechaLimitePendientes) {
-        long reservasExpiradas = reservaRepository.countReservasExpiradas(
-                List.of(EstadoReserva.CONFIRMADA),
-                ahora);
-        long estanciasExcedidas = estanciaRepository.countByEstado(EstadoEstancia.EXCEDIDA);
-        long pagosPendientes = pagoRepository.countPendientesHastaFecha(EstadoPago.PENDIENTE, fechaLimitePendientes);
-
-        DashboardResumenDTO.AlertaResumen resumen = new DashboardResumenDTO.AlertaResumen();
-        resumen.setReservasExpiradas(reservasExpiradas);
-        resumen.setEstanciasExcedidas(estanciasExcedidas);
-        resumen.setPagosPendientesAntiguos(pagosPendientes);
-        resumen.setTotalAlertas(reservasExpiradas + estanciasExcedidas + pagosPendientes);
-        return resumen;
-    }
 }

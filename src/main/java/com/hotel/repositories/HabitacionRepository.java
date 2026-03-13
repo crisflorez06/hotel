@@ -1,6 +1,7 @@
 package com.hotel.repositories;
 
 import com.hotel.models.Habitacion;
+import com.hotel.models.enums.EstadoOperativo;
 import com.hotel.models.enums.TipoUnidad;
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +27,15 @@ public interface HabitacionRepository extends JpaRepository<Habitacion, Long>, J
             order by h.codigo asc
             """)
     List<Habitacion> findHabitacionesByTipoUnidadApartamentoOApartaestudio(@Param("tipoUnidad") TipoUnidad tipoUnidad);
+
+    @Query("""
+            select count(h)
+            from Habitacion h
+            where h.unidad.tipo = :tipoUnidad
+            """)
+    long countByUnidadTipo(@Param("tipoUnidad") TipoUnidad tipoUnidad);
+
+    long countByUnidadTipoAndEstadoOperativo(TipoUnidad tipoUnidad, EstadoOperativo estadoOperativo);
+
+    long countByEstadoOperativo(EstadoOperativo estadoOperativo);
 }

@@ -11,7 +11,9 @@ public enum TipoEvento {
     FINALIZACION_ESTANCIA,
     CREACION_PAGO,
     MODIFICACION_PAGO,
-    ELIMINACION_PAGO;
+    ELIMINACION_PAGO,
+    MODIFICACION_TARIFA_BASE,
+    MODIFICACION_TEMPORADA_ACTIVA;
 
     public boolean contiene(String palabra) {
         if (palabra == null || palabra.isBlank()) {

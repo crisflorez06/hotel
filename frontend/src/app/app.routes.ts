@@ -59,6 +59,11 @@ export const routes: Routes = [
       import('./pages/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {
+    path: 'monitor-eventos',
+    loadComponent: () =>
+      import('./pages/monitor-eventos/monitor-eventos.component').then((m) => m.MonitorEventosComponent),
+  },
+  {
     path: 'ocupantes/tabla-clientes',
     loadComponent: () =>
       import('./pages/clientes/clientes.component').then((m) => m.ClientesComponent),

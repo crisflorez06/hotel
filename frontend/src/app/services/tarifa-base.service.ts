@@ -15,7 +15,7 @@ export class TarifaBaseService {
     return this.http.get<TarifaBaseDTO[]>(this.baseUrl);
   }
 
-  actualizarTarifasBase(actualizaciones: TarifaBaseActualizacionDTO[]) {
-    return this.http.put<TarifaBaseDTO[]>(this.baseUrl, actualizaciones);
+  actualizarTarifaBase(actualizacion: TarifaBaseActualizacionDTO) {
+    return this.http.put<TarifaBaseDTO[]>(this.baseUrl, actualizacion);
   }
 }

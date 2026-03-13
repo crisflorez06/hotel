@@ -70,21 +70,17 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
             @Param("estados") List<EstadoReserva> estados,
             @Param("momento") LocalDateTime momento);
 
-    long countByEstadoAndEntradaEstimadaLessThanEqualAndSalidaEstimadaGreaterThanEqual(
-            EstadoReserva estado,
-            LocalDateTime hasta,
-            LocalDateTime desde);
+    long countByEstadoIn(List<EstadoReserva> estados);
+
+    long countByEstado(EstadoReserva estado);
 
     @Query("""
-           select count(r)
+           select r.canalReserva, count(r)
            from Reserva r
-           where r.estado in :estados
-             and r.salidaEstimada < :momento
-             and r.estancia is null
+           group by r.canalReserva
+           order by r.canalReserva
            """)
-    long countReservasExpiradas(
-            @Param("estados") List<EstadoReserva> estados,
-            @Param("momento") LocalDateTime momento);
+    List<Object[]> contarReservasPorCanal();
 
     @Query(value = """
             select r.*

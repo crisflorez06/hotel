@@ -1,547 +1,225 @@
 <section class="dashboard">
-  <header class="dashboard__header">
+  <header class="dashboard__header fade-in">
     <div>
       <p class="dashboard__eyebrow">Recepcion · Dashboard</p>
-      <h1>Dashboard de eventos</h1>
+      <h1>Centro operativo del hotel</h1>
       <p class="dashboard__subtitle">
-        Visualiza tendencias operativas y financieras en un solo lugar para anticipar alertas y
-        tomar decisiones sobre reservas, estancias y pagos.
+        Monitorea ocupacion, alertas, flujo financiero y comportamiento de canales en una vista unica para la toma de decisiones diaria.
       </p>
     </div>
   </header>
 
-  <section class="dashboard-panel">
+  <section class="dashboard-panel fade-in fade-in--delay-1">
     <div class="dashboard-panel__header">
       <div>
-        <h2>Indicadores operativos y financieros</h2>
-        <p>
-          Configura el periodo de analisis para revisar desempeno, ocupacion y alertas antes de
-          entrar al detalle del monitor de eventos.
-        </p>
-      </div>
-
-      <div class="dashboard-panel__actions">
-        <button type="button" class="btn btn--primary" (click)="aplicarFiltrosPanel()" [disabled]="dashboardCargando">
-          Actualizar panel
-        </button>
-        <button type="button" class="btn" (click)="limpiarFiltrosPanel()" [disabled]="dashboardCargando">
-          Restablecer
-        </button>
+        <h2>Rango financiero</h2>
+        <p>El bloque financiero responde al rango seleccionado. La operacion se actualiza en tiempo real.</p>
       </div>
     </div>
 
     <div class="dashboard-panel__filters">
       <div class="campo">
         <label for="dashboardDesde">Desde</label>
-        <input id="dashboardDesde" type="date" [(ngModel)]="dashboardFiltros.desde" />
+        <input id="dashboardDesde" type="date" [(ngModel)]="dashboardFiltros.desde" (change)="aplicarFiltrosPanel()" />
       </div>
 
       <div class="campo">
         <label for="dashboardHasta">Hasta</label>
-        <input id="dashboardHasta" type="date" [(ngModel)]="dashboardFiltros.hasta" />
-      </div>
-
-      <div class="campo">
-        <label for="dashboardGranularidad">Granularidad serie</label>
-        <select id="dashboardGranularidad" [(ngModel)]="dashboardFiltros.granularidad">
-          <option *ngFor="let g of granularidadesDisponibles" [ngValue]="g">{{ formatearGranularidad(g) }}</option>
-        </select>
-      </div>
-
-      <div class="campo">
-        <label for="dashboardDiasAlertas">Ventana de alertas (dias)</label>
-        <input id="dashboardDiasAlertas" type="number" min="1" [(ngModel)]="dashboardFiltros.diasAlertas" />
+        <input id="dashboardHasta" type="date" [(ngModel)]="dashboardFiltros.hasta" (change)="aplicarFiltrosPanel()" />
       </div>
     </div>
 
     <div class="dashboard-panel__state" *ngIf="dashboardCargando">Cargando indicadores...</div>
     <p class="estado estado--error" *ngIf="dashboardError">{{ dashboardError }}</p>
 
-    <div class="dashboard-panel__content" *ngIf="!dashboardCargando && !dashboardError">
-      <section class="dashboard-kpis">
-        <article class="kpi-card">
-          <h3>Ocupacion actual</h3>
-          <div class="kpi-card__value">{{ porcentajeOcupacion() | number: '1.0-1' }}%</div>
-          <p>
-            {{ formatearNumero(dashboardResumen?.operativo?.habitacionesOcupadas) }} /
-            {{ formatearNumero(dashboardResumen?.operativo?.habitacionesTotales) }} habitaciones
-          </p>
-          <div class="kpi-progress">
-            <span [style.width.%]="porcentajeOcupacion()"></span>
-          </div>
-        </article>
-
-        <article class="kpi-card">
-          <h3>Operacion hotel</h3>
-          <div class="kpi-card__split">
+    <div class="dashboard-panel__content" *ngIf="!dashboardCargando && !dashboardError && dashboardResumen && dashboardDistribucion">
+      <section class="dashboard-row fade-in fade-in--delay-2">
+        <article class="panel-card panel-card--wide">
+          <header class="panel-card__header">
             <div>
-              <span class="kpi-card__label">Estancias activas</span>
-              <strong>{{ formatearNumero(dashboardResumen?.operativo?.estanciasActivas) }}</strong>
+              <h3>Resumen financiero del rango</h3>
+              <p>Desglose de ingresos, gastos y pendiente de recaudo.</p>
             </div>
-            <div>
-              <span class="kpi-card__label">Reservas confirmadas</span>
-              <strong>{{ formatearNumero(dashboardResumen?.operativo?.reservasConfirmadas) }}</strong>
-            </div>
-          </div>
-        </article>
-
-        <article class="kpi-card">
-          <h3>Resumen financiero</h3>
-          <div class="kpi-card__split">
-            <div>
-              <span class="kpi-card__label">Ingresos</span>
-              <strong>{{ formatearMoneda(dashboardResumen?.financiero?.ingresos) }}</strong>
-            </div>
-            <div>
-              <span class="kpi-card__label">Gastos</span>
-              <strong>{{ formatearMoneda(dashboardResumen?.financiero?.gastos) }}</strong>
-            </div>
-          </div>
-          <p [class.kpi-card__neto-negativo]="netoFinanciero() < 0">
-            Neto: {{ formatearMoneda(dashboardResumen?.financiero?.neto) }}
-          </p>
-        </article>
-
-        <article class="kpi-card">
-          <h3>Pagos pendientes</h3>
-          <div class="kpi-card__value">{{ formatearNumero(dashboardResumen?.financiero?.pagosPendientesCantidad) }}</div>
-          <p>Monto pendiente: {{ formatearMoneda(dashboardResumen?.financiero?.pagosPendientesMonto) }}</p>
-        </article>
-
-        <article class="kpi-card kpi-card--alerta">
-          <h3>Alertas activas</h3>
-          <div class="kpi-card__value">{{ formatearNumero(resumenAlertasTotal) }}</div>
-          <p>
-            Reservas expiradas:
-            {{ formatearNumero(dashboardResumen?.alertas?.reservasExpiradas) }}
-          </p>
-          <p>
-            Estancias excedidas:
-            {{ formatearNumero(dashboardResumen?.alertas?.estanciasExcedidas) }}
-          </p>
-        </article>
-      </section>
-
-      <section class="dashboard-grid">
-        <article class="panel-card">
-          <header>
-            <h3>Disponibilidad por tipo de unidad</h3>
-            <p>Proporcion de estados por categoria</p>
+            <span class="panel-chip">{{ dashboardFiltros.desde || 'Inicio' }} / {{ dashboardFiltros.hasta || 'Hoy' }}</span>
           </header>
 
-          <div class="chart-card" *ngIf="dashboardConteosUnidad.length; else sinConteosUnidad">
-            <canvas
-              baseChart
-              [type]="unidadChartType"
-              [data]="unidadChartData"
-              [options]="unidadChartOptions"
-            ></canvas>
+          <div class="financiero-kpis">
+            <article class="financiero-kpi financiero-kpi--totales">
+              <span>Ingresos totales</span>
+              <strong>{{ formatearMoneda(dashboardDistribucion.ingresosTotales) }}</strong>
+            </article>
+            <article class="financiero-kpi financiero-kpi--pagos">
+              <span>Ingresos pagos</span>
+              <strong>{{ formatearMoneda(dashboardDistribucion.ingresosPagos) }}</strong>
+            </article>
+            <article class="financiero-kpi financiero-kpi--pendiente">
+              <span>Pendiente</span>
+              <strong>{{ formatearMoneda(dashboardDistribucion.ingresosPendientesMonto) }}</strong>
+              <small>{{ formatearNumero(dashboardDistribucion.ingresosPendientesCantidad) }} pagos</small>
+            </article>
+            <article class="financiero-kpi financiero-kpi--gastos">
+              <span>Gastos</span>
+              <strong>{{ formatearMoneda(dashboardDistribucion.gastos) }}</strong>
+            </article>
+            <article class="financiero-kpi financiero-kpi--neto" [class.financiero-kpi--negative]="netoFinanciero() < 0">
+              <span>Neto del periodo</span>
+              <strong>{{ formatearMoneda(dashboardDistribucion.neto) }}</strong>
+            </article>
           </div>
-          <ng-template #sinConteosUnidad>
-            <p class="panel-empty">No hay datos de unidades para el rango seleccionado.</p>
-          </ng-template>
-        </article>
-
-        <article class="panel-card">
-          <header>
-            <h3>Serie financiera</h3>
-            <p>Ingresos, gastos y neto por periodo</p>
-          </header>
-
-          <div class="chart-card" *ngIf="dashboardSerieFinanciera.length; else sinSerie">
-            <canvas
-              baseChart
-              [type]="serieChartType"
-              [data]="serieChartData"
-              [options]="serieChartOptions"
-            ></canvas>
-          </div>
-          <ng-template #sinSerie>
-            <p class="panel-empty">No hay serie financiera para el rango seleccionado.</p>
-          </ng-template>
-        </article>
-
-        <article class="panel-card panel-card--full">
-          <header>
-            <h3>Distribucion financiera</h3>
-            <p>Participacion por categoria</p>
-          </header>
 
           <div class="distribucion-grid">
             <section>
-              <h4>Ingresos por tipo de pago</h4>
-              <div class="chart-card chart-card--small" *ngIf="(dashboardDistribucion?.ingresosPorTipoPago?.length ?? 0) > 0">
+              <h4>Composicion de ingresos por tipo de pago</h4>
+              <p class="panel-microcopy">Participacion de cada tipo de pago dentro del recaudo del periodo seleccionado.</p>
+              <div class="chart-shell chart-shell--compact" *ngIf="dashboardDistribucion.ingresosPorTipoPago.length">
                 <canvas
                   baseChart
-                  [type]="distribucionChartType"
-                  [data]="distribucionTipoChartData"
-                  [options]="distribucionChartOptions"
+                  [type]="ingresosTipoChartType"
+                  [data]="ingresosTipoChartData"
+                  [options]="ingresosTipoChartOptions"
                 ></canvas>
               </div>
-              <div class="categoria-row" *ngFor="let item of dashboardDistribucion?.ingresosPorTipoPago ?? []; trackBy: trackByCategoria">
-                <div class="categoria-row__head">
-                  <span>{{ formatearEtiqueta(item.categoria) }}</span>
-                  <strong>{{ formatearMoneda(item.monto) }}</strong>
-                </div>
-              </div>
+              <p class="panel-empty" *ngIf="!dashboardDistribucion.ingresosPorTipoPago.length">Sin datos para el periodo.</p>
             </section>
 
             <section>
-              <h4>Ingresos por medio de pago</h4>
-              <div class="chart-card chart-card--small" *ngIf="(dashboardDistribucion?.ingresosPorMedioPago?.length ?? 0) > 0">
-                <canvas
-                  baseChart
-                  [type]="distribucionChartType"
-                  [data]="distribucionMedioChartData"
-                  [options]="distribucionChartOptions"
-                ></canvas>
+              <h4>Distribucion de ingresos por medio de pago</h4>
+              <p class="panel-microcopy">Comparativo de volumen recaudado por cada medio utilizado en caja y canales digitales.</p>
+              <div class="chart-shell chart-shell--compact" *ngIf="dashboardDistribucion.ingresosPorMedioPago.length">
+                <canvas baseChart [type]="mediosPagoChartType" [data]="mediosPagoChartData" [options]="mediosPagoChartOptions"></canvas>
               </div>
-              <div class="categoria-row" *ngFor="let item of dashboardDistribucion?.ingresosPorMedioPago ?? []; trackBy: trackByCategoria">
-                <div class="categoria-row__head">
-                  <span>{{ formatearEtiqueta(item.categoria) }}</span>
-                  <strong>{{ formatearMoneda(item.monto) }}</strong>
-                </div>
-              </div>
-            </section>
-
-            <section>
-              <h4>Gastos por concepto</h4>
-              <div class="chart-card chart-card--small" *ngIf="(dashboardDistribucion?.gastosPorConcepto?.length ?? 0) > 0">
-                <canvas
-                  baseChart
-                  [type]="distribucionChartType"
-                  [data]="distribucionGastoChartData"
-                  [options]="distribucionChartOptions"
-                ></canvas>
-              </div>
-              <div class="categoria-row" *ngFor="let item of dashboardDistribucion?.gastosPorConcepto ?? []; trackBy: trackByCategoria">
-                <div class="categoria-row__head">
-                  <span>{{ formatearEtiqueta(item.categoria) }}</span>
-                  <strong>{{ formatearMoneda(item.monto) }}</strong>
-                </div>
-              </div>
+              <p class="panel-empty" *ngIf="!dashboardDistribucion.ingresosPorMedioPago.length">Sin datos para el periodo.</p>
             </section>
           </div>
         </article>
+      </section>
 
-        <article class="panel-card panel-card--full">
+      <section class="dashboard-pulse fade-in fade-in--delay-2">
+        <article class="occupancy-hero occupancy-hero--combined">
           <header>
-            <h3>Alertas recientes</h3>
-            <p>Prioriza seguimiento de casos pendientes</p>
+            <h3>Ocupacion global y estado por tipo de unidad</h3>
+            <p>{{ estadoOcupacion() }}</p>
           </header>
 
-          <div class="alertas-list" *ngIf="(dashboardAlertas?.items?.length ?? 0) > 0; else sinAlertas">
-            <article class="alerta-item" *ngFor="let item of dashboardAlertas?.items ?? []; trackBy: trackByAlerta">
-              <div class="alerta-item__top">
-                <span class="alerta-chip" [class.alerta-chip--alta]="item.severidad === 'ALTA'">
-                  {{ formatearEtiqueta(item.severidad) }}
-                </span>
-                <strong>{{ formatearEtiqueta(item.tipo) }}</strong>
-                <span>{{ formatearFecha(item.fechaReferencia) }}</span>
+          <div class="occupancy-hero__grid">
+            <div class="occupancy-hero__left">
+              <div class="chart-shell chart-shell--occupancy">
+                <canvas baseChart [type]="ocupacionChartType" [data]="ocupacionChartData" [options]="ocupacionChartOptions"></canvas>
               </div>
+            </div>
 
-              <p>{{ item.mensaje }}</p>
-              <small>
-                Reserva: {{ item.codigoReserva?.trim() || '-' }} | Estancia: {{ item.codigoEstancia?.trim() || '-' }}
-              </small>
+            <div class="occupancy-hero__right">
+              <div class="units-matrix" *ngIf="unidadesOperativas.length">
+                <article class="units-matrix__row" *ngFor="let unidad of unidadesOperativas; trackBy: trackByUnidad">
+                  <header>
+                    <h4>{{ unidad.nombre }}</h4>
+                    <span>Total {{ formatearNumero(unidad.total) }}</span>
+                  </header>
+
+                  <div class="units-matrix__bars">
+                    <div class="units-state units-state--ocupadas">
+                      <span>Ocupadas</span>
+                      <div class="units-state__track">
+                        <div class="units-state__fill" [style.width.%]="porcentajeSobreTotal(unidad.ocupadas, unidad.total)"></div>
+                      </div>
+                      <strong>{{ formatearNumero(unidad.ocupadas) }}</strong>
+                    </div>
+
+                    <div class="units-state units-state--reservadas">
+                      <span>Reservadas</span>
+                      <div class="units-state__track">
+                        <div class="units-state__fill" [style.width.%]="porcentajeSobreTotal(unidad.reservadas, unidad.total)"></div>
+                      </div>
+                      <strong>{{ formatearNumero(unidad.reservadas) }}</strong>
+                    </div>
+
+                    <div class="units-state units-state--disponibles">
+                      <span>Disponibles</span>
+                      <div class="units-state__track">
+                        <div class="units-state__fill" [style.width.%]="porcentajeSobreTotal(unidad.disponibles, unidad.total)"></div>
+                      </div>
+                      <strong>{{ formatearNumero(unidad.disponibles) }}</strong>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="dashboard-row fade-in fade-in--delay-3">
+        <article class="panel-card">
+          <header class="panel-card__header">
+            <div>
+              <h3>Canales de reserva con mayor volumen</h3>
+              <p>Comparativo horizontal de reservas confirmadas por canal para orientar acciones comerciales.</p>
+            </div>
+          </header>
+
+          <div class="panel-empty" *ngIf="!reservasPorCanalVisual.length">No hay reservas por canal disponibles.</div>
+          <div class="chart-shell chart-shell--tall" *ngIf="reservasPorCanalVisual.length">
+            <canvas baseChart [type]="canalesChartType" [data]="canalesChartData" [options]="canalesChartOptions"></canvas>
+          </div>
+        </article>
+
+        <article class="panel-card">
+          <header class="panel-card__header">
+            <div>
+              <h3>Indicadores operativos clave</h3>
+              <p>Lectura rapida del estado actual de actividad, reservas y alertas de atencion inmediata.</p>
+            </div>
+          </header>
+
+          <div class="kpi-grid kpi-grid--operativos">
+            <article class="kpi-card">
+              <span>Estancias activas</span>
+              <strong>{{ formatearNumero(dashboardResumen.operativo.estanciasActivas) }}</strong>
+            </article>
+
+            <article class="kpi-card">
+              <span>Reservas confirmadas</span>
+              <strong>{{ formatearNumero(dashboardResumen.operativo.reservasConfirmadas) }}</strong>
+            </article>
+
+            <article class="kpi-card kpi-card--alert kpi-card--alert-expanded">
+              <span>Alertas activas</span>
+              <strong>{{ formatearNumero(dashboardResumen.alertas.totalAlertas) }}</strong>
+              <div class="alert-breakdown">
+                <article>
+                  <span>Reservas expiradas</span>
+                  <strong>{{ formatearNumero(dashboardResumen.alertas.reservasExpiradas) }}</strong>
+                </article>
+                <article>
+                  <span>Estancias excedidas</span>
+                  <strong>{{ formatearNumero(dashboardResumen.alertas.estanciasExcedidas) }}</strong>
+                </article>
+              </div>
             </article>
           </div>
-          <ng-template #sinAlertas>
-            <p class="panel-empty">No hay alertas recientes para la ventana seleccionada.</p>
-          </ng-template>
+        </article>
+      </section>
+
+      <section class="dashboard-row fade-in fade-in--delay-3">
+        <article class="panel-card panel-card--wide">
+          <header class="panel-card__header">
+            <div>
+              <h3>Evolucion de estancias en los ultimos 12 meses</h3>
+              <p>Tendencia mensual de estancias completadas para identificar estacionalidad y ritmo de demanda.</p>
+            </div>
+          </header>
+
+          <div class="panel-empty" *ngIf="!estanciasUltimos12Meses.length">No hay historial de estancias disponible.</div>
+          <div class="chart-shell chart-shell--tall" *ngIf="estanciasUltimos12Meses.length">
+            <canvas
+              baseChart
+              [type]="estanciasMensualesChartType"
+              [data]="estanciasMensualesChartData"
+              [options]="estanciasMensualesChartOptions"
+            ></canvas>
+          </div>
         </article>
       </section>
     </div>
   </section>
-
-  <section class="dashboard__filtros">
-      <div class="dashboard__filtros-head">
-        <h2>Filtros operativos</h2>
-        <p>Selecciona criterios y presiona "Aplicar filtros".</p>
-      </div>
-
-      <div class="dashboard__chips-grid">
-        <div class="dashboard__chips-card">
-          <div class="campo">
-            <label>Tipos de evento</label>
-            <div class="tipos-evento-grupo">
-              <span class="tipos-evento-grupo__titulo">Acciones de estancia</span>
-              <div class="checks checks--chips">
-                <button
-                  type="button"
-                  class="check check--chip-toggle"
-                  *ngFor="let tipo of tiposEventoEstancia"
-                  [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
-                  (click)="toggleTipoEvento(tipo)"
-                >
-                  <span>{{ formatearEtiqueta(tipo) }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="tipos-evento-grupo">
-              <span class="tipos-evento-grupo__titulo">Acciones de reserva</span>
-              <div class="checks checks--chips">
-                <button
-                  type="button"
-                  class="check check--chip-toggle"
-                  *ngFor="let tipo of tiposEventoReserva"
-                  [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
-                  (click)="toggleTipoEvento(tipo)"
-                >
-                  <span>{{ formatearEtiqueta(tipo) }}</span>
-                </button>
-              </div>
-            </div>
-
-            <div class="tipos-evento-grupo">
-              <span class="tipos-evento-grupo__titulo">Acciones de pago</span>
-              <div class="checks checks--chips">
-                <button
-                  type="button"
-                  class="check check--chip-toggle"
-                  *ngFor="let tipo of tiposEventoPago"
-                  [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
-                  (click)="toggleTipoEvento(tipo)"
-                >
-                  <span>{{ formatearEtiqueta(tipo) }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="dashboard__chips-card">
-          <div class="campo">
-            <label>Entidades</label>
-            <div class="checks checks--chips">
-              <button
-                type="button"
-                class="check check--chip-toggle"
-                *ngFor="let entidad of entidadesDisponibles"
-                [class.check--chip-active]="estaEntidadSeleccionada(entidad)"
-                (click)="toggleEntidad(entidad)"
-              >
-                <span>{{ formatearEtiqueta(entidad) }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="dashboard__filtros-grid">
-        <div class="campo">
-          <label for="codigoReserva">Codigo reserva</label>
-          <input
-            id="codigoReserva"
-            type="text"
-            [(ngModel)]="filtros.codigoReserva"
-            name="codigoReserva"
-            placeholder="Ej: RES-50595Z"
-          />
-        </div>
-
-        <div class="campo">
-          <label for="codigoEstancia">Codigo estancia</label>
-          <input
-            id="codigoEstancia"
-            type="text"
-            [(ngModel)]="filtros.codigoEstancia"
-            name="codigoEstancia"
-            placeholder="Ej: EST-50595Z"
-          />
-        </div>
-
-        <div class="campo">
-          <label for="fechaDesde">Fecha desde</label>
-          <input
-            id="fechaDesde"
-            type="date"
-            [(ngModel)]="filtros.fechaDesde"
-            name="fechaDesde"
-          />
-        </div>
-
-        <div class="campo">
-          <label for="fechaHasta">Fecha hasta</label>
-          <input
-            id="fechaHasta"
-            type="date"
-            [(ngModel)]="filtros.fechaHasta"
-            name="fechaHasta"
-          />
-        </div>
-      </div>
-
-      <div class="dashboard__filtros-actions">
-        <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
-          Aplicar filtros
-        </button>
-        <button type="button" class="btn" (click)="limpiarFiltros()" [disabled]="cargando">Limpiar</button>
-      </div>
-
-      <p class="estado estado--error" *ngIf="error">{{ error }}</p>
-  </section>
-
-  <section class="dashboard__contenido">
-      <div class="dashboard__estado" *ngIf="cargando">Cargando eventos...</div>
-
-      <div class="tabla-wrapper" *ngIf="!cargando">
-        <table>
-          <thead>
-            <tr>
-              <th>Entidad</th>
-              <th>Tipo evento</th>
-              <th>Codigo reserva</th>
-              <th>Codigo estancia</th>
-              <th>Detalle</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let evento of eventos; trackBy: trackByEventoId">
-              <td>{{ formatearEtiqueta(evento.entidad) }}</td>
-              <td>{{ formatearEtiqueta(evento.tipoEvento) }}</td>
-              <td>
-                <div class="codigo-celda">
-                  <span>{{ evento.codigoReserva?.trim() || '-' }}</span>
-                  <button
-                    type="button"
-                    class="icon-btn"
-                    (click)="irATablaReservas(evento)"
-                    aria-label="Ver reserva asociada"
-                    title="Ver reserva"
-                    [disabled]="!(evento.codigoReserva?.trim())"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-              <td>
-                <div class="codigo-celda">
-                  <span>{{ evento.codigoEstancia?.trim() || '-' }}</span>
-                  <button
-                    type="button"
-                    class="icon-btn"
-                    (click)="irATablaEstancias(evento)"
-                    aria-label="Ver estancia asociada"
-                    title="Ver estancia"
-                    [disabled]="!(evento.codigoEstancia?.trim())"
-                  >
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </td>
-              <td class="col-detalle">
-                <button
-                  type="button"
-                  class="icon-btn"
-                  (click)="abrirModalDetalle(evento)"
-                  aria-label="Ver detalle del evento"
-                  title="Ver detalle"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </button>
-              </td>
-              <td>{{ formatearFecha(evento.fecha) }}</td>
-            </tr>
-            <tr *ngIf="!eventos.length">
-              <td colspan="6" class="tabla-vacia">No hay eventos con los filtros actuales.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <footer class="dashboard__paginador" *ngIf="!cargando">
-        <div class="dashboard__paginador-info">
-          <span>Total: {{ totalElementos }}</span>
-          <span *ngIf="totalElementos > 0">Mostrando {{ indiceInicio }}-{{ indiceFin }}</span>
-        </div>
-
-        <div class="dashboard__paginador-actions">
-          <button
-            type="button"
-            class="btn"
-            (click)="irPaginaAnterior()"
-            [disabled]="paginaActual <= 0 || cargando"
-          >
-            Anterior
-          </button>
-          <span>Pagina {{ paginaActual + 1 }} de {{ totalPaginas || 1 }}</span>
-          <button
-            type="button"
-            class="btn"
-            (click)="irPaginaSiguiente()"
-            [disabled]="totalPaginas === 0 || paginaActual >= totalPaginas - 1 || cargando"
-          >
-            Siguiente
-          </button>
-        </div>
-      </footer>
-  </section>
 </section>
-
-<div class="dashboard-modal-backdrop" *ngIf="modalAbierto" (click)="cerrarModalDetalle()">
-  <section
-    class="dashboard-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-label="Detalle del evento"
-    (click)="$event.stopPropagation()"
-  >
-    <header class="dashboard-modal__header">
-      <div>
-        <h3>Detalle del evento</h3>
-        <p *ngIf="eventoDetalleSeleccionado">
-          {{ formatearEtiqueta(eventoDetalleSeleccionado.entidad) }} |
-          {{ formatearEtiqueta(eventoDetalleSeleccionado.tipoEvento) }}
-        </p>
-      </div>
-      <button type="button" class="icon-btn icon-btn--ghost" (click)="cerrarModalDetalle()" aria-label="Cerrar">
-        ✕
-      </button>
-    </header>
-
-    <div class="dashboard-modal__body">
-      <div class="detalle-grid">
-        <article class="detalle-card" *ngFor="let campo of detalleSeleccionadoCampos">
-          <h4>{{ campo.etiqueta }}</h4>
-
-          <div class="detalle-cambio" *ngIf="campo.nuevo !== undefined || campo.anterior !== undefined; else valorUnico">
-            <div class="detalle-cambio__item">
-              <span class="detalle-cambio__label">Anterior</span>
-              <span class="detalle-cambio__value">{{ campo.anterior || '-' }}</span>
-            </div>
-            <div class="detalle-cambio__item">
-              <span class="detalle-cambio__label">Nuevo</span>
-              <span class="detalle-cambio__value">{{ campo.nuevo || '-' }}</span>
-            </div>
-          </div>
-
-          <ng-template #valorUnico>
-            <p class="detalle-valor-unico">{{ campo.valor || '-' }}</p>
-          </ng-template>
-        </article>
-      </div>
-    </div>
-
-    <footer class="dashboard-modal__footer">
-      <button type="button" class="btn" (click)="cerrarModalDetalle()">Cerrar</button>
-    </footer>
-  </section>
-</div>

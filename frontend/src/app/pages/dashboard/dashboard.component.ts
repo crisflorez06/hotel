@@ -1,43 +1,39 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { ChartConfiguration } from 'chart.js';
-import 'chart.js/auto';
+import {
+  ChartConfiguration,
+  ChartData,
+  ChartOptions,
+  TooltipItem,
+} from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { forkJoin } from 'rxjs';
 
-import {
-  CategoriaMontoDTO,
-  DashboardAlertasResponseDTO,
-  DashboardConteoUnidadDTO,
-  DashboardDistribucionFinancieraDTO,
-  DashboardGranularidad,
-  DashboardResumenDTO,
-  DashboardSerieFinancieraDTO,
-} from '../../models/dashboard.model';
-import {
-  EntidadMonitor,
-  EventoMonitorFiltros,
-  EventoMonitorItem,
-  TipoEventoMonitor,
-} from '../../models/evento-monitor.model';
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
+import {
+  DashboardDistribucionFinancieraDTO,
+  DashboardResumenDTO,
+  EstanciaMensualDTO,
+} from '../../models/dashboard.model';
 import { DetalleService } from '../../services/detalle.service';
-import { EventoService } from '../../services/evento.service';
-
-interface DetalleCampoVisual {
-  etiqueta: string;
-  valor?: string;
-  anterior?: string;
-  nuevo?: string;
-}
 
 interface DashboardFiltrosVisual {
   desde: string;
   hasta: string;
-  granularidad: DashboardGranularidad;
-  diasAlertas: number;
+}
+
+interface ReservaCanalVisual {
+  canal: string;
+  cantidad: number;
+}
+
+interface UnidadOperativaVisual {
+  nombre: string;
+  total: number;
+  ocupadas: number;
+  reservadas: number;
+  disponibles: number;
 }
 
 @Component({
@@ -48,174 +44,206 @@ interface DashboardFiltrosVisual {
   styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
-  readonly tiposEventoDisponibles: TipoEventoMonitor[] = [
-    'CREACION_RESERVA',
-    'MODIFICACION_RESERVA',
-    'ELIMINACION_RESERVA',
-    'CREACION_ESTANCIA',
-    'ACTIVACION_ESTANCIA',
-    'MODIFICACION_ESTANCIA',
-    'ELIMINACION_ESTANCIA',
-    'FINALIZACION_ESTANCIA',
-    'CREACION_PAGO',
-    'MODIFICACION_PAGO',
-    'ELIMINACION_PAGO',
-  ];
-  readonly tiposEventoEstancia: TipoEventoMonitor[] = [
-    'CREACION_ESTANCIA',
-    'ACTIVACION_ESTANCIA',
-    'MODIFICACION_ESTANCIA',
-    'ELIMINACION_ESTANCIA',
-    'FINALIZACION_ESTANCIA',
-  ];
-  readonly tiposEventoReserva: TipoEventoMonitor[] = [
-    'CREACION_RESERVA',
-    'MODIFICACION_RESERVA',
-    'ELIMINACION_RESERVA',
-  ];
-  readonly tiposEventoPago: TipoEventoMonitor[] = [
-    'CREACION_PAGO',
-    'MODIFICACION_PAGO',
-    'ELIMINACION_PAGO',
-  ];
-
-  readonly entidadesDisponibles: EntidadMonitor[] = ['ESTANCIA', 'RESERVA', 'PAGO'];
-  readonly tamanoPagina = 20;
-  readonly granularidadesDisponibles: DashboardGranularidad[] = ['DAY', 'WEEK', 'MONTH'];
-  readonly tamanoAlertas = 6;
-
   dashboardFiltros: DashboardFiltrosVisual = this.crearFiltrosDashboardIniciales();
   dashboardCargando = false;
   dashboardError = '';
   dashboardResumen: DashboardResumenDTO | null = null;
-  dashboardConteosUnidad: DashboardConteoUnidadDTO[] = [];
-  dashboardSerieFinanciera: DashboardSerieFinancieraDTO[] = [];
   dashboardDistribucion: DashboardDistribucionFinancieraDTO | null = null;
-  dashboardAlertas: DashboardAlertasResponseDTO | null = null;
 
-  readonly unidadChartType: 'bar' = 'bar';
-  readonly serieChartType: 'line' = 'line';
-  readonly distribucionChartType: 'doughnut' = 'doughnut';
+  readonly ocupacionChartType: ChartConfiguration<'pie'>['type'] = 'pie';
+  readonly ingresosTipoChartType: ChartConfiguration<'bar'>['type'] = 'bar';
+  readonly mediosPagoChartType: ChartConfiguration<'bar'>['type'] = 'bar';
+  readonly canalesChartType: ChartConfiguration<'bar'>['type'] = 'bar';
+  readonly estanciasMensualesChartType: ChartConfiguration<'line'>['type'] = 'line';
 
-  unidadChartData: ChartConfiguration<'bar'>['data'] = { labels: [], datasets: [] };
-  serieChartData: ChartConfiguration<'line'>['data'] = { labels: [], datasets: [] };
-  distribucionTipoChartData: ChartConfiguration<'doughnut'>['data'] = { labels: [], datasets: [] };
-  distribucionMedioChartData: ChartConfiguration<'doughnut'>['data'] = { labels: [], datasets: [] };
-  distribucionGastoChartData: ChartConfiguration<'doughnut'>['data'] = { labels: [], datasets: [] };
+  readonly ocupacionChartOptions: ChartOptions<'pie'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    rotation: -90,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 10,
+          boxHeight: 10,
+          usePointStyle: true,
+          color: '#5f6b61',
+          font: {
+            size: 11,
+            weight: 600,
+          },
+        },
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: TooltipItem<'pie'>) =>
+            `${context.label}: ${Number(context.raw ?? 0).toFixed(1)}%`,
+        },
+      },
+    },
+  };
 
-  unidadChartOptions: ChartConfiguration<'bar'>['options'] = {
+  readonly ingresosTipoChartOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
     scales: {
-      x: { stacked: true, grid: { display: false } },
-      y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+      x: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(95, 107, 97, 0.12)',
+        },
+        ticks: {
+          color: '#5f6b61',
+          callback: (value: string | number) => this.formatearMonedaCompacta(Number(value)),
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#1f2420',
+        },
+      },
     },
     plugins: {
-      legend: { position: 'bottom' },
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: TooltipItem<'bar'>) => this.formatearMoneda(context.parsed.x),
+        },
+      },
     },
   };
 
-  serieChartOptions: ChartConfiguration<'line'>['options'] = {
+  readonly mediosPagoChartOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
     scales: {
-      y: { beginAtZero: true, ticks: { precision: 0 } },
+      x: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(95, 107, 97, 0.12)',
+        },
+        ticks: {
+          color: '#5f6b61',
+          callback: (value: string | number) => this.formatearMonedaCompacta(Number(value)),
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#1f2420',
+        },
+      },
     },
     plugins: {
-      legend: { position: 'bottom' },
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: TooltipItem<'bar'>) => this.formatearMoneda(context.parsed.x),
+        },
+      },
     },
   };
 
-  distribucionChartOptions: ChartConfiguration<'doughnut'>['options'] = {
+  readonly canalesChartOptions: ChartOptions<'bar'> = {
+    indexAxis: 'y',
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '58%',
+    scales: {
+      x: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(95, 107, 97, 0.12)',
+        },
+        ticks: {
+          color: '#5f6b61',
+          precision: 0,
+        },
+      },
+      y: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#1f2420',
+        },
+      },
+    },
     plugins: {
-      legend: { position: 'bottom' },
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: TooltipItem<'bar'>) => `${Number(context.raw ?? 0)} reservas`,
+        },
+      },
     },
   };
 
-  filtros: EventoMonitorFiltros = this.crearFiltrosVacios();
+  readonly estanciasMensualesChartOptions: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: {
+          display: false,
+        },
+        ticks: {
+          color: '#5f6b61',
+        },
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          color: 'rgba(95, 107, 97, 0.12)',
+        },
+        ticks: {
+          color: '#5f6b61',
+          precision: 0,
+        },
+      },
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        callbacks: {
+          label: (context: TooltipItem<'line'>) => `${Number(context.raw ?? 0)} estancias`,
+        },
+      },
+    },
+    elements: {
+      line: {
+        tension: 0.36,
+        borderWidth: 2,
+      },
+      point: {
+        radius: 3,
+        hoverRadius: 4,
+      },
+    },
+  };
 
-  eventos: EventoMonitorItem[] = [];
-  cargando = false;
-  error = '';
-
-  paginaActual = 0;
-  totalPaginas = 0;
-  totalElementos = 0;
-  modalAbierto = false;
-  eventoDetalleSeleccionado: EventoMonitorItem | null = null;
-  detalleSeleccionadoCampos: DetalleCampoVisual[] = [];
-
-  constructor(
-    private readonly detalleService: DetalleService,
-    private readonly eventoService: EventoService,
-    private readonly router: Router
-  ) {}
+  constructor(private readonly detalleService: DetalleService) {}
 
   ngOnInit(): void {
     this.cargarPanelDashboard();
-    this.cargarEventos(0);
   }
 
   aplicarFiltrosPanel(): void {
     this.cargarPanelDashboard();
-  }
-
-  limpiarFiltrosPanel(): void {
-    this.dashboardFiltros = this.crearFiltrosDashboardIniciales();
-    this.cargarPanelDashboard();
-  }
-
-  aplicarFiltros(): void {
-    this.cargarEventos(0);
-  }
-
-  limpiarFiltros(): void {
-    this.filtros = this.crearFiltrosVacios();
-    this.cargarEventos(0);
-  }
-
-  irPaginaAnterior(): void {
-    if (this.paginaActual <= 0 || this.cargando) {
-      return;
-    }
-    this.cargarEventos(this.paginaActual - 1);
-  }
-
-  irPaginaSiguiente(): void {
-    if (this.paginaActual >= this.totalPaginas - 1 || this.cargando) {
-      return;
-    }
-    this.cargarEventos(this.paginaActual + 1);
-  }
-
-  toggleTipoEvento(tipo: TipoEventoMonitor): void {
-    if (this.filtros.tiposEvento.includes(tipo)) {
-      this.filtros.tiposEvento = this.filtros.tiposEvento.filter((item) => item !== tipo);
-      return;
-    }
-
-    this.filtros.tiposEvento = [...this.filtros.tiposEvento, tipo];
-  }
-
-  toggleEntidad(entidad: EntidadMonitor): void {
-    if (this.filtros.entidades.includes(entidad)) {
-      this.filtros.entidades = this.filtros.entidades.filter((item) => item !== entidad);
-      return;
-    }
-
-    this.filtros.entidades = [...this.filtros.entidades, entidad];
-  }
-
-  estaTipoEventoSeleccionado(tipo: TipoEventoMonitor): boolean {
-    return this.filtros.tiposEvento.includes(tipo);
-  }
-
-  estaEntidadSeleccionada(entidad: EntidadMonitor): boolean {
-    return this.filtros.entidades.includes(entidad);
   }
 
   formatearEtiqueta(valor: string | null | undefined): string {
@@ -227,11 +255,6 @@ export class DashboardComponent implements OnInit {
       .toLowerCase()
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (letra) => letra.toUpperCase());
-  }
-
-  formatearFecha(fecha: string): string {
-    const fechaObj = new Date(fecha);
-    return Number.isNaN(fechaObj.getTime()) ? fecha : fechaObj.toLocaleString('es-CO');
   }
 
   formatearMoneda(valor: number | null | undefined): string {
@@ -247,89 +270,257 @@ export class DashboardComponent implements OnInit {
     return new Intl.NumberFormat('es-CO').format(Number(valor ?? 0));
   }
 
-  formatearGranularidad(granularidad: DashboardGranularidad): string {
-    if (granularidad === 'DAY') {
-      return 'Diario';
-    }
-    if (granularidad === 'WEEK') {
-      return 'Semanal';
-    }
-    return 'Mensual';
-  }
-
   porcentajeOcupacion(): number {
     const porcentaje = this.dashboardResumen?.operativo.ocupacionPorcentaje ?? 0;
     return this.limitarPorcentaje(porcentaje);
   }
 
   netoFinanciero(): number {
-    return this.dashboardResumen?.financiero.neto ?? 0;
+    return this.dashboardDistribucion?.neto ?? 0;
   }
 
-  get resumenAlertasTotal(): number {
-    return this.dashboardAlertas?.resumen.totalAlertas ?? this.dashboardResumen?.alertas.totalAlertas ?? 0;
+  porcentajeReservadas(): number {
+    const porcentaje = this.dashboardResumen?.operativo.reservadasPorcentaje ?? 0;
+    return this.limitarPorcentaje(porcentaje);
   }
 
-  trackByTipoUnidad(_: number, item: DashboardConteoUnidadDTO): string {
-    return item.tipoUnidad;
+  porcentajeDisponible(): number {
+    const disponible = 100 - this.porcentajeOcupacion() - this.porcentajeReservadas();
+    return this.limitarPorcentaje(disponible);
   }
 
-  trackByPeriodo(_: number, item: DashboardSerieFinancieraDTO): string {
-    return item.periodo;
+  estadoOcupacion(): string {
+    const ocupacion = this.porcentajeOcupacion();
+    if (ocupacion >= 85) {
+      return 'Alta demanda';
+    }
+    if (ocupacion >= 60) {
+      return 'Operacion estable';
+    }
+    return 'Baja ocupacion';
   }
 
-  trackByCategoria(_: number, item: CategoriaMontoDTO): string {
-    return item.categoria;
-  }
-
-  trackByAlerta(_: number, item: { tipo: string; fechaReferencia: string; mensaje: string }): string {
-    return `${item.tipo}-${item.fechaReferencia}-${item.mensaje}`;
-  }
-
-  irATablaReservas(evento: EventoMonitorItem): void {
-    const codigoReserva = evento.codigoReserva?.trim() ?? '';
-    if (!codigoReserva) {
-      return;
+  get unidadesOperativas(): UnidadOperativaVisual[] {
+    const operativo = this.dashboardResumen?.operativo;
+    if (!operativo) {
+      return [];
     }
 
-    this.router.navigate(['/reservas'], {
-      queryParams: { codigoReserva },
-    });
+    return [
+      {
+        nombre: 'Apartamentos',
+        total: Number(operativo.apartamentosTotales ?? 0),
+        ocupadas: this.ocupadasVisuales(operativo.apartamentosTotales, operativo.apartamentosOcupados),
+        reservadas: this.reservadasVisuales(
+          operativo.apartamentosTotales,
+          operativo.apartamentosOcupados,
+          operativo.apartamentosReservados
+        ),
+        disponibles: this.disponiblesVisuales(
+          operativo.apartamentosTotales,
+          operativo.apartamentosOcupados,
+          operativo.apartamentosReservados
+        ),
+      },
+      {
+        nombre: 'Apartaestudios',
+        total: Number(operativo.apartaestudioTotales ?? 0),
+        ocupadas: this.ocupadasVisuales(operativo.apartaestudioTotales, operativo.apartaestudioOcupados),
+        reservadas: this.reservadasVisuales(
+          operativo.apartaestudioTotales,
+          operativo.apartaestudioOcupados,
+          operativo.apartaestudioReservados
+        ),
+        disponibles: this.disponiblesVisuales(
+          operativo.apartaestudioTotales,
+          operativo.apartaestudioOcupados,
+          operativo.apartaestudioReservados
+        ),
+      },
+      {
+        nombre: 'Habitaciones',
+        total: Number(operativo.habitacionesTotales ?? 0),
+        ocupadas: this.ocupadasVisuales(operativo.habitacionesTotales, operativo.habitacionesOcupadas),
+        reservadas: this.reservadasVisuales(
+          operativo.habitacionesTotales,
+          operativo.habitacionesOcupadas,
+          operativo.habitacionesReservadas
+        ),
+        disponibles: this.disponiblesVisuales(
+          operativo.habitacionesTotales,
+          operativo.habitacionesOcupadas,
+          operativo.habitacionesReservadas
+        ),
+      },
+    ];
   }
 
-  irATablaEstancias(evento: EventoMonitorItem): void {
-    const codigoEstancia = evento.codigoEstancia?.trim() ?? '';
-    if (!codigoEstancia) {
-      return;
+  get ocupacionChartData(): ChartData<'pie'> {
+    const ocupacion = this.porcentajeOcupacion();
+    const reservadas = this.porcentajeReservadas();
+    const disponible = this.porcentajeDisponible();
+
+    return {
+      labels: ['Ocupadas', 'Reservadas', 'Disponibles'],
+      datasets: [
+        {
+          data: [ocupacion, reservadas, disponible],
+          backgroundColor: ['#0f766e', '#2563eb', '#cbd5e1'],
+          hoverBackgroundColor: ['#0b5b54', '#1d4ed8', '#b8c4d3'],
+          borderColor: ['#ffffff', '#ffffff', '#ffffff'],
+          borderWidth: 2,
+        },
+      ],
+    };
+  }
+
+  get ingresosTipoChartData(): ChartData<'bar'> {
+    const items = [...(this.dashboardDistribucion?.ingresosPorTipoPago ?? [])].sort(
+      (a, b) => Number(b.monto ?? 0) - Number(a.monto ?? 0)
+    );
+
+    return {
+      labels: items.map((item) => this.formatearEtiqueta(item.categoria)),
+      datasets: [
+        {
+          label: 'Monto',
+          data: items.map((item) => Number(item.monto ?? 0)),
+          backgroundColor: ['#0f766e', '#14b8a6', '#1d4ed8', '#0ea5e9', '#16a34a', '#22c55e'],
+          borderRadius: 8,
+          borderSkipped: false,
+          maxBarThickness: 30,
+          categoryPercentage: 0.66,
+          barPercentage: 0.9,
+        },
+      ],
+    };
+  }
+
+  get mediosPagoChartData(): ChartData<'bar'> {
+    const items = [...(this.dashboardDistribucion?.ingresosPorMedioPago ?? [])].sort(
+      (a, b) => Number(b.monto ?? 0) - Number(a.monto ?? 0)
+    );
+
+    return {
+      labels: items.map((item) => this.formatearEtiqueta(item.categoria)),
+      datasets: [
+        {
+          label: 'Monto',
+          data: items.map((item) => Number(item.monto ?? 0)),
+          backgroundColor: ['#1d4ed8', '#0f766e', '#0ea5e9', '#14b8a6', '#22c55e', '#84cc16'],
+          borderRadius: 8,
+          borderSkipped: false,
+          maxBarThickness: 20,
+          categoryPercentage: 0.74,
+          barPercentage: 0.84,
+        },
+      ],
+    };
+  }
+
+  get canalesChartData(): ChartData<'bar'> {
+    const canales = this.reservasPorCanalVisual;
+
+    return {
+      labels: canales.map((canal) => this.formatearEtiqueta(canal.canal)),
+      datasets: [
+        {
+          label: 'Reservas',
+          data: canales.map((canal) => canal.cantidad),
+          backgroundColor: 'rgba(15, 118, 110, 0.78)',
+          borderRadius: 8,
+          borderSkipped: false,
+          maxBarThickness: 18,
+        },
+      ],
+    };
+  }
+
+  get estanciasUltimos12Meses(): EstanciaMensualDTO[] {
+    return this.dashboardResumen?.operativo.estanciasUltimos12Meses ?? [];
+  }
+
+  get estanciasMensualesChartData(): ChartData<'line'> {
+    const estancias = this.estanciasUltimos12Meses;
+
+    return {
+      labels: estancias.map((item) => item.periodo),
+      datasets: [
+        {
+          label: 'Estancias',
+          data: estancias.map((item) => Number(item.cantidad ?? 0)),
+          borderColor: '#2563eb',
+          backgroundColor: 'rgba(37, 99, 235, 0.18)',
+          fill: true,
+          pointBackgroundColor: '#1d4ed8',
+        },
+      ],
+    };
+  }
+
+  get reservasPorCanalVisual(): ReservaCanalVisual[] {
+    const reservasPorCanal = this.dashboardResumen?.operativo.reservasPorCanal ?? {};
+
+    return Object.entries(reservasPorCanal)
+      .map(([canal, cantidad]) => ({
+        canal,
+        cantidad: Number(cantidad ?? 0),
+      }))
+      .sort((a, b) => b.cantidad - a.cantidad);
+  }
+
+  porcentajeSobreTotal(valor: number | null | undefined, total: number | null | undefined): number {
+    const totalNormalizado = Number(total ?? 0);
+    if (totalNormalizado <= 0) {
+      return 0;
     }
 
-    this.router.navigate(['/estancias'], {
-      queryParams: { codigoEstancia },
-    });
+    const valorNormalizado = Number(valor ?? 0);
+    return this.limitarPorcentaje((valorNormalizado / totalNormalizado) * 100);
   }
 
-  abrirModalDetalle(evento: EventoMonitorItem): void {
-    this.eventoDetalleSeleccionado = evento;
-    this.detalleSeleccionadoCampos = this.construirCamposDetalle(evento.detalle);
-    this.modalAbierto = true;
+  ocupadasVisuales(total: number | null | undefined, ocupadas: number | null | undefined): number {
+    const totalNormalizado = Math.max(0, Number(total ?? 0));
+    if (!totalNormalizado) {
+      return 0;
+    }
+
+    const ocupadasNormalizado = Math.max(0, Number(ocupadas ?? 0));
+    return Math.min(ocupadasNormalizado, totalNormalizado);
   }
 
-  cerrarModalDetalle(): void {
-    this.modalAbierto = false;
-    this.eventoDetalleSeleccionado = null;
-    this.detalleSeleccionadoCampos = [];
+  reservadasVisuales(
+    total: number | null | undefined,
+    ocupadas: number | null | undefined,
+    reservadas: number | null | undefined
+  ): number {
+    const totalNormalizado = Math.max(0, Number(total ?? 0));
+    if (!totalNormalizado) {
+      return 0;
+    }
+
+    const ocupadasAjustadas = this.ocupadasVisuales(totalNormalizado, ocupadas);
+    const reservadasNormalizado = Math.max(0, Number(reservadas ?? 0));
+    return Math.min(reservadasNormalizado, Math.max(totalNormalizado - ocupadasAjustadas, 0));
   }
 
-  trackByEventoId(_: number, evento: EventoMonitorItem): number {
-    return evento.id;
+  disponiblesVisuales(
+    total: number | null | undefined,
+    ocupadas: number | null | undefined,
+    reservadas: number | null | undefined
+  ): number {
+    const totalNormalizado = Math.max(0, Number(total ?? 0));
+    if (!totalNormalizado) {
+      return 0;
+    }
+
+    const ocupadasAjustadas = this.ocupadasVisuales(totalNormalizado, ocupadas);
+    const reservadasAjustadas = this.reservadasVisuales(totalNormalizado, ocupadasAjustadas, reservadas);
+    return Math.max(totalNormalizado - ocupadasAjustadas - reservadasAjustadas, 0);
   }
 
-  get indiceInicio(): number {
-    return this.totalElementos === 0 ? 0 : this.paginaActual * this.tamanoPagina + 1;
-  }
-
-  get indiceFin(): number {
-    return Math.min((this.paginaActual + 1) * this.tamanoPagina, this.totalElementos);
+  trackByUnidad(_: number, item: UnidadOperativaVisual): string {
+    return item.nombre;
   }
 
   private cargarPanelDashboard(): void {
@@ -338,31 +529,19 @@ export class DashboardComponent implements OnInit {
 
     const desde = this.formatearFechaInicioDia(this.dashboardFiltros.desde);
     const hasta = this.formatearFechaFinDia(this.dashboardFiltros.hasta);
-    const diasAlertas = this.normalizarDiasAlertas(this.dashboardFiltros.diasAlertas);
 
     forkJoin({
-      resumen: this.detalleService.obtenerDashboardResumen(desde, hasta),
-      conteosUnidad: this.detalleService.obtenerDashboardConteosUnidad(),
-      serie: this.detalleService.obtenerDashboardSerieFinanciera(desde, hasta, this.dashboardFiltros.granularidad),
+      resumen: this.detalleService.obtenerDashboardResumen(),
       distribucion: this.detalleService.obtenerDashboardDistribucionFinanciera(desde, hasta),
-      alertas: this.detalleService.obtenerDashboardAlertas(diasAlertas, 0, this.tamanoAlertas),
     }).subscribe({
       next: (response) => {
         this.dashboardResumen = response.resumen;
-        this.dashboardConteosUnidad = response.conteosUnidad ?? [];
-        this.dashboardSerieFinanciera = response.serie ?? [];
         this.dashboardDistribucion = response.distribucion;
-        this.dashboardAlertas = response.alertas;
-        this.actualizarGraficosDashboard();
         this.dashboardCargando = false;
       },
       error: (errorResponse: unknown) => {
         this.dashboardResumen = null;
-        this.dashboardConteosUnidad = [];
-        this.dashboardSerieFinanciera = [];
         this.dashboardDistribucion = null;
-        this.dashboardAlertas = null;
-        this.actualizarGraficosDashboard();
         this.dashboardError = extractBackendErrorMessage(
           errorResponse,
           'No fue posible cargar los indicadores del dashboard.'
@@ -372,175 +551,10 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  private actualizarGraficosDashboard(): void {
-    this.unidadChartData = {
-      labels: this.dashboardConteosUnidad.map((item) => this.formatearEtiqueta(item.tipoUnidad)),
-      datasets: [
-        {
-          label: 'Disponible',
-          data: this.dashboardConteosUnidad.map((item) => item.disponible),
-          backgroundColor: '#15803d',
-          borderRadius: 6,
-          stack: 'estado',
-        },
-        {
-          label: 'Parcial',
-          data: this.dashboardConteosUnidad.map((item) => item.parcialmente),
-          backgroundColor: '#d97706',
-          borderRadius: 6,
-          stack: 'estado',
-        },
-        {
-          label: 'Ocupado',
-          data: this.dashboardConteosUnidad.map((item) => item.ocupado),
-          backgroundColor: '#b91c1c',
-          borderRadius: 6,
-          stack: 'estado',
-        },
-      ],
-    };
-
-    this.serieChartData = {
-      labels: this.dashboardSerieFinanciera.map((item) => item.periodo),
-      datasets: [
-        {
-          type: 'line',
-          label: 'Ingresos',
-          data: this.dashboardSerieFinanciera.map((item) => item.ingresos),
-          borderColor: '#0f766e',
-          backgroundColor: 'rgba(15, 118, 110, 0.2)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 2,
-        },
-        {
-          type: 'line',
-          label: 'Gastos',
-          data: this.dashboardSerieFinanciera.map((item) => item.gastos),
-          borderColor: '#d97706',
-          backgroundColor: 'rgba(217, 119, 6, 0.14)',
-          fill: true,
-          tension: 0.3,
-          pointRadius: 2,
-        },
-        {
-          type: 'line',
-          label: 'Neto',
-          data: this.dashboardSerieFinanciera.map((item) => item.neto),
-          borderColor: '#2563eb',
-          backgroundColor: 'rgba(37, 99, 235, 0.12)',
-          fill: false,
-          tension: 0.3,
-          pointRadius: 2,
-        },
-      ],
-    };
-
-    this.distribucionTipoChartData = this.crearDataDoughnut(
-      this.dashboardDistribucion?.ingresosPorTipoPago ?? [],
-      ['#0f766e', '#0891b2', '#2563eb', '#14b8a6', '#06b6d4']
-    );
-
-    this.distribucionMedioChartData = this.crearDataDoughnut(
-      this.dashboardDistribucion?.ingresosPorMedioPago ?? [],
-      ['#1d4ed8', '#2563eb', '#0ea5e9', '#0284c7', '#38bdf8']
-    );
-
-    this.distribucionGastoChartData = this.crearDataDoughnut(
-      this.dashboardDistribucion?.gastosPorConcepto ?? [],
-      ['#d97706', '#f59e0b', '#ea580c', '#b45309', '#fb923c']
-    );
-  }
-
-  private crearDataDoughnut(categorias: CategoriaMontoDTO[], colores: string[]): ChartConfiguration<'doughnut'>['data'] {
-    return {
-      labels: categorias.map((item) => this.formatearEtiqueta(item.categoria)),
-      datasets: [
-        {
-          data: categorias.map((item) => Number(item.monto ?? 0)),
-          backgroundColor: categorias.map((_, index) => colores[index % colores.length]),
-          borderWidth: 1,
-          borderColor: '#f8fafc',
-        },
-      ],
-    };
-  }
-
-  private cargarEventos(pagina: number): void {
-    this.cargando = true;
-    this.error = '';
-    const filtrosConsulta = this.construirFiltrosConsulta();
-
-    this.eventoService.obtenerEventos(filtrosConsulta, pagina, this.tamanoPagina).subscribe({
-      next: (response) => {
-        this.eventos = response.content;
-        this.paginaActual = response.number;
-        this.totalPaginas = response.totalPages;
-        this.totalElementos = response.totalElements;
-        this.cargando = false;
-      },
-      error: (errorResponse: unknown) => {
-        this.eventos = [];
-        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los eventos.');
-        this.cargando = false;
-      },
-    });
-  }
-
-  private crearFiltrosVacios(): EventoMonitorFiltros {
-    return {
-      tiposEvento: [],
-      entidades: [],
-      codigoReserva: '',
-      codigoEstancia: '',
-      fechaDesde: '',
-      fechaHasta: '',
-    };
-  }
-
   private crearFiltrosDashboardIniciales(): DashboardFiltrosVisual {
-    const hoy = new Date();
-    const desde = new Date(hoy);
-    desde.setDate(hoy.getDate() - 29);
-
     return {
-      desde: this.formatearFechaSoloDia(desde),
-      hasta: this.formatearFechaSoloDia(hoy),
-      granularidad: 'DAY',
-      diasAlertas: 7,
-    };
-  }
-
-  private formatearFechaSoloDia(fecha: Date): string {
-    const year = fecha.getFullYear();
-    const month = String(fecha.getMonth() + 1).padStart(2, '0');
-    const day = String(fecha.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  private normalizarDiasAlertas(valor: number): number {
-    const numero = Number(valor);
-    if (!Number.isFinite(numero) || numero < 1) {
-      this.dashboardFiltros.diasAlertas = 7;
-      return 7;
-    }
-
-    const redondeado = Math.floor(numero);
-    this.dashboardFiltros.diasAlertas = redondeado;
-    return redondeado;
-  }
-
-  private limitarPorcentaje(valor: number): number {
-    return Math.min(100, Math.max(0, Number.isFinite(valor) ? valor : 0));
-  }
-
-  private construirFiltrosConsulta(): EventoMonitorFiltros {
-    return {
-      ...this.filtros,
-      codigoReserva: this.filtros.codigoReserva?.trim() ?? '',
-      codigoEstancia: this.filtros.codigoEstancia?.trim() ?? '',
-      fechaDesde: this.formatearFechaInicioDia(this.filtros.fechaDesde),
-      fechaHasta: this.formatearFechaFinDia(this.filtros.fechaHasta),
+      desde: '',
+      hasta: '',
     };
   }
 
@@ -562,178 +576,19 @@ export class DashboardComponent implements OnInit {
     return `${fechaTrimmed}T23:59:59`;
   }
 
-  private parsearDetalle(detalle: unknown): Record<string, unknown> | null {
-    if (!detalle) {
-      return null;
-    }
-
-    if (typeof detalle === 'object' && !Array.isArray(detalle)) {
-      return detalle as Record<string, unknown>;
-    }
-
-    if (typeof detalle !== 'string') {
-      return null;
-    }
-
-    const detalleTrimmed = detalle.trim();
-    if (!detalleTrimmed) {
-      return null;
-    }
-
-    try {
-      const parsed = JSON.parse(detalleTrimmed) as unknown;
-      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-        return null;
-      }
-
-      return parsed as Record<string, unknown>;
-    } catch {
-      return null;
-    }
+  private limitarPorcentaje(valor: number): number {
+    return Math.min(100, Math.max(0, Number.isFinite(valor) ? valor : 0));
   }
 
-  private formatearValorDetalle(valor: unknown): string {
-    if (valor === null || valor === undefined) {
-      return '-';
+  private formatearMonedaCompacta(valor: number): string {
+    const abs = Math.abs(valor);
+    if (abs >= 1_000_000) {
+      return `$${(valor / 1_000_000).toFixed(1)}M`;
     }
-
-    if (typeof valor === 'string') {
-      return this.formatearFechaDetalleSiAplica(valor);
+    if (abs >= 1_000) {
+      return `$${(valor / 1_000).toFixed(0)}K`;
     }
-
-    if (typeof valor === 'number' || typeof valor === 'boolean') {
-      return String(valor);
-    }
-
-    try {
-      return JSON.stringify(valor);
-    } catch {
-      return String(valor);
-    }
+    return `$${Math.round(valor)}`;
   }
 
-  private formatearFechaDetalleSiAplica(valor: string): string {
-    const valorTrimmed = valor.trim();
-    if (!valorTrimmed) {
-      return '-';
-    }
-
-    const isoDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+\-]\d{2}:\d{2})?$/;
-    if (!isoDateTimePattern.test(valorTrimmed)) {
-      return valorTrimmed;
-    }
-
-    const parsed = new Date(valorTrimmed);
-    if (Number.isNaN(parsed.getTime())) {
-      return valorTrimmed;
-    }
-
-    return parsed.toLocaleString('es-CO');
-  }
-
-  private construirCamposDetalle(detalle: unknown): DetalleCampoVisual[] {
-    const detalleJson = this.parsearDetalle(detalle);
-    if (detalleJson) {
-      return this.mapearObjetoACampos(detalleJson);
-    }
-
-    if (typeof detalle !== 'string') {
-      return [{ etiqueta: 'Detalle', valor: '-' }];
-    }
-
-    const detalleTrimmed = detalle.trim();
-    if (!detalleTrimmed) {
-      return [{ etiqueta: 'Detalle', valor: '-' }];
-    }
-
-    const segmentos = detalleTrimmed
-      .split('|')
-      .map((segmento) => segmento.trim())
-      .filter((segmento) => !!segmento);
-
-    if (!segmentos.length) {
-      return [{ etiqueta: 'Detalle', valor: detalleTrimmed }];
-    }
-
-    const campos = segmentos.map((segmento) => {
-      const indexSeparador = segmento.indexOf(':');
-      if (indexSeparador < 0) {
-        return {
-          etiqueta: 'Detalle',
-          valor: segmento,
-        };
-      }
-
-      const etiqueta = segmento.slice(0, indexSeparador).trim();
-      const valorRaw = segmento.slice(indexSeparador + 1).trim();
-      const cambio = this.parsearCambioDesdeValorRaw(valorRaw);
-
-      if (cambio) {
-        return {
-          etiqueta: this.formatearEtiqueta(etiqueta),
-          anterior: cambio.anterior,
-          nuevo: cambio.nuevo,
-        };
-      }
-
-      return {
-        etiqueta: this.formatearEtiqueta(etiqueta),
-        valor: valorRaw || '-',
-      };
-    });
-
-    return campos.length ? campos : [{ etiqueta: 'Detalle', valor: detalleTrimmed }];
-  }
-
-  private mapearObjetoACampos(objeto: Record<string, unknown>): DetalleCampoVisual[] {
-    return Object.entries(objeto).map(([clave, valor]) => {
-      const cambio = this.parsearCambioDesdeValorRaw(valor);
-
-      if (cambio) {
-        return {
-          etiqueta: this.formatearEtiqueta(clave),
-          anterior: cambio.anterior,
-          nuevo: cambio.nuevo,
-        };
-      }
-
-      return {
-        etiqueta: this.formatearEtiqueta(clave),
-        valor: this.formatearValorDetalle(valor),
-      };
-    });
-  }
-
-  private parsearCambioDesdeValorRaw(valor: unknown): { anterior: string; nuevo: string } | null {
-    let valorObj: unknown = valor;
-
-    if (typeof valor === 'string') {
-      const valorTrimmed = valor.trim();
-      if (!valorTrimmed) {
-        return null;
-      }
-
-      if (valorTrimmed.startsWith('{') && valorTrimmed.endsWith('}')) {
-        try {
-          valorObj = JSON.parse(valorTrimmed) as unknown;
-        } catch {
-          valorObj = valor;
-        }
-      }
-    }
-
-    if (!valorObj || typeof valorObj !== 'object' || Array.isArray(valorObj)) {
-      return null;
-    }
-
-    const obj = valorObj as Record<string, unknown>;
-    if (!('nuevo' in obj) && !('anterior' in obj)) {
-      return null;
-    }
-
-    return {
-      anterior: this.formatearValorDetalle(obj['anterior']),
-      nuevo: this.formatearValorDetalle(obj['nuevo']),
-    };
-  }
 }

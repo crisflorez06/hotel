@@ -57,6 +57,10 @@ public class AuditoriaEvento {
     }
 
     private void validarCodigos() {
+        if (entidad == TipoEntidad.TARIFA_BASE || entidad == TipoEntidad.AJUSTE_TEMPORADA) {
+            return;
+        }
+
         boolean sinCodigoEstancia = codigoEstancia == null || codigoEstancia.isBlank();
         boolean sinCodigoReserva = codigoReserva == null || codigoReserva.isBlank();
         if (sinCodigoEstancia && sinCodigoReserva) {

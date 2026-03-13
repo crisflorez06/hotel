@@ -115,19 +115,19 @@ main {
   align-items: center;
   justify-content: space-between;
   padding: 0.9rem 1.5rem;
-  background: linear-gradient(135deg, #ffffff 0%, #fbf6ee 45%, #f6ecdd 100%);
-  color: #3b2c1d;
-  border-bottom: 1px solid #e7dccb;
-  box-shadow: 0 12px 26px rgba(60, 45, 30, 0.08);
+  background: linear-gradient(135deg, #ffffff 0%, #f5f9f7 45%, #edf5f1 100%);
+  color: #1f2420;
+  border-bottom: 1px solid #dbe6e0;
+  box-shadow: 0 10px 22px rgba(27, 42, 35, 0.08);
 }
 
 .app-header__brand {
   font-weight: 700;
-  font-family: 'Fraunces', serif;
+  font-family: inherit;
   font-size: 18px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #2d2217;
+  color: #1f2420;
 }
 
 .app-header__nav {
@@ -135,8 +135,8 @@ main {
   gap: 0.75rem;
   padding: 4px;
   border-radius: 999px;
-  background: #fbf4e8;
-  border: 1px solid #eadfce;
+  background: #f2f8f5;
+  border: 1px solid #d3e1da;
 }
 
 .app-header__nav a {
@@ -152,16 +152,16 @@ main {
 }
 
 .app-header__nav a:hover {
-  background: #f2e6d3;
-  border-color: #e1d1bd;
-  box-shadow: 0 6px 12px rgba(60, 45, 30, 0.12);
+  background: #e7f2ed;
+  border-color: #bfd3c8;
+  box-shadow: 0 6px 12px rgba(27, 42, 35, 0.12);
 }
 
 .app-header__nav a.is-active {
-  background: #4b3a20;
+  background: #0f766e;
   color: #ffffff;
-  border-color: #4b3a20;
-  box-shadow: 0 10px 18px rgba(75, 58, 32, 0.24);
+  border-color: #0f766e;
+  box-shadow: 0 10px 18px rgba(15, 118, 110, 0.24);
 }
 
 @media (max-width: 720px) {

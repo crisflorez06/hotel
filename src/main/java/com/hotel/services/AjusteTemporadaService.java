@@ -1,8 +1,11 @@
 package com.hotel.services;
 
 import com.hotel.models.AjusteTemporada;
+import com.hotel.models.enums.TipoEntidad;
+import com.hotel.models.enums.TipoEvento;
 import com.hotel.models.enums.Temporada;
 import com.hotel.repositories.AjusteTemporadaRepository;
+import com.hotel.utils.EventoModificadoJsonBuilder;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,13 +14,19 @@ import org.springframework.transaction.annotation.Transactional;
 public class AjusteTemporadaService {
 
     private final AjusteTemporadaRepository ajusteTemporadaRepository;
+    private final AuditoriaEventoService auditoriaEventoService;
 
-    public AjusteTemporadaService(AjusteTemporadaRepository ajusteTemporadaRepository) {
+    public AjusteTemporadaService(
+            AjusteTemporadaRepository ajusteTemporadaRepository,
+            AuditoriaEventoService auditoriaEventoService) {
         this.ajusteTemporadaRepository = ajusteTemporadaRepository;
+        this.auditoriaEventoService = auditoriaEventoService;
     }
 
     @Transactional
     public void cambiarTemporadaActiva(Temporada temporada) {
+        Temporada temporadaActivaAnterior = obtenerTemporadaActiva();
+
         AjusteTemporada seleccionada = findOrCreate(temporada);
         Temporada otraTemporada = temporada == Temporada.ALTA ? Temporada.BAJA : Temporada.ALTA;
         AjusteTemporada otra = findOrCreate(otraTemporada);
@@ -26,6 +35,20 @@ public class AjusteTemporadaService {
         otra.setActivo(false);
 
         ajusteTemporadaRepository.saveAll(List.of(seleccionada, otra));
+
+        if (temporadaActivaAnterior != temporada) {
+            String detalle = new EventoModificadoJsonBuilder()
+                    .agregarCambio("temporadaActiva", temporadaActivaAnterior, temporada)
+                    .build();
+
+            auditoriaEventoService.crearEvento(
+                    TipoEvento.MODIFICACION_TEMPORADA_ACTIVA,
+                    TipoEntidad.AJUSTE_TEMPORADA,
+                    seleccionada.getId(),
+                    detalle,
+                    null,
+                    null);
+        }
     }
 
     public Temporada obtenerTemporadaActiva() {

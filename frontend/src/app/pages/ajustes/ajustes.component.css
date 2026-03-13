@@ -112,6 +112,49 @@
   text-transform: capitalize;
 }
 
+.ajustes__temporada-inline {
+  display: grid;
+  grid-template-columns: minmax(210px, 1fr) minmax(260px, 1.25fr) auto;
+  align-items: end;
+  gap: 0.7rem;
+}
+
+.ajustes__temporada-select {
+  width: 100%;
+}
+
+.ajustes__temporada-btn {
+  white-space: nowrap;
+}
+
+.ajustes__estado--inline {
+  min-height: 46px;
+}
+
+.ajustes__temporada-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #d8c9b8;
+  background: #fff8ed;
+  color: #7a6344;
+}
+
+.ajustes__temporada-icon--alta {
+  background: #fff1cc;
+  border-color: #f1d48a;
+  color: #b76a10;
+}
+
+.ajustes__temporada-icon--baja {
+  background: #e4f0ff;
+  border-color: #bfd8ff;
+  color: #1f5ca8;
+}
+
 .ajustes__cargando {
   font-weight: 500;
   color: #475569;
@@ -337,6 +380,12 @@ button[type='submit']:disabled {
   cursor: not-allowed;
 }
 
+@media (min-width: 641px) and (max-width: 1080px) {
+  .tarifas-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 640px) {
   .ajustes {
     padding: 1rem;
@@ -344,6 +393,11 @@ button[type='submit']:disabled {
 
   .ajustes__form {
     padding: 1.2rem;
+  }
+
+  .ajustes__temporada-inline {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   .tarifa-grid {
@@ -356,11 +410,5 @@ button[type='submit']:disabled {
 
   .tarifa-card__datos {
     grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 1080px) {
-  .tarifas-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

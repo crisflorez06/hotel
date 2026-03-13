@@ -104,5 +104,19 @@ public interface EstanciaRepository extends JpaRepository<Estancia, Long>, JpaSp
             @Param("estado") EstadoEstancia estado,
             @Param("momento") LocalDateTime momento);
 
+    @Query("""
+           select function('year', e.entradaReal), function('month', e.entradaReal), count(e)
+           from Estancia e
+           where e.estado in :estados
+             and e.entradaReal is not null
+             and e.entradaReal between :desde and :hasta
+           group by function('year', e.entradaReal), function('month', e.entradaReal)
+           order by function('year', e.entradaReal), function('month', e.entradaReal)
+           """)
+    List<Object[]> contarEstanciasPorMesSegunEntradaRealYEstados(
+            @Param("estados") List<EstadoEstancia> estados,
+            @Param("desde") LocalDateTime desde,
+            @Param("hasta") LocalDateTime hasta);
+
 
 }
