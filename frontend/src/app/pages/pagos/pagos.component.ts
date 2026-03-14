@@ -83,6 +83,7 @@ export class PagosComponent implements OnInit, OnDestroy {
   };
   private readonly destroy$ = new Subject<void>();
   private readonly recargaTabla$ = new Subject<void>();
+  private idPagoFiltro: number | null = null;
 
   constructor(
     private readonly pagoService: PagoService,
@@ -94,9 +95,14 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.inicializarCargaTabla();
 
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const idPago = this.parsearIdFiltro(params.get('idPago'));
       const codigoReserva = (params.get('codigoReserva') ?? '').trim();
       const codigoEstancia = (params.get('codigoEstancia') ?? '').trim();
       const tipoPago = this.parsearTipoPago(params.get('tipoPago'));
+
+      if (idPago !== this.idPagoFiltro) {
+        this.idPagoFiltro = idPago;
+      }
 
       if (codigoReserva !== this.filtroCodigoReserva) {
         this.filtroCodigoReserva = codigoReserva;
@@ -718,6 +724,7 @@ export class PagosComponent implements OnInit, OnDestroy {
         size: this.tamanoPagina,
         sort: ['fecha,desc'],
       },
+      idPago: this.idPagoFiltro ?? undefined,
       estados: this.filtroEstados.length ? this.filtroEstados : undefined,
       mediosPago: this.filtroMediosPago.length ? this.filtroMediosPago : undefined,
       tipoPago: this.filtroTipoPago || undefined,
@@ -747,5 +754,13 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.totalElementos = 0;
     this.totalPaginas = 0;
     this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los pagos.');
+  }
+
+  private parsearIdFiltro(value: string | null): number | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 }

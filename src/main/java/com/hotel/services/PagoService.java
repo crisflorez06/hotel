@@ -172,6 +172,7 @@ public class PagoService {
 
     @Transactional(readOnly = true)
     public Page<PagoDTO> buscarPagos(
+            Long idPago,
             List<EstadoPago> estados,
             List<MedioPago> mediosPago,
             TipoPago tipoPago,
@@ -183,7 +184,7 @@ public class PagoService {
         logger.info("[buscarPagos] Buscando pagos con filtros aplicados");
 
         Page<Pago> pagos = pagoRepository.findAll(
-                PagoSpecification.byFilters(estados, mediosPago, tipoPago, codigoEstancia, codigoReserva, fechaDesde, fechaHasta),
+                PagoSpecification.byFilters(idPago, estados, mediosPago, tipoPago, codigoEstancia, codigoReserva, fechaDesde, fechaHasta),
                 pageable
         );
 

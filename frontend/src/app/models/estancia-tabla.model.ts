@@ -23,6 +23,7 @@ export interface EstanciaTablaItem {
 }
 
 export interface EstanciaTablaFiltros {
+  idEstancia?: number;
   estados: EstadoEstancia[];
   modoOcupacion: ModoOcupacion | '';
   tipoUnidad: TipoUnidad | '';

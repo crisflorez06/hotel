@@ -354,6 +354,7 @@ public class EstanciaService {
     }
 
     public Page<EstanciaTablaDTO> buscarEstanciasTabla(
+            Long idEstancia,
             List<EstadoEstancia> estados,
             TipoUnidad tipoUnidad,
             ModoOcupacion modoOcupacion,
@@ -382,6 +383,7 @@ public class EstanciaService {
 
         Page<Estancia> estancias = estanciaRepository.findAll(
                 EstanciaSpecification.byTablaFilters(
+                        idEstancia,
                         estados,
                         tipoUnidad,
                         modoOcupacion,

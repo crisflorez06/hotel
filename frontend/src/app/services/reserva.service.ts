@@ -120,6 +120,9 @@ export class ReservaService {
 
     params = this.setParamIfValue(params, 'modoOcupacion', filtros.modoOcupacion);
     params = this.setParamIfValue(params, 'tipoUnidad', filtros.tipoUnidad);
+    if (typeof filtros.idReserva === 'number') {
+      params = params.set('idReserva', `${filtros.idReserva}`);
+    }
     params = this.setParamIfValue(params, 'codigoReserva', filtros.codigoReserva);
     params = this.setParamIfValue(params, 'codigoUnidad', filtros.codigoUnidad);
     params = this.setParamIfValue(params, 'nombreCliente', filtros.nombreCliente);

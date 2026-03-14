@@ -101,6 +101,7 @@ public class EstanciaSpecification {
     }
 
     public static Specification<Estancia> byTablaFilters(
+            Long idEstancia,
             List<EstadoEstancia> estados,
             TipoUnidad tipoUnidad,
             ModoOcupacion modoOcupacion,
@@ -122,6 +123,10 @@ public class EstanciaSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             query.distinct(true);
+
+            if (idEstancia != null) {
+                return criteriaBuilder.equal(root.get("id"), idEstancia);
+            }
 
             if (estados != null && !estados.isEmpty()) {
                 predicates.add(root.get("estado").in(estados));

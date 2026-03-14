@@ -283,6 +283,7 @@ public class ReservaService {
     }
 
     public Page<ReservaTablaDTO> buscarReservasTabla(
+            Long idReserva,
             List<EstadoReserva> estados,
             List<CanalReserva> canales,
             ModoOcupacion modoOcupacion,
@@ -312,6 +313,7 @@ public class ReservaService {
 
         Page<Reserva> reservas = reservaRepository.findAll(
                 ReservaSpecification.byTablaFilters(
+                        idReserva,
                         estados,
                         canales,
                         modoOcupacion,

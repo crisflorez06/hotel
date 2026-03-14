@@ -60,6 +60,7 @@ public class ReservaSpecification {
     }
 
     public static Specification<Reserva> byTablaFilters(
+            Long idReserva,
             List<EstadoReserva> estados,
             List<CanalReserva> canales,
             ModoOcupacion modoOcupacion,
@@ -82,6 +83,10 @@ public class ReservaSpecification {
             List<Predicate> predicates = new ArrayList<>();
 
             query.distinct(true);
+
+            if (idReserva != null) {
+                return criteriaBuilder.equal(root.get("id"), idReserva);
+            }
 
             if (estados != null && !estados.isEmpty()) {
                 predicates.add(root.get("estado").in(estados));

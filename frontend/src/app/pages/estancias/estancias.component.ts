@@ -70,6 +70,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
   private readonly recargaTabla$ = new Subject<void>();
+  private idEstanciaFiltro: number | null = null;
 
   constructor(
     private readonly estanciaService: EstanciaService,
@@ -81,8 +82,12 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     this.inicializarCargaTabla();
 
     this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe((params) => {
+      const idEstancia = this.parsearIdFiltro(params.get('idEstancia'));
       const codigoEstancia = (params.get('codigoEstancia') ?? '').trim();
       const codigoUnidad = (params.get('codigoUnidad') ?? '').trim();
+      if (idEstancia !== this.idEstanciaFiltro) {
+        this.idEstanciaFiltro = idEstancia;
+      }
       if (codigoEstancia !== this.filtros.codigoEstancia) {
         this.filtros.codigoEstancia = codigoEstancia;
       }
@@ -621,6 +626,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   private construirFiltrosNormalizados(): EstanciaTablaFiltros {
     return {
       ...this.filtros,
+      idEstancia: this.idEstanciaFiltro ?? undefined,
       rangoGeneralDesde: this.normalizarRangoGeneralDesde(this.filtros.rangoGeneralDesde),
       rangoGeneralHasta: this.normalizarRangoGeneralHasta(this.filtros.rangoGeneralHasta),
       entradaDesde: this.normalizarFechaHoraDesde(this.filtros.entradaDesde),
@@ -845,5 +851,13 @@ export class EstanciasComponent implements OnInit, OnDestroy {
     }
 
     return this.estancias.find((estancia) => estancia.id === this.estanciaSeleccionadaId) ?? null;
+  }
+
+  private parsearIdFiltro(value: string | null): number | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 }

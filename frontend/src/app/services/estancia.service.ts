@@ -69,6 +69,9 @@ export class EstanciaService {
 
     params = this.setParamIfValue(params, 'modoOcupacion', filtros.modoOcupacion);
     params = this.setParamIfValue(params, 'tipoUnidad', filtros.tipoUnidad);
+    if (typeof filtros.idEstancia === 'number') {
+      params = params.set('idEstancia', `${filtros.idEstancia}`);
+    }
     params = this.setParamIfValue(params, 'codigoEstancia', filtros.codigoEstancia);
     params = this.setParamIfValue(params, 'codigoUnidad', filtros.codigoUnidad);
     params = this.setParamIfValue(params, 'nombreCliente', filtros.nombreCliente);

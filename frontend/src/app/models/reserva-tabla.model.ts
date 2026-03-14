@@ -23,6 +23,7 @@ export interface ReservaTablaItem {
 }
 
 export interface ReservaTablaFiltros {
+  idReserva?: number;
   estados: EstadoReserva[];
   canales: CanalReserva[];
   modoOcupacion: ModoOcupacion | '';

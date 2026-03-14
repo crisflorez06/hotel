@@ -77,6 +77,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
   private queryParamsSub: Subscription | null = null;
   private readonly recargaTabla$ = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
+  private idReservaFiltro: number | null = null;
 
   constructor(
     private readonly reservaService: ReservaService,
@@ -93,8 +94,12 @@ export class ReservasComponent implements OnInit, OnDestroy {
       .subscribe();
 
     this.queryParamsSub = this.route.queryParamMap.subscribe((params) => {
+      const idReserva = this.parsearIdFiltro(params.get('idReserva'));
       const codigoReserva = (params.get('codigoReserva') ?? '').trim();
       const codigoUnidad = (params.get('codigoUnidad') ?? '').trim();
+      if (idReserva !== this.idReservaFiltro) {
+        this.idReservaFiltro = idReserva;
+      }
       if (codigoReserva !== this.filtros.codigoReserva) {
         this.filtros.codigoReserva = codigoReserva;
       }
@@ -716,6 +721,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
     const filtros: ReservaTablaFiltros = {
       ...this.filtros,
+      idReserva: this.idReservaFiltro ?? undefined,
       rangoGeneralDesde: this.normalizarFechaHora(this.filtros.rangoGeneralDesde, 'desde'),
       rangoGeneralHasta: this.normalizarFechaHora(this.filtros.rangoGeneralHasta, 'hasta'),
       fechaCreacionDesde: this.normalizarFechaHora(this.filtros.fechaCreacionDesde, 'desde'),
@@ -875,6 +881,14 @@ export class ReservasComponent implements OnInit, OnDestroy {
     }
 
     return `${dia}/${mes}/${anio}`;
+  }
+
+  private parsearIdFiltro(value: string | null): number | null {
+    if (!value) {
+      return null;
+    }
+    const parsed = Number.parseInt(value.trim(), 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }
 
   obtenerReservaSeleccionada(): ReservaTablaItem | null {

@@ -15,110 +15,93 @@
       <p>Selecciona criterios y presiona "Aplicar filtros".</p>
     </div>
 
-    <div class="monitor-eventos__chips-grid">
-      <div class="monitor-eventos__chips-card">
+    <div class="monitor-eventos__tipos-row">
+      <div class="monitor-eventos__chips-card monitor-eventos__chips-card--full">
         <div class="campo">
           <label>Tipos de evento</label>
-          <div class="tipos-evento-grupo">
-            <span class="tipos-evento-grupo__titulo">Acciones de estancia</span>
-            <div class="checks checks--chips">
-              <button
-                type="button"
-                class="check check--chip-toggle"
-                *ngFor="let tipo of tiposEventoEstancia"
-                [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
-                (click)="toggleTipoEvento(tipo)"
-              >
-                <span>{{ formatearEtiqueta(tipo) }}</span>
-              </button>
+          <div class="tipos-evento-grid">
+            <div class="tipos-evento-grupo" *ngFor="let grupo of gruposTipoEvento">
+              <span class="tipos-evento-grupo__titulo">{{ grupo.titulo }}</span>
+              <div class="checks checks--chips">
+                <button
+                  type="button"
+                  class="check check--chip-toggle"
+                  *ngFor="let tipo of grupo.tipos"
+                  [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
+                  (click)="toggleTipoEvento(tipo)"
+                >
+                  <span>{{ formatearEtiqueta(tipo) }}</span>
+                </button>
+              </div>
             </div>
-          </div>
-
-          <div class="tipos-evento-grupo">
-            <span class="tipos-evento-grupo__titulo">Acciones de reserva</span>
-            <div class="checks checks--chips">
-              <button
-                type="button"
-                class="check check--chip-toggle"
-                *ngFor="let tipo of tiposEventoReserva"
-                [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
-                (click)="toggleTipoEvento(tipo)"
-              >
-                <span>{{ formatearEtiqueta(tipo) }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="tipos-evento-grupo">
-            <span class="tipos-evento-grupo__titulo">Acciones de pago</span>
-            <div class="checks checks--chips">
-              <button
-                type="button"
-                class="check check--chip-toggle"
-                *ngFor="let tipo of tiposEventoPago"
-                [class.check--chip-active]="estaTipoEventoSeleccionado(tipo)"
-                (click)="toggleTipoEvento(tipo)"
-              >
-                <span>{{ formatearEtiqueta(tipo) }}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="monitor-eventos__chips-card">
-        <div class="campo">
-          <label>Entidades</label>
-          <div class="checks checks--chips">
-            <button
-              type="button"
-              class="check check--chip-toggle"
-              *ngFor="let entidad of entidadesDisponibles"
-              [class.check--chip-active]="estaEntidadSeleccionada(entidad)"
-              (click)="toggleEntidad(entidad)"
-            >
-              <span>{{ formatearEtiqueta(entidad) }}</span>
-            </button>
           </div>
         </div>
       </div>
     </div>
 
     <div class="monitor-eventos__filtros-grid">
-      <div class="campo">
-        <label for="codigoReserva">Codigo reserva</label>
-        <input
-          id="codigoReserva"
-          type="text"
-          [(ngModel)]="filtros.codigoReserva"
-          name="codigoReserva"
-          placeholder="Ej: RES-50595Z"
-        />
+      <div class="monitor-eventos__filtros-subcard">
+        <h3>Entidades</h3>
+        <div class="checks checks--chips">
+          <button
+            type="button"
+            class="check check--chip-toggle"
+            *ngFor="let entidad of entidadesDisponibles"
+            [class.check--chip-active]="estaEntidadSeleccionada(entidad)"
+            (click)="toggleEntidad(entidad)"
+          >
+            <span>{{ formatearEtiqueta(entidad) }}</span>
+          </button>
+        </div>
       </div>
 
-      <div class="campo">
-        <label for="codigoEstancia">Codigo estancia</label>
-        <input
-          id="codigoEstancia"
-          type="text"
-          [(ngModel)]="filtros.codigoEstancia"
-          name="codigoEstancia"
-          placeholder="Ej: EST-50595Z"
-        />
+      <div class="monitor-eventos__filtros-subcard">
+        <h3>Busqueda operativa</h3>
+        <div class="monitor-eventos__filtros-subgrid">
+          <div class="campo">
+            <label for="codigoReserva">Codigo reserva</label>
+            <input
+              id="codigoReserva"
+              type="text"
+              [(ngModel)]="filtros.codigoReserva"
+              name="codigoReserva"
+              placeholder="Ej: RES-50595Z"
+            />
+          </div>
+
+          <div class="campo">
+            <label for="codigoEstancia">Codigo estancia</label>
+            <input
+              id="codigoEstancia"
+              type="text"
+              [(ngModel)]="filtros.codigoEstancia"
+              name="codigoEstancia"
+              placeholder="Ej: EST-50595Z"
+            />
+          </div>
+        </div>
       </div>
 
-      <div class="campo">
-        <label for="fechaDesde">Fecha desde</label>
-        <input id="fechaDesde" type="date" [(ngModel)]="filtros.fechaDesde" name="fechaDesde" />
-      </div>
+      <div class="monitor-eventos__filtros-subcard">
+        <h3>Rango temporal</h3>
+        <div class="monitor-eventos__filtros-subgrid">
+          <div class="campo">
+            <label for="fechaDesde">Fecha desde</label>
+            <input id="fechaDesde" type="date" [(ngModel)]="filtros.fechaDesde" name="fechaDesde" />
+          </div>
 
-      <div class="campo">
-        <label for="fechaHasta">Fecha hasta</label>
-        <input id="fechaHasta" type="date" [(ngModel)]="filtros.fechaHasta" name="fechaHasta" />
+          <div class="campo">
+            <label for="fechaHasta">Fecha hasta</label>
+            <input id="fechaHasta" type="date" [(ngModel)]="filtros.fechaHasta" name="fechaHasta" />
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="monitor-eventos__filtros-actions">
+      <button type="button" class="btn btn--critical" (click)="activarEventosCriticos()" [disabled]="cargando">
+        Ver eventos criticos
+      </button>
       <button type="button" class="btn btn--primary" (click)="aplicarFiltros()" [disabled]="cargando">
         Aplicar filtros
       </button>
@@ -148,44 +131,10 @@
             <td>{{ formatearEtiqueta(evento.entidad) }}</td>
             <td>{{ formatearEtiqueta(evento.tipoEvento) }}</td>
             <td>
-              <div class="codigo-celda">
-                <span>{{ evento.codigoReserva?.trim() || '-' }}</span>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  (click)="irATablaReservas(evento)"
-                  aria-label="Ver reserva asociada"
-                  title="Ver reserva"
-                  [disabled]="!(evento.codigoReserva?.trim())"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </button>
-              </div>
+              <span>{{ evento.codigoReserva?.trim() || '-' }}</span>
             </td>
             <td>
-              <div class="codigo-celda">
-                <span>{{ evento.codigoEstancia?.trim() || '-' }}</span>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  (click)="irATablaEstancias(evento)"
-                  aria-label="Ver estancia asociada"
-                  title="Ver estancia"
-                  [disabled]="!(evento.codigoEstancia?.trim())"
-                >
-                  <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path
-                      d="M12 5c5.5 0 9.5 4.7 10.6 6.2a1.3 1.3 0 0 1 0 1.6C21.5 14.3 17.5 19 12 19S2.5 14.3 1.4 12.8a1.3 1.3 0 0 1 0-1.6C2.5 9.7 6.5 5 12 5Zm0 3.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                </button>
-              </div>
+              <span>{{ evento.codigoEstancia?.trim() || '-' }}</span>
             </td>
             <td class="col-detalle">
               <button
@@ -281,7 +230,15 @@
     </div>
 
     <footer class="monitor-modal__footer">
-      <button type="button" class="btn" (click)="cerrarModalDetalle()">Cerrar</button>
+      <button
+        type="button"
+        class="btn btn--tabla"
+        *ngIf="puedeVerEnTabla(eventoDetalleSeleccionado)"
+        (click)="irATablaEntidad(eventoDetalleSeleccionado)"
+      >
+        Ver en tabla
+      </button>
+      <button type="button" class="btn btn--ghost" (click)="cerrarModalDetalle()">Cerrar</button>
     </footer>
   </section>
 </div>

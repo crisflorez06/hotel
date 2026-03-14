@@ -14,6 +14,7 @@ import org.springframework.data.jpa.domain.Specification;
 public class PagoSpecification {
 
     public static Specification<Pago> byFilters(
+            Long idPago,
             List<EstadoPago> estados,
             List<MedioPago> mediosPago,
             TipoPago tipoPago,
@@ -24,6 +25,10 @@ public class PagoSpecification {
 
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            if (idPago != null) {
+                return criteriaBuilder.equal(root.get("id"), idPago);
+            }
 
             // Los pagos por cambio de unidad son internos del sistema y no deben aparecer
             // en la tabla de pagos del frontend, sin importar los filtros aplicados.

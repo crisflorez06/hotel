@@ -68,6 +68,7 @@ public class EstanciaController {
 
     @GetMapping("/tabla")
     public Page<EstanciaTablaDTO> buscarEstanciasTabla(
+            @RequestParam(required = false) Long idEstancia,
             @RequestParam(required = false) List<EstadoEstancia> estados,
             @RequestParam(required = false) TipoUnidad tipoUnidad,
             @RequestParam(required = false) ModoOcupacion modoOcupacion,
@@ -87,6 +88,7 @@ public class EstanciaController {
             @RequestParam(required = false) Boolean tieneReservaAsociada,
             Pageable pageable) {
         return estanciaService.buscarEstanciasTabla(
+                idEstancia,
                 estados,
                 tipoUnidad,
                 modoOcupacion,

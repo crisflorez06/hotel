@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { finalize } from 'rxjs';
 
 import { extractBackendErrorMessage } from '../../core/utils/http-error.util';
 import {
@@ -19,6 +20,11 @@ interface DetalleCampoVisual {
   nuevo?: string;
 }
 
+interface GrupoTipoEvento {
+  titulo: string;
+  tipos: readonly TipoEventoMonitor[];
+}
+
 @Component({
   selector: 'app-monitor-eventos',
   standalone: true,
@@ -27,21 +33,66 @@ interface DetalleCampoVisual {
   styleUrl: './monitor-eventos.component.css',
 })
 export class MonitorEventosComponent implements OnInit {
-  readonly tiposEventoEstancia: TipoEventoMonitor[] = [
-    'CREACION_ESTANCIA',
-    'ACTIVACION_ESTANCIA',
+  private readonly tiposEventoCriticos: readonly TipoEventoMonitor[] = [
     'MODIFICACION_ESTANCIA',
     'ELIMINACION_ESTANCIA',
-    'FINALIZACION_ESTANCIA',
   ];
-  readonly tiposEventoReserva: TipoEventoMonitor[] = [
-    'CREACION_RESERVA',
-    'MODIFICACION_RESERVA',
-    'ELIMINACION_RESERVA',
-  ];
-  readonly tiposEventoPago: TipoEventoMonitor[] = ['CREACION_PAGO', 'MODIFICACION_PAGO', 'ELIMINACION_PAGO'];
+  private readonly entidadesCriticas: readonly EntidadMonitor[] = ['PAGO', 'TARIFA_BASE', 'AJUSTE_TEMPORADA'];
+  private readonly entidadesNavegables = new Set<EntidadMonitor>(['RESERVA', 'ESTANCIA', 'PAGO']);
 
-  readonly entidadesDisponibles: EntidadMonitor[] = ['ESTANCIA', 'RESERVA', 'PAGO'];
+  private readonly etiquetasDetalle: Record<string, string> = {
+    id: 'ID',
+    idEntidad: 'ID entidad',
+    codigoReserva: 'Codigo reserva',
+    codigoEstancia: 'Codigo estancia',
+    codigoFolio: 'Codigo folio',
+    numeroDocumento: 'Numero documento',
+    numeroPersonas: 'Numero de personas',
+    entradaReal: 'Entrada real',
+    salidaReal: 'Salida real',
+    entradaEstimada: 'Entrada estimada',
+    salidaEstimada: 'Salida estimada',
+    fechaCreacion: 'Fecha de creacion',
+    fechaModificacion: 'Fecha de modificacion',
+    fecha: 'Fecha',
+    estado: 'Estado',
+    estadoOperativo: 'Estado operativo',
+    tipoEvento: 'Tipo de evento',
+    tipoPago: 'Tipo de pago',
+    medioPago: 'Medio de pago',
+    monto: 'Monto',
+    precioTotal: 'Precio total',
+    notas: 'Notas',
+    cliente: 'Cliente',
+    ocupantes: 'Ocupantes',
+    habitaciones: 'Habitaciones',
+    unidad: 'Unidad',
+    reserva: 'Reserva',
+    estancia: 'Estancia',
+    anterior: 'Anterior',
+    nuevo: 'Nuevo',
+  };
+
+  readonly gruposTipoEvento: readonly GrupoTipoEvento[] = [
+    {
+      titulo: 'Acciones de estancia',
+      tipos: ['CREACION_ESTANCIA', 'ACTIVACION_ESTANCIA', 'MODIFICACION_ESTANCIA', 'ELIMINACION_ESTANCIA', 'FINALIZACION_ESTANCIA'],
+    },
+    {
+      titulo: 'Acciones de reserva',
+      tipos: ['CREACION_RESERVA', 'MODIFICACION_RESERVA', 'ELIMINACION_RESERVA'],
+    },
+    {
+      titulo: 'Acciones de pago',
+      tipos: ['CREACION_PAGO', 'MODIFICACION_PAGO', 'ELIMINACION_PAGO'],
+    },
+    {
+      titulo: 'Acciones de configuracion',
+      tipos: ['MODIFICACION_TARIFA_BASE', 'MODIFICACION_TEMPORADA_ACTIVA'],
+    },
+  ];
+
+  readonly entidadesDisponibles: EntidadMonitor[] = ['ESTANCIA', 'RESERVA', 'PAGO', 'TARIFA_BASE', 'AJUSTE_TEMPORADA'];
   readonly tamanoPagina = 20;
 
   filtros: EventoMonitorFiltros = this.crearFiltrosVacios();
@@ -75,6 +126,12 @@ export class MonitorEventosComponent implements OnInit {
     this.cargarEventos(0);
   }
 
+  activarEventosCriticos(): void {
+    this.filtros.tiposEvento = [...this.tiposEventoCriticos];
+    this.filtros.entidades = [...this.entidadesCriticas];
+    this.cargarEventos(0);
+  }
+
   irPaginaAnterior(): void {
     if (this.paginaActual <= 0 || this.cargando) {
       return;
@@ -90,21 +147,11 @@ export class MonitorEventosComponent implements OnInit {
   }
 
   toggleTipoEvento(tipo: TipoEventoMonitor): void {
-    if (this.filtros.tiposEvento.includes(tipo)) {
-      this.filtros.tiposEvento = this.filtros.tiposEvento.filter((item) => item !== tipo);
-      return;
-    }
-
-    this.filtros.tiposEvento = [...this.filtros.tiposEvento, tipo];
+    this.filtros.tiposEvento = this.toggleEnLista(this.filtros.tiposEvento, tipo);
   }
 
   toggleEntidad(entidad: EntidadMonitor): void {
-    if (this.filtros.entidades.includes(entidad)) {
-      this.filtros.entidades = this.filtros.entidades.filter((item) => item !== entidad);
-      return;
-    }
-
-    this.filtros.entidades = [...this.filtros.entidades, entidad];
+    this.filtros.entidades = this.toggleEnLista(this.filtros.entidades, entidad);
   }
 
   estaTipoEventoSeleccionado(tipo: TipoEventoMonitor): boolean {
@@ -131,28 +178,6 @@ export class MonitorEventosComponent implements OnInit {
     return Number.isNaN(fechaObj.getTime()) ? fecha : fechaObj.toLocaleString('es-CO');
   }
 
-  irATablaReservas(evento: EventoMonitorItem): void {
-    const codigoReserva = evento.codigoReserva?.trim() ?? '';
-    if (!codigoReserva) {
-      return;
-    }
-
-    this.router.navigate(['/reservas'], {
-      queryParams: { codigoReserva },
-    });
-  }
-
-  irATablaEstancias(evento: EventoMonitorItem): void {
-    const codigoEstancia = evento.codigoEstancia?.trim() ?? '';
-    if (!codigoEstancia) {
-      return;
-    }
-
-    this.router.navigate(['/estancias'], {
-      queryParams: { codigoEstancia },
-    });
-  }
-
   abrirModalDetalle(evento: EventoMonitorItem): void {
     this.eventoDetalleSeleccionado = evento;
     this.detalleSeleccionadoCampos = this.construirCamposDetalle(evento.detalle);
@@ -163,6 +188,33 @@ export class MonitorEventosComponent implements OnInit {
     this.modalAbierto = false;
     this.eventoDetalleSeleccionado = null;
     this.detalleSeleccionadoCampos = [];
+  }
+
+  puedeVerEnTabla(evento: EventoMonitorItem | null): boolean {
+    if (!evento) {
+      return false;
+    }
+    return (
+      this.entidadesNavegables.has(evento.entidad) &&
+      Number.isInteger(evento.idEntidad) &&
+      evento.idEntidad > 0
+    );
+  }
+
+  irATablaEntidad(evento: EventoMonitorItem | null): void {
+    if (!this.puedeVerEnTabla(evento) || !evento) {
+      return;
+    }
+
+    if (evento.entidad === 'RESERVA') {
+      this.router.navigate(['/reservas'], { queryParams: { idReserva: evento.idEntidad } });
+      return;
+    }
+    if (evento.entidad === 'ESTANCIA') {
+      this.router.navigate(['/estancias'], { queryParams: { idEstancia: evento.idEntidad } });
+      return;
+    }
+    this.router.navigate(['/pagos'], { queryParams: { idPago: evento.idEntidad } });
   }
 
   trackByEventoId(_: number, evento: EventoMonitorItem): number {
@@ -182,20 +234,21 @@ export class MonitorEventosComponent implements OnInit {
     this.error = '';
     const filtrosConsulta = this.construirFiltrosConsulta();
 
-    this.eventoService.obtenerEventos(filtrosConsulta, pagina, this.tamanoPagina).subscribe({
-      next: (response) => {
-        this.eventos = response.content;
-        this.paginaActual = response.number;
-        this.totalPaginas = response.totalPages;
-        this.totalElementos = response.totalElements;
-        this.cargando = false;
-      },
-      error: (errorResponse: unknown) => {
-        this.eventos = [];
-        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los eventos.');
-        this.cargando = false;
-      },
-    });
+    this.eventoService
+      .obtenerEventos(filtrosConsulta, pagina, this.tamanoPagina)
+      .pipe(finalize(() => (this.cargando = false)))
+      .subscribe({
+        next: (response) => {
+          this.eventos = response.content;
+          this.paginaActual = response.number;
+          this.totalPaginas = response.totalPages;
+          this.totalElementos = response.totalElements;
+        },
+        error: (errorResponse: unknown) => {
+          this.eventos = [];
+          this.error = extractBackendErrorMessage(errorResponse, 'No fue posible cargar los eventos.');
+        },
+      });
   }
 
   private crearFiltrosVacios(): EventoMonitorFiltros {
@@ -214,27 +267,22 @@ export class MonitorEventosComponent implements OnInit {
       ...this.filtros,
       codigoReserva: this.filtros.codigoReserva?.trim() ?? '',
       codigoEstancia: this.filtros.codigoEstancia?.trim() ?? '',
-      fechaDesde: this.formatearFechaInicioDia(this.filtros.fechaDesde),
-      fechaHasta: this.formatearFechaFinDia(this.filtros.fechaHasta),
+      fechaDesde: this.formatearFechaFiltro(this.filtros.fechaDesde, 'desde'),
+      fechaHasta: this.formatearFechaFiltro(this.filtros.fechaHasta, 'hasta'),
     };
   }
 
-  private formatearFechaInicioDia(fecha?: string): string {
+  private formatearFechaFiltro(fecha: string | undefined, limite: 'desde' | 'hasta'): string {
     const fechaTrimmed = fecha?.trim() ?? '';
     if (!fechaTrimmed) {
       return '';
     }
 
-    return `${fechaTrimmed}T00:00:00`;
+    return limite === 'desde' ? `${fechaTrimmed}T00:00:00` : `${fechaTrimmed}T23:59:59`;
   }
 
-  private formatearFechaFinDia(fecha?: string): string {
-    const fechaTrimmed = fecha?.trim() ?? '';
-    if (!fechaTrimmed) {
-      return '';
-    }
-
-    return `${fechaTrimmed}T23:59:59`;
+  private toggleEnLista<T>(lista: readonly T[], valor: T): T[] {
+    return lista.includes(valor) ? lista.filter((item) => item !== valor) : [...lista, valor];
   }
 
   private parsearDetalle(detalle: unknown): Record<string, unknown> | null {
@@ -345,14 +393,14 @@ export class MonitorEventosComponent implements OnInit {
 
       if (cambio) {
         return {
-          etiqueta: this.formatearEtiqueta(etiqueta),
+          etiqueta: this.formatearEtiquetaDetalle(etiqueta),
           anterior: cambio.anterior,
           nuevo: cambio.nuevo,
         };
       }
 
       return {
-        etiqueta: this.formatearEtiqueta(etiqueta),
+        etiqueta: this.formatearEtiquetaDetalle(etiqueta),
         valor: valorRaw || '-',
       };
     });
@@ -366,17 +414,46 @@ export class MonitorEventosComponent implements OnInit {
 
       if (cambio) {
         return {
-          etiqueta: this.formatearEtiqueta(clave),
+          etiqueta: this.formatearEtiquetaDetalle(clave),
           anterior: cambio.anterior,
           nuevo: cambio.nuevo,
         };
       }
 
       return {
-        etiqueta: this.formatearEtiqueta(clave),
+        etiqueta: this.formatearEtiquetaDetalle(clave),
         valor: this.formatearValorDetalle(valor),
       };
     });
+  }
+
+  private formatearEtiquetaDetalle(clave: string): string {
+    const claveTrimmed = clave.trim();
+    if (!claveTrimmed) {
+      return 'Detalle';
+    }
+
+    const etiquetaDirecta = this.etiquetasDetalle[claveTrimmed];
+    if (etiquetaDirecta) {
+      return etiquetaDirecta;
+    }
+
+    const claveNormalizada = claveTrimmed
+      .replace(/\./g, ' ')
+      .replace(/_/g, ' ')
+      .replace(/-/g, ' ')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    const etiquetaNormalizada = this.etiquetasDetalle[claveNormalizada];
+    if (etiquetaNormalizada) {
+      return etiquetaNormalizada;
+    }
+
+    return claveNormalizada
+      .toLowerCase()
+      .replace(/\b\w/g, (letra) => letra.toUpperCase());
   }
 
   private parsearCambioDesdeValorRaw(valor: unknown): { anterior: string; nuevo: string } | null {

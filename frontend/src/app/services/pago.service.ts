@@ -16,6 +16,7 @@ export interface CalcularPagoRequest {
 }
 
 export interface BuscarPagosParams {
+  idPago?: number;
   page?: number;
   size?: number;
   sort?: string[];
@@ -69,6 +70,10 @@ export class PagoService {
 
     if (params?.tipoPago) {
       httpParams = httpParams.set('tipoPago', params.tipoPago);
+    }
+
+    if (typeof params?.idPago === 'number') {
+      httpParams = httpParams.set('idPago', params.idPago);
     }
 
     if (params?.codigoReserva) {

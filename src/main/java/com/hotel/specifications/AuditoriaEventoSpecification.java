@@ -27,12 +27,24 @@ public class AuditoriaEventoSpecification {
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
+            Predicate tiposPredicate = null;
+            Predicate entidadesPredicate = null;
+
             if (tiposEvento != null && !tiposEvento.isEmpty()) {
-                predicates.add(root.get("tipoEvento").in(tiposEvento));
+                tiposPredicate = root.get("tipoEvento").in(tiposEvento);
             }
             if (entidades != null && !entidades.isEmpty()) {
-                predicates.add(root.get("entidad").in(entidades));
+                entidadesPredicate = root.get("entidad").in(entidades);
             }
+
+            if (tiposPredicate != null && entidadesPredicate != null) {
+                predicates.add(criteriaBuilder.or(tiposPredicate, entidadesPredicate));
+            } else if (tiposPredicate != null) {
+                predicates.add(tiposPredicate);
+            } else if (entidadesPredicate != null) {
+                predicates.add(entidadesPredicate);
+            }
+
             if (idEntidad != null) {
                 predicates.add(criteriaBuilder.equal(root.get("idEntidad"), idEntidad));
             }

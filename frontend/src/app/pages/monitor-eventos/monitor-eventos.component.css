@@ -81,10 +81,8 @@
   font-size: 0.88rem;
 }
 
-.monitor-eventos__chips-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
+.monitor-eventos__tipos-row {
+  display: block;
 }
 
 .monitor-eventos__chips-card {
@@ -95,10 +93,37 @@
   background: linear-gradient(180deg, #fffefb 0%, #f8fbf8 100%);
 }
 
+.monitor-eventos__chips-card--full {
+  width: 100%;
+}
+
 .monitor-eventos__filtros-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
+}
+
+.monitor-eventos__filtros-subcard {
+  border: 1px solid #d7e1d7;
+  border-top: 3px solid rgba(15, 118, 110, 0.24);
+  border-radius: 0.72rem;
+  padding: 0.7rem;
+  background: linear-gradient(180deg, #fffefb 0%, #f8fbf8 100%);
+}
+
+.monitor-eventos__filtros-subcard h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.monitor-eventos__filtros-subgrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
 }
 
 .campo {
@@ -143,11 +168,17 @@
 .tipos-evento-grupo {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.45rem;
+  border: 1px solid #d8e4db;
+  border-radius: 0.62rem;
+  padding: 0.55rem;
+  background: #ffffff;
 }
 
-.tipos-evento-grupo + .tipos-evento-grupo {
-  margin-top: 0.55rem;
+.tipos-evento-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
 }
 
 .tipos-evento-grupo__titulo {
@@ -223,6 +254,19 @@
   border-color: var(--primary-dark);
 }
 
+.btn--critical {
+  margin-right: auto;
+  border-color: #9f1239;
+  background: linear-gradient(180deg, #be123c 0%, #9f1239 100%);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.btn--critical:hover:not(:disabled) {
+  border-color: #881337;
+  background: linear-gradient(180deg, #a81b42 0%, #881337 100%);
+}
+
 .estado {
   margin: 0;
   font-size: 0.9rem;
@@ -293,12 +337,6 @@ tbody tr:hover {
   min-width: 110px;
   width: 110px;
   text-align: center;
-}
-
-.codigo-celda {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
 }
 
 .icon-btn {
@@ -469,17 +507,45 @@ tbody tr:hover {
 .monitor-modal__footer {
   display: flex;
   justify-content: flex-end;
+  gap: 0.55rem;
   padding: 0.85rem 1rem;
   border-top: 1px solid #dde7de;
   background: #f7faf7;
 }
 
+.btn--tabla {
+  border-color: #0f4c45;
+  background: linear-gradient(180deg, #16655c 0%, #0f4c45 100%);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.btn--tabla:hover:not(:disabled) {
+  border-color: #0a3b35;
+  background: linear-gradient(180deg, #12584f 0%, #0a3b35 100%);
+}
+
+.btn--ghost {
+  border-color: #c8d5cd;
+  background: #f8fbf8;
+  color: #334155;
+}
+
+.btn--ghost:hover:not(:disabled) {
+  border-color: #aabdb0;
+  background: #f0f5f1;
+}
+
 @media (max-width: 1024px) {
-  .monitor-eventos__chips-grid {
+  .monitor-eventos__filtros-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tipos-evento-grid {
     grid-template-columns: 1fr;
   }
 
-  .monitor-eventos__filtros-grid {
+  .monitor-eventos__filtros-subgrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -493,8 +559,16 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .monitor-eventos__filtros-subgrid {
+    grid-template-columns: 1fr;
+  }
+
   .monitor-eventos__filtros-actions {
     flex-direction: column;
+  }
+
+  .btn--critical {
+    margin-right: 0;
   }
 
   .monitor-eventos__paginador {

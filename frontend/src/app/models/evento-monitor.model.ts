@@ -9,17 +9,19 @@ export type TipoEventoMonitor =
   | 'FINALIZACION_ESTANCIA'
   | 'CREACION_PAGO'
   | 'MODIFICACION_PAGO'
-  | 'ELIMINACION_PAGO';
+  | 'ELIMINACION_PAGO'
+  | 'MODIFICACION_TARIFA_BASE'
+  | 'MODIFICACION_TEMPORADA_ACTIVA';
 
-export type EntidadMonitor = 'ESTANCIA' | 'RESERVA' | 'PAGO';
+export type EntidadMonitor = 'ESTANCIA' | 'RESERVA' | 'PAGO' | 'TARIFA_BASE' | 'AJUSTE_TEMPORADA';
 
 export interface EventoMonitorItem {
   id: number;
-  entidad: string;
+  entidad: EntidadMonitor;
   idEntidad: number;
   codigoReserva?: string | null;
   codigoEstancia?: string | null;
-  tipoEvento: string;
+  tipoEvento: TipoEventoMonitor;
   detalle: string;
   fecha: string;
 }
