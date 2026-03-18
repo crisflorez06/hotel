@@ -45,9 +45,10 @@ public final class PagoTestData {
         PagoNuevoRequestDTO pago = new PagoNuevoRequestDTO();
 
         pago.setTipoPago(tipoPago);
-        pago.setMonto(java.math.BigDecimal.valueOf(500000));
+        pago.setMonto(BigDecimal.valueOf(500000));
         pago.setMedioPago(MedioPago.EFECTIVO);
         pago.setFecha(LocalDateTime.now());
+        pago.setMontoEstimado(BigDecimal.valueOf(3444000));
 
         return pago;
     }

@@ -7,6 +7,7 @@ import com.hotel.models.enums.Temporada;
 import com.hotel.repositories.AjusteTemporadaRepository;
 import com.hotel.utils.EventoModificadoJsonBuilder;
 import java.util.List;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,7 +53,17 @@ public class AjusteTemporadaService {
     }
 
     public Temporada obtenerTemporadaActiva() {
-        AjusteTemporada activa = ajusteTemporadaRepository.findByActivoTrue().orElse(null);
+        AjusteTemporada activa;
+        try {
+            activa = ajusteTemporadaRepository.findByActivoTrue().orElse(null);
+        } catch (IncorrectResultSizeDataAccessException ex) {
+            AjusteTemporada bajaFix = findOrCreate(Temporada.BAJA);
+            AjusteTemporada altaFix = findOrCreate(Temporada.ALTA);
+            bajaFix.setActivo(true);
+            altaFix.setActivo(false);
+            ajusteTemporadaRepository.saveAll(List.of(bajaFix, altaFix));
+            return Temporada.BAJA;
+        }
         if (activa != null) {
             return activa.getTemporada();
         }

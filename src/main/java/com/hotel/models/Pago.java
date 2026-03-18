@@ -51,6 +51,9 @@ public class Pago {
     @Column(nullable = false)
     private LocalDateTime fechaCreacion;
 
+    @Column(length = 2000)
+    private String notas;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private EstadoPago estado;

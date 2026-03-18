@@ -8,6 +8,7 @@ import com.hotel.models.Pago;
 import com.hotel.models.Reserva;
 import com.hotel.models.enums.EstadoEstancia;
 import com.hotel.models.enums.EstadoPago;
+import com.hotel.models.enums.TipoCalculo;
 import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoUnidad;
 
@@ -26,6 +27,10 @@ public class PagoMapper {
         entity.setMedioPago(request.getMedioPago());
         entity.setFecha(request.getFecha());
         entity.setFechaCreacion(LocalDateTime.now());
+        String notas = request.getNotas() == null ? null : request.getNotas().trim();
+        if (notas != null && !notas.isBlank()) {
+            entity.setNotas("-" + notas);
+        }
         entity.setEstado(EstadoPago.COMPLETADO);
 
         return entity;
@@ -52,6 +57,7 @@ public class PagoMapper {
         dto.setEstado(pago.getEstado());
         dto.setMedioPago(pago.getMedioPago());
         dto.setMonto(pago.getMonto());
+        dto.setNotas(pago.getNotas());
         dto.setTipoPago(pago.getTipoPago());
 
         return dto;
@@ -88,6 +94,13 @@ public class PagoMapper {
         dto.setFechaEntrada(fechaEntrada);
         dto.setFechaSalida(fechaSalida);
 
+        long dias = fechaSalida.toLocalDate().toEpochDay() - fechaEntrada.toLocalDate().toEpochDay();
+        if (dias < 30) {
+            dto.setTipoCalculo(TipoCalculo.ESTANDAR);
+        }
+        else {
+            dto.setTipoCalculo(TipoCalculo.ESTADIA_CORTA);
+        }
         return dto;
     }
 

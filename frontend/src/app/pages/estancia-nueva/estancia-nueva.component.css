@@ -332,6 +332,14 @@
   grid-column: 1 / -1;
 }
 
+.campo--meses {
+  max-width: 110px;
+}
+
+.campo--meses input {
+  text-align: center;
+}
+
 .pago {
   grid-column: 1 / -1;
   display: grid;
@@ -844,6 +852,10 @@
 
   .estancia__fields {
     grid-template-columns: 1fr;
+  }
+
+  .campo--meses {
+    max-width: 100%;
   }
 
   .pago__fila {

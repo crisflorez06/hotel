@@ -149,8 +149,15 @@ public class EstanciaService {
         estancia.setEstado(determinarEstadoEstancia(estancia.getEntradaReal(), estancia.getSalidaEstimada()));
 
         logger.info("[activarEstancia] Agregando notas de activación a la estancia");
-        estancia.setNotas(estancia.getNotas() + " | Notas de activación: " + request.getNotas());
-
+        String notasActivacion = request.getNotas() == null ? null : request.getNotas().trim();
+        if (notasActivacion != null && !notasActivacion.isBlank()) {
+            String notasActuales = estancia.getNotas();
+            if (notasActuales == null || notasActuales.isBlank()) {
+                estancia.setNotas("-" + notasActivacion);
+            } else {
+                estancia.setNotas(notasActuales + "\n-" + notasActivacion);
+            }
+        }
         logger.info("[activarEstancia] Guardando estancia en la base de datos");
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
@@ -191,9 +198,13 @@ public class EstanciaService {
         LocalDateTime entradaReal = request.getEntradaReal();
         LocalDateTime salidaEstimada = request.getSalidaEstimada();
 
+
         logger.info("[editarEstancia] Editando estancia con id: {}", idEstancia);
         Estancia estancia = estanciaRepository.findById(idEstancia)
                 .orElseThrow(() -> new EntityNotFoundException("Estancia no encontrada con id: " + idEstancia));
+
+        TipoUnidad tipoUnidadAnterior = unidadHabitacionResolver.determinarTipoUnidad(estancia.getHabitaciones());
+
 
         if (!(estancia.getEstado() == EstadoEstancia.ACTIVA || estancia.getEstado() == EstadoEstancia.EXCEDIDA)) {
             throw new IllegalStateException("Solo se pueden editar estancias en estado ACTIVA o EXCEDIDA. Estado actual: " + estancia.getEstado());
@@ -216,8 +227,6 @@ public class EstanciaService {
                     unidadHabitacionResolver.determinarCodigoUnidad(estancia.getHabitaciones()),
                     codigo);
 
-            TipoUnidad tipoUnidadAnterior = unidadHabitacionResolver.determinarTipoUnidad(estancia.getHabitaciones());
-
             alojamientoResolver.actualizarEstadoAlojamiento(estancia.getHabitaciones(), EstadoOperativo.DISPONIBLE);
 
             estancia.setHabitaciones(new ArrayList<>(habitaciones));
@@ -238,16 +247,6 @@ public class EstanciaService {
         }
 
         logger.info("[editarEstancia] Verificando si hubo cambio de fechas");
-        if(cambioFechas) {
-            logger.info("[editarEstancia] Cambio de fechas detectado, actualizando fechas de entrada y salida de la estancia");
-            estanciaModificadaJson.agregarCambio("entradaReal", estancia.getEntradaReal(), entradaReal);
-            estancia.setEntradaReal(entradaReal);
-
-            estanciaModificadaJson.agregarCambio("salidaEstimada", estancia.getSalidaEstimada(), salidaEstimada);
-            estancia.setSalidaEstimada(salidaEstimada);
-
-            estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
-        }
 
         logger.info("[editarEstancia] Determinando ocupantes de la estancia");
         Ocupante cliente = ocupanteService.determinarCliente(estancia.getOcupantes()).
@@ -266,12 +265,13 @@ public class EstanciaService {
                 .collect(Collectors.toSet());
 
         if(request.getIdAcompanantes() == null) {
+
             request.setIdAcompanantes(new ArrayList<>());
-                if(!idsAntes.isEmpty()) {
-                    estanciaModificadaJson.agregarCambio("acompanantes",
-                            representarAcompanantesParaAuditoria(idsAntes),
-                            "Sin acompanantes");
-                }
+            if(!idsAntes.isEmpty()) {
+                estanciaModificadaJson.agregarCambio("acompanantes",
+                        representarAcompanantesParaAuditoria(idsAntes),
+                        "Sin acompanantes");
+            }
         } else {
             Set<Long> idsDespues = new HashSet<>(request.getIdAcompanantes());
 
@@ -284,10 +284,34 @@ public class EstanciaService {
         }
 
 
+        int totalOcupantesAntes = estancia.getOcupantes().size();
         estancia.setOcupantes(ocupanteService.determinarOcupantes(request.getIdCliente(), request.getIdAcompanantes()));
+        if(totalOcupantesAntes != estancia.getOcupantes().size() && (totalOcupantesAntes > 2 || estancia.getOcupantes().size() > 2)) {
+            logger.info("[editarEstancia] Cambio en el numero de ocupantes que afecta el modo de ocupacion, antes: {}, despues: {}", totalOcupantesAntes, estancia.getOcupantes().size());
+            pagoService.crearPagoPorCambioOcupantes(estancia, tipoUnidadAnterior, totalOcupantesAntes);
+        }
 
-        estancia.setNotas(estancia.getNotas() + " | Notas editadas: " + request.getNotas());
 
+        if(cambioFechas) {
+            logger.info("[editarEstancia] Cambio de fechas detectado, actualizando fechas de entrada y salida de la estancia");
+            estanciaModificadaJson.agregarCambio("entradaReal", estancia.getEntradaReal(), entradaReal);
+            estancia.setEntradaReal(entradaReal);
+
+            estanciaModificadaJson.agregarCambio("salidaEstimada", estancia.getSalidaEstimada(), salidaEstimada);
+            estancia.setSalidaEstimada(salidaEstimada);
+
+            estancia.setEstado(determinarEstadoEstancia(entradaReal, salidaEstimada));
+        }
+
+        String notasEdicion = request.getNotas() == null ? null : request.getNotas().trim();
+        if (notasEdicion != null && !notasEdicion.isBlank()) {
+            String notasActuales = estancia.getNotas();
+            if (notasActuales == null || notasActuales.isBlank()) {
+                estancia.setNotas("-" + notasEdicion);
+            } else {
+                estancia.setNotas(notasActuales + "\n-" + notasEdicion);
+            }
+        }
         Estancia estanciaGuardada = estanciaRepository.save(estancia);
 
         logger.info("[editarEstancia] propiedades del evento de nueva estancia: {}", estanciaModificadaJson.build());
@@ -429,7 +453,15 @@ public class EstanciaService {
         logger.info("[finalizarEstancia] Creando pago asociado a la estancia finalizada");
         pagoService.crearPago(request.getPagoEstancia(), estancia.getId(), true);
 
-        estancia.setNotas(estancia.getNotas() + " | Notas de salida: " + request.getNotasSalida());
+        String notasSalida = request.getNotasSalida() == null ? null : request.getNotasSalida().trim();
+        if (notasSalida != null && !notasSalida.isBlank()) {
+            String notasActuales = estancia.getNotas();
+            if (notasActuales == null || notasActuales.isBlank()) {
+                estancia.setNotas("-" + notasSalida);
+            } else {
+                estancia.setNotas(notasActuales + "\n-" + notasSalida);
+            }
+        }
 
         estancia.setPrecioTotal(pagoService.sumarTotalPagosPorEstancia(estancia.getId()));
 
@@ -566,9 +598,4 @@ public class EstanciaService {
         }
     }
 
-    private EstanciaDTO crearEstanciaConModoOcupacion() {
-        EstanciaDTO dto = new EstanciaDTO();
-        dto.setModoOcupacion(ModoOcupacion.INDIVIDUAL);
-        return dto;
-    }
 }

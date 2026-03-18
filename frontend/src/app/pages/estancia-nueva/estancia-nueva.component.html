@@ -142,7 +142,7 @@
                 mwlFlatpickr
                 [(ngModel)]="entradaReal"
                 name="entradaReal"
-                (ngModelChange)="recalcularPago()"
+                (ngModelChange)="onEntradaRealChange($event)"
                 [enableTime]="true"
                 [time24hr]="true"
                 [dateFormat]="'Y-m-d H:i'"
@@ -167,9 +167,28 @@
               />
             </div>
 
+            <div class="campo campo--meses" *ngIf="!esEdicion && !esRegistroIngreso">
+              <label>Meses</label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                [(ngModel)]="mesesEstadia"
+                name="mesesEstadia"
+                (ngModelChange)="onMesesEstadiaChange($event)"
+                [disabled]="!entradaReal"
+                placeholder="0"
+              />
+            </div>
+
             <div class="campo campo--full">
               <label>Notas</label>
-              <textarea rows="3" [(ngModel)]="notas" name="notas"></textarea>
+              <textarea
+                rows="3"
+                [(ngModel)]="notas"
+                name="notas"
+                placeholder="Agrega una nota nueva (opcional)"
+              ></textarea>
             </div>
           </div>
         </section>
@@ -230,6 +249,10 @@
             <div>
               <span>Salida</span>
               <strong>{{ salidaEstimada || '-' }}</strong>
+            </div>
+            <div *ngIf="mesesEstadia">
+              <span>Meses</span>
+              <strong>{{ mesesEstadia }}</strong>
             </div>
             <div>
               <span>Personas</span>
@@ -423,6 +446,15 @@
               [dateFormat]="'Y-m-d'"
               placeholder="YYYY-MM-DD"
             />
+          </div>
+          <div class="campo">
+            <label>Notas del pago</label>
+            <textarea
+              rows="3"
+              [(ngModel)]="notasPago"
+              name="notasPago"
+              placeholder="Agrega una nota nueva (opcional)"
+            ></textarea>
           </div>
         </div>
       </div>

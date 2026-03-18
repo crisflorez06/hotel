@@ -61,6 +61,7 @@ export class MonitorEventosComponent implements OnInit {
     tipoPago: 'Tipo de pago',
     medioPago: 'Medio de pago',
     monto: 'Monto',
+    montoEstimado: 'Cobro sugerido',
     precioTotal: 'Precio total',
     notas: 'Notas',
     cliente: 'Cliente',
@@ -84,7 +85,7 @@ export class MonitorEventosComponent implements OnInit {
     },
     {
       titulo: 'Acciones de pago',
-      tipos: ['CREACION_PAGO', 'MODIFICACION_PAGO', 'ELIMINACION_PAGO'],
+      tipos: ['CREACION_PAGO', 'CREACION_RECARGO', 'MODIFICACION_PAGO', 'ELIMINACION_PAGO'],
     },
     {
       titulo: 'Acciones de configuracion',
@@ -409,7 +410,11 @@ export class MonitorEventosComponent implements OnInit {
   }
 
   private mapearObjetoACampos(objeto: Record<string, unknown>): DetalleCampoVisual[] {
-    return Object.entries(objeto).map(([clave, valor]) => {
+    const entriesOrdenadas = [...Object.entries(objeto)].sort(([claveA], [claveB]) => {
+      return this.obtenerPrioridadCampoDetalle(claveA) - this.obtenerPrioridadCampoDetalle(claveB);
+    });
+
+    return entriesOrdenadas.map(([clave, valor]) => {
       const cambio = this.parsearCambioDesdeValorRaw(valor);
 
       if (cambio) {
@@ -425,6 +430,16 @@ export class MonitorEventosComponent implements OnInit {
         valor: this.formatearValorDetalle(valor),
       };
     });
+  }
+
+  private obtenerPrioridadCampoDetalle(clave: string): number {
+    if (clave === 'montoEstimado') {
+      return 0;
+    }
+    if (clave === 'monto') {
+      return 1;
+    }
+    return 10;
   }
 
   private formatearEtiquetaDetalle(clave: string): string {

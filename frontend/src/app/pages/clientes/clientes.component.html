@@ -400,15 +400,6 @@
             <input id="crearEmail" type="text" [(ngModel)]="formularioCreacion.email" />
           </div>
 
-          <div class="campo campo--full">
-            <label for="crearTipoOcupante">Tipo ocupante</label>
-            <select id="crearTipoOcupante" [(ngModel)]="formularioCreacion.tipoOcupante">
-              <option *ngFor="let tipo of tiposOcupanteEdicion" [ngValue]="tipo">
-                {{ formatearEtiqueta(tipo) }}
-              </option>
-            </select>
-          </div>
-
         </div>
 
         <p class="estado estado--error" *ngIf="errorCreacion">{{ errorCreacion }}</p>

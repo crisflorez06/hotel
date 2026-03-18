@@ -12,6 +12,7 @@ export interface CalcularPagoRequest {
   numeroPersonas: number;
   fechaEntrada: string;
   fechaSalida: string;
+  tipoCalculo?: 'ESTANDAR' | 'ESTADIA_CORTA';
   idEstancia?: number;
 }
 
@@ -96,7 +97,37 @@ export class PagoService {
   }
 
   calcularTotal(request: CalcularPagoRequest) {
-    return this.http.post<number>(`${this.baseUrl}/total`, request);
+    const payload: CalcularPagoRequest = {
+      ...request,
+      tipoCalculo: this.determinarTipoCalculo(request.fechaEntrada, request.fechaSalida),
+    };
+    return this.http.post<number>(`${this.baseUrl}/total`, payload);
+  }
+
+  private determinarTipoCalculo(
+    fechaEntrada: string,
+    fechaSalida: string
+  ): 'ESTANDAR' | 'ESTADIA_CORTA' {
+    const inicio = this.parseDateOnly(fechaEntrada);
+    const fin = this.parseDateOnly(fechaSalida);
+
+    if (!inicio || !fin) {
+      return 'ESTANDAR';
+    }
+
+    const msPorDia = 24 * 60 * 60 * 1000;
+    const totalDias = Math.floor((fin.getTime() - inicio.getTime()) / msPorDia);
+    return totalDias >= 30 ? 'ESTADIA_CORTA' : 'ESTANDAR';
+  }
+
+  private parseDateOnly(valor: string): Date | null {
+    const fecha = valor.split('T')[0];
+    const partes = fecha.split('-').map((segmento) => Number.parseInt(segmento, 10));
+    if (partes.length !== 3 || partes.some((parte) => Number.isNaN(parte))) {
+      return null;
+    }
+    const [anio, mes, dia] = partes;
+    return new Date(Date.UTC(anio, mes - 1, dia));
   }
 
   crearPago(idEstancia: number, request: PagoNuevoRequest) {

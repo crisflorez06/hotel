@@ -16,7 +16,9 @@ import {
   DashboardResumenDTO,
   EstanciaMensualDTO,
 } from '../../models/dashboard.model';
+import { GastoDTO, GastoRequest } from '../../models/gasto.model';
 import { DetalleService } from '../../services/detalle.service';
+import { GastoService } from '../../services/gasto.service';
 
 interface DashboardFiltrosVisual {
   desde: string;
@@ -36,6 +38,22 @@ interface UnidadOperativaVisual {
   disponibles: number;
 }
 
+interface GastoFormVisual {
+  concepto: string;
+  descripcion: string;
+  monto: string;
+  fecha: string;
+  metodoPago: string;
+  referencia: string;
+}
+
+interface GastoFiltrosVisual {
+  concepto: string;
+  metodoPago: string;
+  fechaDesde: string;
+  fechaHasta: string;
+}
+
 @Component({
   selector: 'app-dashboard',
   standalone: true,
@@ -50,6 +68,27 @@ export class DashboardComponent implements OnInit {
   dashboardResumen: DashboardResumenDTO | null = null;
   dashboardDistribucion: DashboardDistribucionFinancieraDTO | null = null;
 
+  gastos: GastoDTO[] = [];
+  gastosCargando = false;
+  gastosError = '';
+  gastosExito = '';
+  gastoSeleccionadoId: number | null = null;
+  modalGastoAbierto = false;
+  modalEliminarGastoAbierto = false;
+  guardandoGasto = false;
+  eliminandoGasto = false;
+  modalGastoModo: 'crear' | 'editar' = 'crear';
+  gastoForm: GastoFormVisual = this.crearFormularioGastoVacio();
+  gastoFiltros: GastoFiltrosVisual = this.crearFiltrosGastoVacios();
+
+  readonly metodosPagoGasto: readonly string[] = [
+    'EFECTIVO',
+    'TARJETA_CREDITO',
+    'TARJETA_DEBITO',
+    'TRANSFERENCIA',
+    'PLATAFORMA',
+    'OTRO',
+  ];
   readonly ocupacionChartType: ChartConfiguration<'pie'>['type'] = 'pie';
   readonly ingresosTipoChartType: ChartConfiguration<'bar'>['type'] = 'bar';
   readonly mediosPagoChartType: ChartConfiguration<'bar'>['type'] = 'bar';
@@ -236,10 +275,14 @@ export class DashboardComponent implements OnInit {
     },
   };
 
-  constructor(private readonly detalleService: DetalleService) {}
+  constructor(
+    private readonly detalleService: DetalleService,
+    private readonly gastoService: GastoService
+  ) {}
 
   ngOnInit(): void {
     this.cargarPanelDashboard();
+    this.cargarGastos();
   }
 
   aplicarFiltrosPanel(): void {
@@ -523,6 +566,249 @@ export class DashboardComponent implements OnInit {
     return item.nombre;
   }
 
+  trackByGastoId(_: number, gasto: GastoDTO): number {
+    return gasto.id;
+  }
+
+  seleccionarGasto(gasto: GastoDTO): void {
+    this.gastoSeleccionadoId = this.gastoSeleccionadoId === gasto.id ? null : gasto.id;
+    this.gastosExito = '';
+    this.gastosError = '';
+  }
+
+  esGastoSeleccionado(gasto: GastoDTO): boolean {
+    return this.gastoSeleccionadoId === gasto.id;
+  }
+
+  abrirModalCrearGasto(): void {
+    if (this.guardandoGasto || this.eliminandoGasto) {
+      return;
+    }
+    this.modalGastoModo = 'crear';
+    this.gastoForm = this.crearFormularioGastoVacio();
+    this.modalGastoAbierto = true;
+    this.gastosError = '';
+    this.gastosExito = '';
+  }
+
+  abrirModalEditarGasto(): void {
+    const gasto = this.obtenerGastoSeleccionado();
+    if (!gasto || this.guardandoGasto || this.eliminandoGasto) {
+      return;
+    }
+    this.modalGastoModo = 'editar';
+    this.gastoForm = {
+      concepto: gasto.concepto ?? '',
+      descripcion: gasto.descripcion ?? '',
+      monto: `${gasto.monto ?? ''}`,
+      fecha: this.formatearFechaHoraInputDesdeIso(gasto.fecha),
+      metodoPago: gasto.metodoPago ?? 'EFECTIVO',
+      referencia: gasto.referencia ?? '',
+    };
+    this.modalGastoAbierto = true;
+    this.gastosError = '';
+    this.gastosExito = '';
+  }
+
+  cerrarModalGasto(): void {
+    if (this.guardandoGasto) {
+      return;
+    }
+    this.modalGastoAbierto = false;
+  }
+
+  guardarGasto(): void {
+    if (this.guardandoGasto) {
+      return;
+    }
+
+    const concepto = this.gastoForm.concepto.trim();
+    const metodoPago = this.gastoForm.metodoPago.trim();
+    const fecha = this.normalizarFechaHoraLocal(this.gastoForm.fecha);
+    const monto = Number.parseFloat(this.gastoForm.monto);
+
+    if (!concepto) {
+      this.gastosError = 'El concepto del gasto es obligatorio.';
+      return;
+    }
+    if (!Number.isFinite(monto) || monto <= 0) {
+      this.gastosError = 'El monto debe ser mayor a cero.';
+      return;
+    }
+    if (!fecha) {
+      this.gastosError = 'La fecha del gasto es obligatoria.';
+      return;
+    }
+    if (!metodoPago) {
+      this.gastosError = 'El metodo de pago es obligatorio.';
+      return;
+    }
+    const gastoSeleccionado = this.obtenerGastoSeleccionado();
+
+    const request: GastoRequest = {
+      concepto,
+      descripcion: this.gastoForm.descripcion.trim() || undefined,
+      monto,
+      fecha,
+      metodoPago,
+      referencia: this.gastoForm.referencia.trim() || undefined,
+      estado: this.modalGastoModo === 'editar' && gastoSeleccionado
+        ? (gastoSeleccionado.estado ?? 'ACTIVO')
+        : 'ACTIVO',
+    };
+
+    this.guardandoGasto = true;
+    this.gastosError = '';
+    this.gastosExito = '';
+
+    const operacion$ =
+      this.modalGastoModo === 'editar' && gastoSeleccionado
+        ? this.gastoService.actualizar(gastoSeleccionado.id, request)
+        : this.gastoService.crear(request);
+
+    operacion$.subscribe({
+      next: () => {
+        this.guardandoGasto = false;
+        this.modalGastoAbierto = false;
+        this.gastosExito =
+          this.modalGastoModo === 'editar'
+            ? 'Gasto actualizado correctamente.'
+            : 'Gasto creado correctamente.';
+        this.cargarGastos();
+        this.cargarPanelDashboard();
+      },
+      error: (errorResponse: unknown) => {
+        this.guardandoGasto = false;
+        this.gastosError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible guardar el gasto.'
+        );
+      },
+    });
+  }
+
+  abrirModalEliminarGasto(): void {
+    if (!this.obtenerGastoSeleccionado() || this.eliminandoGasto || this.guardandoGasto) {
+      return;
+    }
+    this.modalEliminarGastoAbierto = true;
+    this.gastosError = '';
+    this.gastosExito = '';
+  }
+
+  cerrarModalEliminarGasto(): void {
+    if (this.eliminandoGasto) {
+      return;
+    }
+    this.modalEliminarGastoAbierto = false;
+  }
+
+  confirmarEliminarGasto(): void {
+    const gasto = this.obtenerGastoSeleccionado();
+    if (!gasto || this.eliminandoGasto) {
+      return;
+    }
+
+    this.eliminandoGasto = true;
+    this.gastosError = '';
+    this.gastosExito = '';
+    this.gastoService.eliminar(gasto.id).subscribe({
+      next: () => {
+        this.eliminandoGasto = false;
+        this.modalEliminarGastoAbierto = false;
+        this.gastosExito = 'Gasto eliminado correctamente.';
+        this.gastoSeleccionadoId = null;
+        this.cargarGastos();
+        this.cargarPanelDashboard();
+      },
+      error: (errorResponse: unknown) => {
+        this.eliminandoGasto = false;
+        this.gastosError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible eliminar el gasto.'
+        );
+      },
+    });
+  }
+
+  puedeEditarGasto(): boolean {
+    return this.obtenerGastoSeleccionado() !== null;
+  }
+
+  puedeEliminarGasto(): boolean {
+    return this.obtenerGastoSeleccionado() !== null;
+  }
+
+  obtenerTooltipEditarGasto(): string | null {
+    if (!this.puedeEditarGasto()) {
+      return 'Selecciona un gasto para editar.';
+    }
+    return null;
+  }
+
+  obtenerTooltipEliminarGasto(): string | null {
+    if (!this.puedeEliminarGasto()) {
+      return 'Selecciona un gasto para eliminar.';
+    }
+    return null;
+  }
+
+  formatearFechaHora(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return '-';
+    }
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return fecha;
+    }
+    return date.toLocaleString('es-CO');
+  }
+
+  get gastosFiltrados(): GastoDTO[] {
+    const concepto = this.gastoFiltros.concepto.trim().toLowerCase();
+    const metodo = this.gastoFiltros.metodoPago.trim();
+    const desde = this.gastoFiltros.fechaDesde.trim();
+    const hasta = this.gastoFiltros.fechaHasta.trim();
+
+    return this.gastos.filter((gasto) => {
+      if (concepto) {
+        const texto = `${gasto.concepto ?? ''} ${gasto.descripcion ?? ''} ${gasto.referencia ?? ''}`.toLowerCase();
+        if (!texto.includes(concepto)) {
+          return false;
+        }
+      }
+
+      if (metodo && gasto.metodoPago !== metodo) {
+        return false;
+      }
+
+      const fecha = new Date(gasto.fecha ?? '');
+      if (Number.isNaN(fecha.getTime())) {
+        return false;
+      }
+
+      if (desde) {
+        const fechaDesde = new Date(`${desde}T00:00:00`);
+        if (fecha < fechaDesde) {
+          return false;
+        }
+      }
+
+      if (hasta) {
+        const fechaHasta = new Date(`${hasta}T23:59:59`);
+        if (fecha > fechaHasta) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }
+
+  limpiarFiltrosGastos(): void {
+    this.gastoFiltros = this.crearFiltrosGastoVacios();
+  }
+
   private cargarPanelDashboard(): void {
     this.dashboardCargando = true;
     this.dashboardError = '';
@@ -549,6 +835,110 @@ export class DashboardComponent implements OnInit {
         this.dashboardCargando = false;
       },
     });
+  }
+
+  private cargarGastos(): void {
+    this.gastosCargando = true;
+    this.gastosError = '';
+
+    this.gastoService.listar().subscribe({
+      next: (gastos) => {
+        this.gastos = [...gastos].sort((a, b) => {
+          const fechaA = new Date(a.fecha ?? '').getTime();
+          const fechaB = new Date(b.fecha ?? '').getTime();
+          return fechaB - fechaA;
+        });
+
+        if (
+          this.gastoSeleccionadoId !== null &&
+          !this.gastos.some((gasto) => gasto.id === this.gastoSeleccionadoId)
+        ) {
+          this.gastoSeleccionadoId = null;
+        }
+        this.gastosCargando = false;
+      },
+      error: (errorResponse: unknown) => {
+        this.gastos = [];
+        this.gastosCargando = false;
+        this.gastoSeleccionadoId = null;
+        this.gastosError = extractBackendErrorMessage(
+          errorResponse,
+          'No fue posible cargar los gastos.'
+        );
+      },
+    });
+  }
+
+  private obtenerGastoSeleccionado(): GastoDTO | null {
+    if (this.gastoSeleccionadoId === null) {
+      return null;
+    }
+    return this.gastosFiltrados.find((gasto) => gasto.id === this.gastoSeleccionadoId) ?? null;
+  }
+
+  private crearFormularioGastoVacio(): GastoFormVisual {
+    return {
+      concepto: '',
+      descripcion: '',
+      monto: '',
+      fecha: this.obtenerFechaHoraActualInput(),
+      metodoPago: 'EFECTIVO',
+      referencia: '',
+    };
+  }
+
+  private crearFiltrosGastoVacios(): GastoFiltrosVisual {
+    return {
+      concepto: '',
+      metodoPago: '',
+      fechaDesde: '',
+      fechaHasta: '',
+    };
+  }
+
+  private obtenerFechaHoraActualInput(): string {
+    const ahora = new Date();
+    const year = ahora.getFullYear();
+    const month = `${ahora.getMonth() + 1}`.padStart(2, '0');
+    const day = `${ahora.getDate()}`.padStart(2, '0');
+    const hours = `${ahora.getHours()}`.padStart(2, '0');
+    const minutes = `${ahora.getMinutes()}`.padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+
+  private normalizarFechaHoraLocal(valor: string): string {
+    const texto = valor.trim();
+    if (!texto) {
+      return '';
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+      return `${texto}T00:00:00`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(texto)) {
+      return `${texto}:00`;
+    }
+
+    return texto;
+  }
+
+  private formatearFechaHoraInputDesdeIso(fecha: string | null | undefined): string {
+    if (!fecha) {
+      return this.obtenerFechaHoraActualInput();
+    }
+
+    const date = new Date(fecha);
+    if (Number.isNaN(date.getTime())) {
+      return this.obtenerFechaHoraActualInput();
+    }
+
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    const hours = `${date.getHours()}`.padStart(2, '0');
+    const minutes = `${date.getMinutes()}`.padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
   private crearFiltrosDashboardIniciales(): DashboardFiltrosVisual {

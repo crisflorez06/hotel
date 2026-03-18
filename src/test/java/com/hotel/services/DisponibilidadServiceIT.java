@@ -127,21 +127,20 @@ class DisponibilidadServiceIT extends AbstractServiceIT {
     }
 
     @Test
-    void exitoVerificandoDisponibilidadNuevoConListaVacia_test() {
+    void falloVerificandoDisponibilidadNuevoConListaVacia_test() {
 
         // ---------- GIVEN ----------
         LocalDateTime entrada = LocalDateTime.now().plusDays(2);
         LocalDateTime salida = entrada.plusDays(2);
 
-        // ---------- WHEN ----------
-        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadNuevo(
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadNuevo(
                 List.of(),
                 entrada,
                 salida
-        );
-
-        // ---------- THEN ----------
-        assertThat(detalleNoDisponible).isEmpty();
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("La lista de habitaciones no puede ser nula o vacía");
     }
 
     @Test
@@ -256,5 +255,203 @@ class DisponibilidadServiceIT extends AbstractServiceIT {
 
         // ---------- THEN ----------
         assertThat(detalleNoDisponible).isEmpty();
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadEditarConListaVacia_test() {
+
+        // ---------- GIVEN ----------
+        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
+        LocalDateTime salida = entrada.plusDays(2);
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadEditar(
+                null,
+                null,
+                List.of(),
+                entrada,
+                salida
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("La lista de habitaciones no puede ser nula o vacía");
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadEditarPorEstadoInconsistente_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
+        LocalDateTime salida = entrada.plusDays(2);
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadEditar(
+                null,
+                null,
+                unidad.getHabitaciones(),
+                entrada,
+                salida
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Estado inconsistente");
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadNuevoConFechasIguales_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        LocalDateTime entrada = LocalDateTime.now().plusDays(2);
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadNuevo(
+                unidad.getHabitaciones(),
+                entrada,
+                entrada
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("La fecha de inicio debe ser anterior a la fecha de fin");
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadNuevoConFechaInicioPosterior_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        LocalDateTime entrada = LocalDateTime.now().plusDays(5);
+        LocalDateTime salida = LocalDateTime.now().plusDays(3);
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadNuevo(
+                unidad.getHabitaciones(),
+                entrada,
+                salida
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("La fecha de inicio debe ser anterior a la fecha de fin");
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadNuevoConFechasNulas_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadNuevo(
+                unidad.getHabitaciones(),
+                null,
+                LocalDateTime.now().plusDays(1)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Las fechas de inicio y fin son obligatorias");
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadEditarConFechasNulas_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> disponibilidadService.verificarDisponibilidadEditar(
+                null,
+                null,
+                unidad.getHabitaciones(),
+                LocalDateTime.now().plusDays(1),
+                null
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Las fechas de inicio y fin son obligatorias");
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadNuevoPorEstanciaActivaSinSalidaEstimada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        estancia.setSalidaEstimada(null);
+        estanciaRepository.save(estancia);
+
+        LocalDateTime entrada = LocalDateTime.now().plusDays(20);
+        LocalDateTime salida = entrada.plusDays(2);
+
+        // ---------- WHEN ----------
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadNuevo(
+                unidad.getHabitaciones(),
+                entrada,
+                salida
+        );
+
+        // ---------- THEN ----------
+        assertThat(detalleNoDisponible)
+                .contains("existe una estancia para las habitaciones con codigo");
+    }
+
+    @Test
+    void exitoVerificandoDisponibilidadNuevoSinSolapeConEstanciaActiva_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        LocalDateTime entrada = LocalDateTime.now().plusDays(10);
+        LocalDateTime salida = entrada.plusDays(2);
+
+        // ---------- WHEN ----------
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadNuevo(
+                unidad.getHabitaciones(),
+                entrada,
+                salida
+        );
+
+        // ---------- THEN ----------
+        assertThat(detalleNoDisponible).isEmpty();
+    }
+
+    @Test
+    void exitoVerificandoDisponibilidadEditarConReservaYEstanciaNulasSinConflicto_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        LocalDateTime entrada = LocalDateTime.now().plusDays(10);
+        LocalDateTime salida = entrada.plusDays(2);
+
+        // ---------- WHEN ----------
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadEditar(
+                null,
+                null,
+                unidad.getHabitaciones(),
+                entrada,
+                salida
+        );
+
+        // ---------- THEN ----------
+        assertThat(detalleNoDisponible).isEmpty();
+    }
+
+    @Test
+    void falloVerificandoDisponibilidadEditarPorReservaYEstanciaSimultaneaConflictoReal_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Reserva reservaEditar = crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+
+        LocalDateTime entrada = LocalDateTime.now().plusDays(3);
+        LocalDateTime salida = entrada.plusDays(1);
+
+        // ---------- WHEN ----------
+        String detalleNoDisponible = disponibilidadService.verificarDisponibilidadEditar(
+                reservaEditar,
+                reservaEditar.getEstancia(),
+                unidad.getHabitaciones(),
+                entrada,
+                salida
+        );
+
+        // ---------- THEN ----------
+        assertThat(detalleNoDisponible)
+                .contains("existe una reserva para las habitaciones con codigo");
     }
 }

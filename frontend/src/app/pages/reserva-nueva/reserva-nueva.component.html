@@ -160,7 +160,12 @@
 
             <div class="campo campo--full">
               <label>Notas</label>
-              <textarea rows="3" [(ngModel)]="notas" name="notas"></textarea>
+              <textarea
+                rows="3"
+                [(ngModel)]="notas"
+                name="notas"
+                placeholder="Agrega una nota nueva (opcional)"
+              ></textarea>
             </div>
           </div>
         </section>
@@ -375,6 +380,15 @@
               [dateFormat]="'Y-m-d'"
               placeholder="YYYY-MM-DD"
             />
+          </div>
+          <div class="campo">
+            <label>Notas del pago</label>
+            <textarea
+              rows="3"
+              [(ngModel)]="notasPago"
+              name="notasPago"
+              placeholder="Agrega una nota nueva (opcional)"
+            ></textarea>
           </div>
         </div>
       </div>

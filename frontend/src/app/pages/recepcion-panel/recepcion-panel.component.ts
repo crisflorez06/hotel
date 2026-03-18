@@ -71,6 +71,7 @@ export class RecepcionPanelComponent implements OnInit {
   montoPago: number | null = null;
   medioPago: MedioPago = 'EFECTIVO';
   fechaPago = '';
+  notasPago = '';
   totalCalculado: number | null = null;
   calculandoPago = false;
   calculoError = '';
@@ -554,6 +555,7 @@ export class RecepcionPanelComponent implements OnInit {
     this.montoPago = null;
     this.medioPago = 'EFECTIVO';
     this.fechaPago = this.obtenerFechaActual();
+    this.notasPago = '';
     this.recalcularPago();
   }
 
@@ -587,8 +589,10 @@ export class RecepcionPanelComponent implements OnInit {
     const request: PagoNuevoRequest = {
       tipoPago: 'ANTICIPO_ESTANCIA',
       monto: Number(this.montoPago),
+      montoEstimado: this.totalCalculado ?? undefined,
       medioPago: this.medioPago,
       fecha: this.normalizarFechaPago(this.fechaPago),
+      notas: this.notasPago.trim() || undefined,
       estado: 'COMPLETADO',
     };
 

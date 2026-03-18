@@ -18,11 +18,15 @@ public class PagoNuevoRequestDTO {
     @NotNull(message = "monto es obligatorio")
     private BigDecimal monto;
 
+    private BigDecimal montoEstimado;
+
     @NotNull(message = "medioPago es obligatorio")
     private MedioPago medioPago;
 
     @NotNull(message = "fecha de registro es obligatorio")
     private LocalDateTime fecha;
+
+    private String notas;
 
     private EstadoPago estado;
 

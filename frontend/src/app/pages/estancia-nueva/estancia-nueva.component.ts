@@ -49,6 +49,7 @@ export class EstanciaNuevaComponent implements OnInit {
   idCliente: number | null = null;
   entradaReal = '';
   salidaEstimada = '';
+  mesesEstadia: number | null = null;
   idAcompanantes = '';
   notas = '';
 
@@ -64,6 +65,7 @@ export class EstanciaNuevaComponent implements OnInit {
   calculoError = '';
   medioPago: MedioPago = 'EFECTIVO';
   fechaPago = '';
+  notasPago = '';
 
   mostrarModalCliente = false;
   creandoCliente = false;
@@ -722,6 +724,33 @@ export class EstanciaNuevaComponent implements OnInit {
     this.recalcularPago();
   }
 
+  onEntradaRealChange(valor: string): void {
+    this.entradaReal = valor;
+    this.autocompletarSalidaPorMeses();
+    this.recalcularPago();
+  }
+
+  onMesesEstadiaChange(valor: number | string | null): void {
+    if (valor === null || valor === '') {
+      this.mesesEstadia = null;
+      this.recalcularPago();
+      return;
+    }
+
+    const meses =
+      typeof valor === 'number' ? Math.floor(valor) : Math.floor(Number.parseInt(valor, 10));
+
+    if (Number.isNaN(meses) || meses < 1) {
+      this.mesesEstadia = null;
+      this.recalcularPago();
+      return;
+    }
+
+    this.mesesEstadia = meses;
+    this.autocompletarSalidaPorMeses();
+    this.recalcularPago();
+  }
+
   volver(): void {
     if (this.retornoExplicito) {
       this.router.navigateByUrl(this.rutaRetorno);
@@ -808,8 +837,10 @@ export class EstanciaNuevaComponent implements OnInit {
     return {
       tipoPago: this.tipoPago,
       monto: this.monto,
+      montoEstimado: this.totalCalculado ?? undefined,
       medioPago: this.medioPago,
       fecha: this.normalizarFechaPago(this.fechaPago),
+      notas: this.notasPago.trim() || undefined,
       estado: 'COMPLETADO',
     };
   }
@@ -926,13 +957,38 @@ export class EstanciaNuevaComponent implements OnInit {
     return Number.isNaN(fecha.getTime()) ? null : fecha;
   }
 
+  private autocompletarSalidaPorMeses(): void {
+    if (this.esEdicion || this.esRegistroIngreso || !this.mesesEstadia || !this.entradaReal) {
+      return;
+    }
+
+    const entrada = this.parsearFechaHoraLocal(this.entradaReal);
+    if (!entrada) {
+      return;
+    }
+
+    const salidaCalculada = new Date(entrada.getTime());
+    const diasAgregar = this.mesesEstadia * 30;
+    salidaCalculada.setDate(salidaCalculada.getDate() + diasAgregar);
+    this.salidaEstimada = this.formatearFechaHoraDesdeDate(salidaCalculada);
+  }
+
+  private formatearFechaHoraDesdeDate(fecha: Date): string {
+    const anio = fecha.getFullYear();
+    const mes = `${fecha.getMonth() + 1}`.padStart(2, '0');
+    const dia = `${fecha.getDate()}`.padStart(2, '0');
+    const horas = `${fecha.getHours()}`.padStart(2, '0');
+    const minutos = `${fecha.getMinutes()}`.padStart(2, '0');
+    return `${anio}-${mes}-${dia} ${horas}:${minutos}`;
+  }
+
   private cargarEstanciaParaEdicion(estanciaId: number): void {
     this.estanciaService.obtenerEstanciaPorId(estanciaId).subscribe({
       next: (estancia) => {
         this.estanciaId = estancia.id;
         this.entradaReal = this.formatearFechaHora(estancia.entradaReal);
         this.salidaEstimada = this.formatearFechaHora(estancia.salidaEstimada);
-        this.notas = estancia.notas ?? '';
+        this.notas = '';
         this.conPago = false;
 
         const cliente = estancia.cliente ?? null;

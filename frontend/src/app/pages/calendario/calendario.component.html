@@ -266,7 +266,9 @@
             [clickable]="true"
             (activate)="irATablaEstanciasPorCodigo(item.reserva?.codigoEstancia)"
           >{{ item.reserva?.codigoEstancia }}</app-calendario-info-card>
-          <app-calendario-info-card icon="bi-journal-text" label="Notas" [full]="true">{{ item.reserva?.notas || 'Sin notas' }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-journal-text" label="Notas" [full]="true">
+            <span class="calendario__note-text">{{ item.reserva?.notas || 'Sin notas' }}</span>
+          </app-calendario-info-card>
         </div>
         </ng-template>
       </div>
@@ -366,7 +368,9 @@
           <app-calendario-info-card icon="bi-box-arrow-right" label="Salida estimada">{{ formatearFecha(item.estancia?.salidaEstimada || item.fin) }}</app-calendario-info-card>
           <app-calendario-info-card icon="bi-calendar-check" label="Salida real">{{ formatearFecha(item.estancia?.salidaReal) }}</app-calendario-info-card>
           <app-calendario-info-card icon="bi-cash-stack" label="Total pagado">{{ obtenerTotalPagadoEstancia(item) | currency: 'COP' : 'symbol' : '1.0-0' }}</app-calendario-info-card>
-          <app-calendario-info-card icon="bi-journal-text" label="Notas" [full]="true">{{ item.estancia?.notas || 'Sin notas' }}</app-calendario-info-card>
+          <app-calendario-info-card icon="bi-journal-text" label="Notas" [full]="true">
+            <span class="calendario__note-text">{{ item.estancia?.notas || 'Sin notas' }}</span>
+          </app-calendario-info-card>
         </div>
         </ng-template>
       </div>

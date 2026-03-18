@@ -65,6 +65,7 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
   eliminandoReservaId: number | null = null;
   reservaPendienteEliminacion: ReservaTablaItem | null = null;
+  reservaNotasModal: ReservaTablaItem | null = null;
   reservaSeleccionadaId: number | null = null;
   filtrosAvanzadosAbiertos = false;
   rangoRapidoSeleccionado: Record<RangoRapidoCampo, RangoRapido | null> = {
@@ -661,6 +662,27 @@ export class ReservasComponent implements OnInit, OnDestroy {
 
   eliminarReserva(reserva: ReservaTablaItem): void {
     this.abrirModalEliminarReserva(reserva);
+  }
+
+  abrirModalNotasReserva(reserva: ReservaTablaItem): void {
+    this.reservaNotasModal = reserva;
+  }
+
+  cerrarModalNotasReserva(): void {
+    this.reservaNotasModal = null;
+  }
+
+  obtenerNotasReservaModal(reserva: ReservaTablaItem): string {
+    const notas = reserva.notas?.trim();
+    return notas ? notas : 'Sin notas';
+  }
+
+  tieneNotasReserva(reserva: ReservaTablaItem): boolean {
+    return !!reserva.notas?.trim();
+  }
+
+  obtenerTooltipNotasReserva(reserva: ReservaTablaItem): string {
+    return this.tieneNotasReserva(reserva) ? 'Ver notas' : 'Sin notas';
   }
 
   cerrarModalEliminarReserva(): void {

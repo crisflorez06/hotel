@@ -78,6 +78,7 @@ export class ReservaNuevaComponent implements OnInit {
   calculoError = '';
   medioPago: MedioPago = 'EFECTIVO';
   fechaPago = '';
+  notasPago = '';
 
   mostrarModalCliente = false;
   creandoCliente = false;
@@ -552,8 +553,10 @@ export class ReservaNuevaComponent implements OnInit {
     return {
       tipoPago: 'ANTICIPO_RESERVA',
       monto,
+      montoEstimado: this.totalCalculado ?? undefined,
       medioPago: this.medioPago,
       fecha: this.normalizarFechaPago(this.fechaPago),
+      notas: this.notasPago.trim() || undefined,
       estado: 'COMPLETADO',
     };
   }

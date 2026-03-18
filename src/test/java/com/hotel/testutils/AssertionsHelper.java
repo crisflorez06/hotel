@@ -326,6 +326,7 @@ public final class AssertionsHelper {
             case CREACION_PAGO:
             case MODIFICACION_PAGO:
             case ELIMINACION_PAGO:
+            case CREACION_RECARGO:
                 assertThat(evento.getEntidad()).isEqualTo(TipoEntidad.PAGO);
                 break;
             case CREACION_RESERVA:

@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -1994,7 +1995,7 @@ class ReservaServiceIT extends AbstractServiceIT {
         assertThat(dto.getEstadoReserva()).isEqualTo(EstadoReserva.CONFIRMADA);
         assertThat(dto.getNumeroPersonas()).isEqualTo(reserva.getNumeroPersonas());
         assertThat(dto.getCliente().getId()).isEqualTo(cliente.getId());
-        assertThat(dto.getCliente().getNombres()).isEqualTo("Mario Lopez");
+        assertThat(dto.getCliente().getNombres()).isEqualTo("Mario");
         assertThat(dto.getEntradaEstimada()).isEqualTo(reserva.getEntradaEstimada());
         assertThat(dto.getSalidaEstimada()).isEqualTo(reserva.getSalidaEstimada());
     }
@@ -2128,6 +2129,7 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         Page<ReservaTablaDTO> resultado = reservaService.buscarReservasTabla(
+                null,
                 List.of(EstadoReserva.CONFIRMADA),
                 List.of(CanalReserva.MOSTRADOR),
                 ModoOcupacion.COMPLETO,
@@ -2198,12 +2200,14 @@ class ReservaServiceIT extends AbstractServiceIT {
         Page<ReservaTablaDTO> pagina0 = reservaService.buscarReservasTabla(
                 null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null,
+                null,
                 PageRequest.of(0, 2)
         );
 
         Page<ReservaTablaDTO> pagina1 = reservaService.buscarReservasTabla(
                 null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null, null,
+                null,
                 PageRequest.of(1, 2)
         );
 
@@ -2214,6 +2218,193 @@ class ReservaServiceIT extends AbstractServiceIT {
 
         assertThat(pagina1.getContent()).hasSize(1);
         assertThat(pagina1.getContent().getFirst().getId()).isEqualTo(reservaAntigua.getId());
+    }
+
+    @Test
+    void exitoEditandoReservaEnEstadoExpirada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Reserva reservaExistente = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.EXPIRADA);
+        Ocupante clienteNuevo = crearCliente(clienteEditarData());
+
+        ReservaRequestDTO request = reservaRequestDTO(
+                unidad.getTipo(),
+                unidad.getCodigo(),
+                clienteNuevo,
+                null
+        );
+        request.setEntradaEstimada(reservaExistente.getEntradaEstimada().toLocalDate());
+        request.setSalidaEstimada(reservaExistente.getSalidaEstimada().toLocalDate());
+        request.setCanalReserva(CanalReserva.PLATAFORMA_BOOKING);
+        request.setNumeroPersonas(4);
+
+        // ---------- WHEN ----------
+        reservaService.editarReserva(request, reservaExistente.getId());
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva reservaDb = reservaRepository.findById(reservaExistente.getId()).orElseThrow();
+        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reservaExistente.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.RESERVA,
+                reservaDb.getId()).orElseThrow();
+
+        assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.EXPIRADA);
+        assertThat(reservaDb.getNumeroPersonas()).isEqualTo(4);
+        assertThat(reservaDb.getCanalReserva()).isEqualTo(CanalReserva.PLATAFORMA_BOOKING);
+        assertThat(reservaDb.getCliente().getId()).isEqualTo(clienteNuevo.getId());
+        assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.RESERVADA);
+        comprobarEventoDb(eventoDb, TipoEvento.MODIFICACION_RESERVA, null, reservaDb.getCodigo(), 3);
+    }
+
+    @Test
+    void exitoEliminandoReservaEnEstadoExpirada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.EXPIRADA);
+
+        // ---------- WHEN ----------
+        Void result = reservaService.eliminarReserva(reserva.getId());
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
+        Estancia estanciaDb = estanciaRepository.findByReserva_Id(reserva.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.RESERVA,
+                reservaDb.getId()).orElseThrow();
+
+        assertThat(result).isNull();
+        assertThat(reservaDb.getEstado()).isEqualTo(EstadoReserva.CANCELADA);
+        assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.CANCELADA);
+        comprobarEventoDb(eventoDb, TipoEvento.ELIMINACION_RESERVA, null, reservaDb.getCodigo(), 1);
+    }
+
+    @Test
+    void exitoBuscandoReservasPorNumeroDocumentoIncluyeEstadoExpirada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidadConfirmada = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Unidad unidadExpirada = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Unidad unidadCancelada = crearApartamento(EstadoOperativo.DISPONIBLE);
+
+        Reserva reservaConfirmada = crearReservaExistente(unidadConfirmada.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        reservaConfirmada.getCliente().setNumeroDocumento("FILTRO-EXP-900");
+        ocupanteRepository.save(reservaConfirmada.getCliente());
+
+        Reserva reservaExpirada = crearReservaExistente(unidadExpirada.getHabitaciones(), false, EstadoReserva.EXPIRADA);
+        reservaExpirada.getCliente().setNumeroDocumento("FILTRO-EXP-900");
+        ocupanteRepository.save(reservaExpirada.getCliente());
+
+        Reserva reservaCancelada = crearReservaExistente(unidadCancelada.getHabitaciones(), false, EstadoReserva.CANCELADA);
+        reservaCancelada.getCliente().setNumeroDocumento("FILTRO-EXP-900");
+        ocupanteRepository.save(reservaCancelada.getCliente());
+
+        // ---------- WHEN ----------
+        List<ReservaDTO> resultado = reservaService.buscarReservasPorNumeroDocumento("FILTRO-EXP-900");
+
+        // ---------- THEN ----------
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.stream().map(ReservaDTO::getId).toList())
+                .containsExactlyInAnyOrder(reservaConfirmada.getId(), reservaExpirada.getId());
+    }
+
+    @Test
+    void exitoObteniendoReservaPorId_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), true, EstadoReserva.CONFIRMADA);
+
+        // ---------- WHEN ----------
+        ReservaDTO dto = reservaService.obtenerReservaPorId(reserva.getId());
+
+        // ---------- THEN ----------
+        assertThat(dto.getId()).isEqualTo(reserva.getId());
+        assertThat(dto.getCodigoReserva()).isEqualTo(reserva.getCodigo());
+        assertThat(dto.getEstadoReserva()).isEqualTo(EstadoReserva.CONFIRMADA);
+        assertThat(dto.getNumeroPersonas()).isEqualTo(reserva.getNumeroPersonas());
+        assertThat(dto.getCliente().getId()).isEqualTo(reserva.getCliente().getId());
+    }
+
+    @Test
+    void falloObteniendoReservaPorIdInexistente_test() {
+
+        // ---------- WHEN + THEN ----------
+        assertThatThrownBy(() -> reservaService.obtenerReservaPorId(Long.MAX_VALUE))
+                .isInstanceOf(jakarta.persistence.EntityNotFoundException.class)
+                .hasMessageContaining("Reserva no encontrado con id: " + Long.MAX_VALUE);
+    }
+
+    @Test
+    void exitoCreandoReservaConEntradaHoyMarcaHabitacionesReservadas_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Ocupante cliente = crearCliente(clienteData());
+
+        ReservaRequestDTO request = reservaRequestDTO(
+                unidad.getTipo(),
+                unidad.getCodigo(),
+                cliente,
+                LocalDate.now()
+        );
+
+        // ---------- WHEN ----------
+        ReservaDTO reserva = reservaService.crearReserva(request);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva reservaDb = reservaRepository.findById(reserva.getId()).orElseThrow();
+        assertThat(reservaDb.getHabitaciones()).isNotEmpty();
+        assertThat(reservaDb.getHabitaciones())
+                .allMatch(habitacion -> habitacion.getEstadoOperativo() == EstadoOperativo.RESERVADO);
+    }
+
+    @Test
+    void exitoBuscandoReservasTablaRespetaSortExplicito_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad1 = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Unidad unidad2 = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Unidad unidad3 = crearApartamento(EstadoOperativo.DISPONIBLE);
+
+        Reserva reservaAntigua = crearReservaExistente(unidad1.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        reservaAntigua.setFechaCreacion(LocalDateTime.now().minusDays(3));
+        reservaRepository.save(reservaAntigua);
+
+        Reserva reservaMedia = crearReservaExistente(unidad2.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        reservaMedia.setFechaCreacion(LocalDateTime.now().minusDays(2));
+        reservaRepository.save(reservaMedia);
+
+        Reserva reservaReciente = crearReservaExistente(unidad3.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        reservaReciente.setFechaCreacion(LocalDateTime.now().minusDays(1));
+        reservaRepository.save(reservaReciente);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // ---------- WHEN ----------
+        Page<ReservaTablaDTO> resultado = reservaService.buscarReservasTabla(
+                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
+                null,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "fechaCreacion"))
+        );
+
+        // ---------- THEN ----------
+        assertThat(resultado.getContent()).hasSize(3);
+        assertThat(resultado.getContent().get(0).getId()).isEqualTo(reservaAntigua.getId());
+        assertThat(resultado.getContent().get(1).getId()).isEqualTo(reservaMedia.getId());
+        assertThat(resultado.getContent().get(2).getId()).isEqualTo(reservaReciente.getId());
     }
 
 }

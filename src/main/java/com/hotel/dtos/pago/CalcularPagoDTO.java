@@ -1,5 +1,6 @@
 package com.hotel.dtos.pago;
 
+import com.hotel.models.enums.TipoCalculo;
 import com.hotel.models.enums.TipoUnidad;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -24,6 +25,9 @@ public class CalcularPagoDTO {
 
     @NotNull(message = "La fecha de salida es obligatoria")
     private LocalDateTime fechaSalida;
+
+    @NotNull(message = "El tipo de calculo es obligatorio")
+    private TipoCalculo tipoCalculo;
 
 
 }

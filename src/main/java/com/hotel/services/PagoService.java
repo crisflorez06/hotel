@@ -15,6 +15,7 @@ import com.hotel.specifications.PagoSpecification;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 import com.hotel.utils.EventoModificadoJsonBuilder;
@@ -79,6 +80,7 @@ public class PagoService {
                 .agregarProp("codigoEstancia", estancia.getCodigoFolio())
                 .agregarProp("tipoPago", request.getTipoPago())
                 .agregarProp("monto", request.getMonto())
+                .agregarProp("montoEstimado", request.getMontoEstimado())
                 .agregarProp("estado", pago.getEstado());
 
         Pago pagoCreado = pagoRepository.save(pago);
@@ -151,14 +153,17 @@ public class PagoService {
 
         EventoNuevoJsonBuilder nuevoPagoJson = new EventoNuevoJsonBuilder()
                 .agregarProp("codigoEstancia", estancia.getCodigoFolio())
-                .agregarProp("tipoPago", pago.getTipoPago())
-                .agregarProp("monto", monto);
+                .agregarProp("monto", monto)
+                .agregarProp("montoEstimado", monto)
+                .agregarProp("estado", EstadoPago.PENDIENTE)
+                .agregarProp("motivo", "Cambio de unidad");
+
 
 
         Pago pagoCreado = pagoRepository.save(pago);
 
         eventoService.crearEvento(
-                TipoEvento.CREACION_PAGO,
+                TipoEvento.CREACION_RECARGO,
                 TipoEntidad.PAGO,
                 pagoCreado.getId(),
                 nuevoPagoJson.build(),
@@ -169,6 +174,60 @@ public class PagoService {
 
         return pagoCreado;
     }
+
+    @Transactional
+    public Pago crearPagoPorCambioOcupantes(Estancia estancia, TipoUnidad tipoUnidad, Integer totalOcupantesAntes) {
+        if (estancia == null || totalOcupantesAntes == null) {
+            logger.info("[crearPagoPorCambioOcupantes] No se proporcionó información de estancia o numero de ocupantes");
+            throw new IllegalArgumentException("No se proporcionó información de estancia o numero de ocupantes");
+        }
+        if(estancia.getEstado() != EstadoEstancia.ACTIVA && estancia.getEstado() != EstadoEstancia.EXCEDIDA) {
+            logger.info("[crearPagoPorCambioOcupantes] No se puede crear un pago por cambio de ocupantes para una estancia que no está ACTIVA o EXCEDIDA. El estado actual de la estancia es: {}", estancia.getEstado());
+            throw new IllegalStateException("No se puede crear un pago por cambio de ocupantes para una estancia que no está ACTIVA o EXCEDIDA. El estado actual de la estancia es: " + estancia.getEstado());
+        }
+
+        int totalOcupantesActual = estancia.getOcupantes() != null ? estancia.getOcupantes().size() : 0;
+        logger.info(
+                "[crearPagoPorCambioOcupantes] Creando pago por cambio de ocupantes para estancia con codigo: {} y ocupantes {} -> {}",
+                estancia.getCodigoFolio(),
+                totalOcupantesAntes,
+                totalOcupantesActual
+        );
+        LocalDateTime fechaEntrada = estancia.getEntradaReal();
+        LocalDateTime fechaFinalizacion = LocalDateTime.now();
+
+        logger.info("[crearPagoPorCambioOcupantes] Preparando datos para cálculo de pago por cambio de ocupantes. Total ocupantes base: {}, Fecha entrada: {}, Fecha finalización: {}", totalOcupantesAntes, fechaEntrada, fechaFinalizacion);
+        CalcularPagoDTO calcularPagoDTO = PagoMapper.entityToCalcularPagoDTO(estancia.getId(), tipoUnidad, totalOcupantesAntes, fechaEntrada, fechaFinalizacion);
+
+        BigDecimal monto = obtenerEstimacionPagoSinPagosAnteriores(calcularPagoDTO);
+
+        logger.info("[crearPagoPorCambioOcupantes] Monto calculado para pago por cambio de unidad: {}", monto);
+        Pago pago = PagoMapper.cambioUnidadToEntity(monto, fechaFinalizacion, estancia);
+
+        EventoNuevoJsonBuilder nuevoPagoJson = new EventoNuevoJsonBuilder()
+                .agregarProp("codigoEstancia", estancia.getCodigoFolio())
+                .agregarProp("monto", monto)
+                .agregarProp("montoEstimado", monto)
+                .agregarProp("estado", EstadoPago.PENDIENTE)
+                .agregarProp("motivo", "Cambio de cantidad de ocupantes");
+
+
+
+        Pago pagoCreado = pagoRepository.save(pago);
+
+        eventoService.crearEvento(
+                TipoEvento.CREACION_RECARGO,
+                TipoEntidad.PAGO,
+                pagoCreado.getId(),
+                nuevoPagoJson.build(),
+                estancia.getCodigoFolio(),
+                null
+        );
+
+
+        return pagoCreado;
+    }
+
 
     @Transactional(readOnly = true)
     public Page<PagoDTO> buscarPagos(
@@ -193,12 +252,33 @@ public class PagoService {
 
     public BigDecimal obtenerEstimacionPago(CalcularPagoDTO request) {
         logger.info("[obtenerEstimacionPago] Calculando estimación de pago para el request: {}", request);
+        validarTipoCalculoConsistente(request);
         return pagoResolver.calcularEstimacionPago(request);
     }
 
     public BigDecimal obtenerEstimacionPagoSinPagosAnteriores(CalcularPagoDTO request) {
         logger.info("[obtenerEstimacionPagoSinPagosAnteriores] Calculando estimación de pago sin considerar pagos anteriores para el request: {}", request);
+        validarTipoCalculoConsistente(request);
         return pagoResolver.calcularEstimacionPagoSinPagosAnteriores(request);
+    }
+
+    private void validarTipoCalculoConsistente(CalcularPagoDTO request) {
+        if (request == null || request.getTipoCalculo() == null || request.getFechaEntrada() == null || request.getFechaSalida() == null) {
+            return;
+        }
+
+        long totalDias = ChronoUnit.DAYS.between(
+                request.getFechaEntrada().toLocalDate(),
+                request.getFechaSalida().toLocalDate()
+        );
+
+        TipoCalculo tipoCalculoEsperado = totalDias >= 30
+                ? TipoCalculo.ESTADIA_CORTA
+                : TipoCalculo.ESTANDAR;
+
+        if (request.getTipoCalculo() != tipoCalculoEsperado) {
+            throw new IllegalArgumentException("El tipoCalculo enviado no coincide con el rango de dias");
+        }
     }
 
     public void eliminarTodoLosPagos(Long idEstancia) {

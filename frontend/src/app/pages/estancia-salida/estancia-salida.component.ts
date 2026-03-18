@@ -42,6 +42,7 @@ export class EstanciaSalidaComponent implements OnInit {
   calculoError = '';
   medioPago: MedioPago = 'EFECTIVO';
   fechaPago: string | Date = '';
+  notasPago = '';
   estadoPago: EstadoPago = 'PENDIENTE';
 
   guardando = false;
@@ -325,8 +326,10 @@ export class EstanciaSalidaComponent implements OnInit {
     return {
       tipoPago: this.tipoPago,
       monto: Number(this.monto ?? 0),
+      montoEstimado: this.totalCalculado ?? undefined,
       medioPago: this.medioPago,
       fecha: this.normalizarFechaHora(this.fechaPago),
+      notas: this.notasPago.trim() || undefined,
       estado: this.estadoPago,
     };
   }

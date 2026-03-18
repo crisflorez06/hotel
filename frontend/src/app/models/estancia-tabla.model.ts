@@ -18,6 +18,7 @@ export interface EstanciaTablaItem {
   entradaReal: string;
   salidaEstimada: string;
   salidaReal: string | null;
+  notas?: string | null;
   tieneReservaAsociada: boolean;
   idReservaAsociada: number | null;
 }

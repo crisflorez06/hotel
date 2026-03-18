@@ -16,6 +16,7 @@ public class PagoDTO {
     private BigDecimal monto;
     private MedioPago medioPago;
     private LocalDateTime fecha;
+    private String notas;
     private EstadoPago estado;
     private TipoPago tipoPago;
 }

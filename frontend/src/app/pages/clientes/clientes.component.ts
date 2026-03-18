@@ -54,7 +54,6 @@ export class ClientesComponent implements OnInit, OnDestroy {
   ocupanteEditandoId: number | null = null;
   errorEdicion = '';
   errorCreacion = '';
-  readonly tiposOcupanteEdicion: TipoOcupante[] = ['CLIENTE', 'ACOMPANANTE'];
   formularioEdicion: OcupanteNuevoRequest = this.crearFormularioVacio();
   formularioCreacion: OcupanteNuevoRequest = this.crearFormularioVacio();
 
@@ -250,7 +249,10 @@ export class ClientesComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const request = this.normalizarFormulario(this.formularioCreacion);
+    const request = {
+      ...this.normalizarFormulario(this.formularioCreacion),
+      tipoOcupante: 'CLIENTE' as TipoOcupante,
+    };
     if (!request.nombres || !request.apellidos || !request.tipoDocumento || !request.numeroDocumento) {
       this.errorCreacion = 'Nombres, apellidos, tipo y numero de documento son obligatorios.';
       return;

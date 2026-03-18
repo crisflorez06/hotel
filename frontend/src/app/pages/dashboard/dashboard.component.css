@@ -515,6 +515,314 @@
   background: #fbfdfc;
 }
 
+.campo select {
+  border: 1px solid var(--line);
+  border-radius: 0.56rem;
+  padding: 0.48rem 0.55rem;
+  font: inherit;
+  color: var(--text);
+  background: #fbfdfc;
+}
+
+.campo select:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.6);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+
+.btn {
+  border: 1px solid var(--line);
+  background: #fbfcfa;
+  color: var(--text);
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+.btn-tooltip-host[data-tooltip] {
+  position: relative;
+  display: inline-flex;
+}
+
+.btn-tooltip-host[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.45rem);
+  transform: translateX(-50%);
+  background: #111827;
+  color: #ffffff;
+  border-radius: 0.4rem;
+  padding: 0.22rem 0.42rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.btn-tooltip-host[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: #93a79b;
+  background: #f3f7f3;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn--primary {
+  background: #0f4c45;
+  border-color: #0f4c45;
+  color: #ffffff;
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: #0a3b35;
+  border-color: #0a3b35;
+}
+
+.btn--danger {
+  background: #a31a1a;
+  border-color: #7f1414;
+  color: #ffffff;
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: #8c1717;
+  border-color: #6d1111;
+}
+
+.btn i {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.panel-card__header--gastos {
+  align-items: center;
+}
+
+.dashboard-gastos__acciones-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-gastos__btn-agregar {
+  margin-right: auto;
+}
+
+.dashboard-gastos__filtros {
+  margin-bottom: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  border: 1px solid #d7e1d7;
+  border-radius: 0.72rem;
+  padding: 0.72rem;
+  background: linear-gradient(180deg, #fffefb 0%, #f8fbf8 100%);
+}
+
+.dashboard-gastos__filtros-acciones {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tabla-wrapper {
+  overflow: auto;
+  border: 1px solid #d7e1d7;
+  border-radius: 0.72rem;
+  background: #fff;
+}
+
+.dashboard-gastos__tabla {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 960px;
+}
+
+.dashboard-gastos__tabla th,
+.dashboard-gastos__tabla td {
+  padding: 0.56rem 0.62rem;
+  text-align: left;
+  border-bottom: 1px solid #e5ece7;
+  font-size: 0.78rem;
+}
+
+.dashboard-gastos__tabla th {
+  background: #f6faf7;
+  color: #334155;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dashboard-gastos__tabla tbody tr {
+  cursor: pointer;
+}
+
+.dashboard-gastos__tabla tbody tr:nth-child(even) {
+  background: #fcfefb;
+}
+
+.dashboard-gastos__tabla tbody tr:hover {
+  background: #f4faf8;
+}
+
+.tabla-fila--seleccionada {
+  background: rgba(15, 118, 110, 0.14);
+}
+
+.col-check {
+  width: 44px;
+  text-align: center;
+}
+
+.fila-check {
+  width: 16px;
+  height: 16px;
+  accent-color: #0f4c45;
+  cursor: pointer;
+}
+
+.tabla-vacia {
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(2px);
+}
+
+.modal__panel {
+  position: relative;
+  width: min(100%, 36rem);
+  background: linear-gradient(180deg, #fffefb 0%, #f6faf7 100%);
+  border: 1px solid #c7d7cc;
+  border-top: 4px solid rgba(217, 119, 6, 0.42);
+  border-radius: 0.9rem;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+}
+
+.modal__panel--confirm {
+  width: min(100%, 30rem);
+  border-top-color: rgba(185, 28, 28, 0.55);
+}
+
+.modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.modal__header h3 {
+  margin: 0;
+  font-size: 1.12rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.modal__body {
+  color: #334155;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin-top: 0.5rem;
+}
+
+.modal__fields {
+  margin-top: 0.7rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.modal__fields .campo {
+  min-width: 0;
+}
+
+.modal__fields .campo label {
+  color: #334155;
+  font-weight: 700;
+}
+
+.modal__fields .campo input,
+.modal__fields .campo select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #9fb3a5;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.modal__fields .campo input::placeholder {
+  color: #64748b;
+}
+
+.modal__fields .campo input:focus,
+.modal__fields .campo select:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.7);
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.16);
+}
+
+.modal__actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.campo--full {
+  grid-column: 1 / -1;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #d7e1d7;
+  background: #f6faf7;
+  color: #5b6f64;
+  cursor: pointer;
+}
+
+.icon-btn--ghost {
+  background: #f6faf7;
+}
+
+.icon-btn:hover {
+  border-color: #bcd0c2;
+  color: #334155;
+}
+
 .campo input:focus {
   outline: none;
   border-color: rgba(15, 118, 110, 0.6);
@@ -586,6 +894,24 @@
   .dashboard-panel__filters {
     grid-template-columns: 1fr;
   }
+
+  .panel-card__header--gastos {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dashboard-gastos__acciones-botones {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .dashboard-gastos__filtros {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .modal__fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -614,5 +940,13 @@
 
   .financiero-kpis {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-gastos__filtros {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-gastos__filtros-acciones {
+    justify-content: flex-start;
   }
 }

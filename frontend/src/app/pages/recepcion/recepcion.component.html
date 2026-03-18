@@ -148,7 +148,8 @@
               <button
                 type="button"
                 class="btn-alerta btn-alerta--band"
-                (click)="abrirModalAlerta(obtenerAlertaUnidad(unidad) ?? '', unidad.codigo, $event)"
+                *ngIf="obtenerAlertaUnidad(unidad) as alertaUnidad"
+                (click)="abrirModalAlerta(alertaUnidad, unidad.codigo, $event)"
                 data-tooltip="Ver alerta"
                 aria-label="Ver alerta"
               >
@@ -235,7 +236,8 @@
                 <button
                   type="button"
                   class="btn-alerta btn-alerta--band btn-alerta--habitacion"
-                  (click)="abrirModalAlerta(obtenerAlertaHabitacion(habitacion) ?? '', habitacion.codigo, $event, true)"
+                  *ngIf="obtenerAlertaHabitacion(habitacion) as alertaHabitacion"
+                  (click)="abrirModalAlerta(alertaHabitacion, habitacion.codigo, $event, true)"
                   data-tooltip="Ver alerta"
                   aria-label="Ver alerta"
                 >

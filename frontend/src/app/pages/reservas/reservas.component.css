@@ -411,7 +411,7 @@
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1320px;
+  min-width: 1400px;
 }
 
 thead th {
@@ -742,6 +742,17 @@ tbody tr.tabla-fila--seleccionada {
   display: flex;
   justify-content: flex-end;
   gap: 0.55rem;
+}
+
+.modal__notes-body {
+  margin: 0.8rem 0 0;
+  padding: 0.75rem;
+  border: 1px solid #dbe7df;
+  border-radius: 0.65rem;
+  background: #f8fcf9;
+  color: #334155;
+  line-height: 1.45;
+  white-space: pre-line;
 }
 
 @media (max-width: 1080px) {

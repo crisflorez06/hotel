@@ -19,6 +19,7 @@ export interface ReservaTablaItem {
   fechaCreacion: string;
   entradaEstimada: string;
   salidaEstimada: string;
+  notas?: string | null;
   tieneEstanciaAsociada: boolean;
 }
 

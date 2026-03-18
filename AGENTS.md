@@ -131,6 +131,14 @@ Single-test execution for Angular/Karma:
 - Place Angular specs as colocated `*.spec.ts` files
 - Add/update tests when changing business logic, filtering, or contracts
 
+## Core Domain Rule: Units and Rooms
+- Business units are `APARTAMENTO` and `APARTAESTUDIO`; operational flows (availability, occupancy, stay/reservation assignment) are managed at room level (`Habitacion`)
+- `APARTAMENTO` has 3 rooms and supports both occupancy modes:
+  - `COMPLETO`: whole apartment
+  - `INDIVIDUAL`: room-by-room rental
+- `APARTAESTUDIO` has 1 room and is handled as `COMPLETO`
+- `HABITACION` as a unit type is a relative/special search mode used mainly to query apartment rooms individually; it is not treated as a separate physical unit model beyond that search/use-case
+
 ## Cursor and Copilot Rules Audit
 - Found existing agent file: `frontend/AGENTS.md`
 - `.cursorrules`: not present

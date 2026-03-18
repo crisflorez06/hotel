@@ -60,6 +60,7 @@ export class EstanciasComponent implements OnInit, OnDestroy {
   estanciaSeleccionadaId: number | null = null;
   eliminandoEstanciaId: number | null = null;
   estanciaPendienteEliminacion: EstanciaTablaItem | null = null;
+  estanciaNotasModal: EstanciaTablaItem | null = null;
   filtrosAvanzadosAbiertos = false;
   rangoRapidoSeleccionado: Record<RangoRapidoCampo, RangoRapido | null> = {
     rangoGeneral: null,
@@ -430,6 +431,27 @@ export class EstanciasComponent implements OnInit, OnDestroy {
         nombreCliente: estancia.nombreCliente,
       },
     });
+  }
+
+  abrirModalNotasEstancia(estancia: EstanciaTablaItem): void {
+    this.estanciaNotasModal = estancia;
+  }
+
+  cerrarModalNotasEstancia(): void {
+    this.estanciaNotasModal = null;
+  }
+
+  obtenerNotasEstanciaModal(estancia: EstanciaTablaItem): string {
+    const notas = estancia.notas?.trim();
+    return notas ? notas : 'Sin notas';
+  }
+
+  tieneNotasEstancia(estancia: EstanciaTablaItem): boolean {
+    return !!estancia.notas?.trim();
+  }
+
+  obtenerTooltipNotasEstancia(estancia: EstanciaTablaItem): string {
+    return this.tieneNotasEstancia(estancia) ? 'Ver notas' : 'Sin notas';
   }
 
   irAPagosPorEstancia(estancia: EstanciaTablaItem): void {

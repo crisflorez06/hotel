@@ -8,6 +8,7 @@ import com.hotel.models.*;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.AuditoriaEventoRepository;
 import com.hotel.services.support.AbstractServiceIT;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -85,7 +86,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 TipoEvento.CREACION_PAGO,
                 null,
                 reserva.getCodigo(),
-                4
+                5
         );
     }
 
@@ -133,7 +134,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 TipoEvento.CREACION_PAGO,
                 estancia.getCodigoFolio(),
                 null,
-                4
+                5
         );
     }
 
@@ -182,7 +183,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 TipoEvento.CREACION_PAGO,
                 estancia.getCodigoFolio(),
                 null,
-                4
+                5
         );
     }
 
@@ -232,7 +233,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 TipoEvento.CREACION_PAGO,
                 estancia.getCodigoFolio(),
                 null,
-                4
+                5
         );
     }
 
@@ -282,7 +283,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 TipoEvento.CREACION_PAGO,
                 null,
                 reserva.getCodigo(),
-                4
+                5
         );
     }
 
@@ -333,7 +334,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 TipoEvento.CREACION_PAGO,
                 estancia.getCodigoFolio(),
                 null,
-                4
+                5
         );
     }
 
@@ -735,10 +736,10 @@ class PagoServiceIT extends AbstractServiceIT {
 
         comprobarEventoDb(
                 eventoDb,
-                TipoEvento.CREACION_PAGO,
+                TipoEvento.CREACION_RECARGO,
                 estanciaDb.getCodigoFolio(),
                 null,
-                3
+                5
         );
     }
 
@@ -876,7 +877,7 @@ class PagoServiceIT extends AbstractServiceIT {
                 .orElseThrow();
 
         assertThat(pagoRepository.count()).isEqualTo(pagosAntes + 1);
-        assertThat(eventoRepository.count()).isEqualTo(eventosAntes + 2);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes + 1);
 
         comprobarPagosDb(
                 estanciaDb.getPagos(),
@@ -898,17 +899,10 @@ class PagoServiceIT extends AbstractServiceIT {
 
         comprobarEventoDb(
                 eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(TipoEntidad.PAGO, pagoAnteriorDb.getId()).orElseThrow(),
-                TipoEvento.ELIMINACION_PAGO,
+                TipoEvento.MODIFICACION_PAGO,
                 estancia.getCodigoFolio(),
                 null,
-                1
-        );
-        comprobarEventoDb(
-                eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(TipoEntidad.PAGO, pagoNuevoDb.getId()).orElseThrow(),
-                TipoEvento.CREACION_PAGO,
-                estancia.getCodigoFolio(),
-                null,
-                4
+                2
         );
     }
 
@@ -925,12 +919,21 @@ class PagoServiceIT extends AbstractServiceIT {
         PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
         request.setEstado(EstadoPago.PENDIENTE);
 
+        long pagosAntes = pagoRepository.count();
+        long eventosAntes = eventoRepository.count();
         // ---------- WHEN ----------
         pagoService.eliminarPagoEstanciaCompletada(request, pagoAnterior.getId());
+
+
+
 
         // ---------- THEN ----------
         entityManager.flush();
         entityManager.clear();
+
+        assertThat(pagoRepository.count()).isEqualTo(pagosAntes + 1);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes + 1);
+
 
         Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
         Pago pagoAnteriorDb = pagoRepository.findById(pagoAnterior.getId()).orElseThrow();
@@ -956,6 +959,14 @@ class PagoServiceIT extends AbstractServiceIT {
 
         comprobarPagoDb(pagoAnteriorDb, pagoAnterior.getMonto(), estanciaDb, TipoPago.ESTANCIA_COMPLETADA, EstadoPago.ELIMINADO);
         comprobarPagoDb(pagoNuevoDb, request.getMonto(), estanciaDb, TipoPago.ESTANCIA_COMPLETADA, EstadoPago.PENDIENTE);
+
+        comprobarEventoDb(
+                eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(TipoEntidad.PAGO, pagoAnteriorDb.getId()).orElseThrow(),
+                TipoEvento.MODIFICACION_PAGO,
+                estancia.getCodigoFolio(),
+                null,
+                2
+        );
     }
 
     @Test
@@ -970,7 +981,7 @@ class PagoServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         assertThatThrownBy(() -> pagoService.eliminarPagoEstanciaCompletada(request, idInexistente))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("Pago no encontrado con id: " + idInexistente);
 
         // ---------- THEN ----------
@@ -1210,7 +1221,7 @@ class PagoServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         assertThatThrownBy(() -> pagoService.eliminarPago(idInexistente))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("Pago no encontrado con id: " + idInexistente);
 
         // ---------- THEN ----------
@@ -2511,7 +2522,549 @@ class PagoServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         assertThatThrownBy(() -> pagoService.obtenerEstimacionPago(request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("No se encontró una estancia con id: " + Long.MAX_VALUE);
+    }
+
+    @Test
+    void falloEstimacion_tipoCalculoNoCoincideConDias_test() {
+
+        // ---------- GIVEN ----------
+        CalcularPagoDTO request = calcularPagoRequestDTO(
+                null,
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 1, 31, 10, 0)
+        );
+        request.setTipoCalculo(TipoCalculo.ESTANDAR);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.obtenerEstimacionPago(request))
                 .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("El tipoCalculo enviado no coincide con el rango de dias");
+    }
+
+    @Test
+    void falloEstimacionSinPagosAnteriores_tipoCalculoNoCoincideConDias_test() {
+
+        // ---------- GIVEN ----------
+        CalcularPagoDTO request = calcularPagoRequestDTO(
+                null,
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 1, 30, 10, 0)
+        );
+        request.setTipoCalculo(TipoCalculo.ESTADIA_CORTA);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.obtenerEstimacionPagoSinPagosAnteriores(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("El tipoCalculo enviado no coincide con el rango de dias");
+    }
+
+    @Test
+    void exitoEstimacion_treintaDiasExactos_aplicaEstadiaCorta_test() {
+
+        // ---------- GIVEN ----------
+        ajusteTemporadaService.cambiarTemporadaActiva(Temporada.BAJA);
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                null,
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 1, 31, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(4000000));
+    }
+
+    @Test
+    void exitoEstimacion_veintinueveDias_mantieneCalculoEstandar_test() {
+
+        // ---------- GIVEN ----------
+        ajusteTemporadaService.cambiarTemporadaActiva(Temporada.BAJA);
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                null,
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 1, 30, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTANDAR);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(9715000));
+    }
+
+    @Test
+    void exitoEstimacionSinPagosAnteriores_estadiaCorta_ignoraPagosPrevios_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+
+        Pago anticipoReserva = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        anticipoReserva.setMonto(BigDecimal.valueOf(500000));
+        anticipoReserva.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(anticipoReserva);
+
+        Pago cambioUnidadPendiente = crearPagoInicialEnEstancia(estancia, TipoPago.CAMBIO_UNIDAD);
+        cambioUnidadPendiente.setMonto(BigDecimal.valueOf(300000));
+        cambioUnidadPendiente.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(cambioUnidadPendiente);
+
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                estancia.getId(),
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 1, 31, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPagoSinPagosAnteriores(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(4000000));
+    }
+
+    @Test
+    void exitoEstimacionConPagosAnteriores_estadiaCorta_consideraPagosPrevios_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+
+        Pago anticipoReserva = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        anticipoReserva.setMonto(BigDecimal.valueOf(500000));
+        anticipoReserva.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(anticipoReserva);
+
+        Pago cambioUnidadPendiente = crearPagoInicialEnEstancia(estancia, TipoPago.CAMBIO_UNIDAD);
+        cambioUnidadPendiente.setMonto(BigDecimal.valueOf(300000));
+        cambioUnidadPendiente.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(cambioUnidadPendiente);
+
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                estancia.getId(),
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 1, 31, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(3800000));
+    }
+
+    @Test
+    void exitoEstimacionEstadiaCorta_aplicaPersonaAdicionalCorta_test() {
+
+        // ---------- GIVEN ----------
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                null,
+                TipoUnidad.APARTAESTUDIO,
+                4,
+                LocalDateTime.of(2026, 2, 1, 10, 0),
+                LocalDateTime.of(2026, 3, 3, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(3500000));
+    }
+
+    @Test
+    void exitoPagandoPagoPendienteEstanciaCompletada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.FINALIZADA);
+        Pago pago = crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA_COMPLETADA);
+        pago.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(pago);
+        long eventosAntes = eventoRepository.count();
+
+        // ---------- WHEN ----------
+        pagoService.pagarPagoPendiente(pago.getId());
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Pago pagoDb = pagoRepository.findById(pago.getId()).orElseThrow();
+        assertThat(pagoDb.getEstado()).isEqualTo(EstadoPago.COMPLETADO);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes + 1);
+    }
+
+    @Test
+    void falloPagandoPagoPendienteIdInexistente_test() {
+
+        // ---------- GIVEN ----------
+        long idInexistente = Long.MAX_VALUE;
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.pagarPagoPendiente(idInexistente))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Pago no encontrado con id: " + idInexistente);
+    }
+
+    @Test
+    void falloPagandoPagoPendienteConEstadoNoPendiente_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.FINALIZADA);
+        Pago pago = crearPagoInicialEnEstancia(estancia, TipoPago.ESTANCIA_COMPLETADA);
+        pago.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(pago);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.pagarPagoPendiente(pago.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Solo se puede pagar un pago en estado PENDIENTE");
+    }
+
+    @Test
+    void falloPagandoPagoPendienteTipoCambioUnidad_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        Pago pago = crearPagoInicialEnEstancia(estancia, TipoPago.CAMBIO_UNIDAD);
+        pago.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(pago);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.pagarPagoPendiente(pago.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No se puede pagar un pago de tipo CAMBIO_UNIDAD");
+    }
+
+    @Test
+    void falloPagandoPagoPendienteTipoNoPermitido_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        Pago pago = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
+        pago.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(pago);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.pagarPagoPendiente(pago.getId()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Solo se pueden pagar manualmente los pagos de tipo ESTANCIA_COMPLETADA");
+    }
+
+    @Test
+    void exitoCreandoPagoPorCambioOcupantesEnEstanciaActiva_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        long pagosAntes = pagoRepository.count();
+        long eventosAntes = eventoRepository.count();
+
+        // ---------- WHEN ----------
+        Pago pago = pagoService.crearPagoPorCambioOcupantes(estancia, TipoUnidad.APARTAMENTO, 2);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Pago pagoDb = pagoRepository.findById(pago.getId()).orElseThrow();
+        assertThat(pagoRepository.count()).isEqualTo(pagosAntes + 1);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes + 1);
+        assertThat(pagoDb.getTipoPago()).isEqualTo(TipoPago.CAMBIO_UNIDAD);
+        assertThat(pagoDb.getEstado()).isEqualTo(EstadoPago.PENDIENTE);
+        assertThat(pagoDb.getMonto()).isPositive();
+    }
+
+    @Test
+    void exitoCreandoPagoPorCambioOcupantesEnEstanciaExcedida_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.EXCEDIDA);
+
+        // ---------- WHEN ----------
+        Pago pago = pagoService.crearPagoPorCambioOcupantes(estancia, TipoUnidad.APARTAMENTO, 2);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Pago pagoDb = pagoRepository.findById(pago.getId()).orElseThrow();
+        assertThat(pagoDb.getEstado()).isEqualTo(EstadoPago.PENDIENTE);
+        assertThat(pagoDb.getTipoPago()).isEqualTo(TipoPago.CAMBIO_UNIDAD);
+    }
+
+    @Test
+    void falloCreandoPagoPorCambioOcupantesEnEstanciaFinalizada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.FINALIZADA);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.crearPagoPorCambioOcupantes(estancia, TipoUnidad.APARTAMENTO, 2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("No se puede crear un pago por cambio de ocupantes");
+    }
+
+    @Test
+    void falloCreandoPagoPorCambioOcupantesSinEstancia_test() {
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.crearPagoPorCambioOcupantes(null, TipoUnidad.APARTAMENTO, 2))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No se proporcionó información de estancia o numero de ocupantes");
+    }
+
+    @Test
+    void falloCreandoPagoPorCambioOcupantesSinTotalOcupantesAntes_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.crearPagoPorCambioOcupantes(estancia, TipoUnidad.APARTAMENTO, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No se proporcionó información de estancia o numero de ocupantes");
+    }
+
+    @Test
+    void falloCreandoPagoConRequestNulo_test() {
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.crearPago(null, 1L, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No se proporcionó información de pago para crear un nuevo pago");
+    }
+
+    @Test
+    void falloCreandoPagoConIdEstanciaNulo_test() {
+
+        // ---------- GIVEN ----------
+        PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.crearPago(request, null, true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No se proporcionó información de pago para crear un nuevo pago");
+    }
+
+    @Test
+    void falloCreandoPagoConTipoPagoNulo_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
+        request.setTipoPago(null);
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.crearPago(request, estancia.getId(), true))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("El tipo de pago es obligatorio para crear un pago");
+    }
+
+    @Test
+    void exitoCreandoPagoSinCrearEvento_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_ESTANCIA);
+        long pagosAntes = pagoRepository.count();
+        long eventosAntes = eventoRepository.count();
+
+        // ---------- WHEN ----------
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), false);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Pago pagoDb = pagoRepository.findById(pago.getId()).orElseThrow();
+        assertThat(pagoRepository.count()).isEqualTo(pagosAntes + 1);
+        assertThat(eventoRepository.count()).isEqualTo(eventosAntes);
+        assertThat(pagoDb.getTipoPago()).isEqualTo(TipoPago.ANTICIPO_ESTANCIA);
+    }
+
+    @Test
+    void exitoCreandoPagoTipoAnticipoReservaConReservaExpirada_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.EXPIRADA);
+        Estancia estancia = reserva.getEstancia();
+        PagoNuevoRequestDTO request = pagoNuevoRequestDTO(TipoPago.ANTICIPO_RESERVA);
+
+        // ---------- WHEN ----------
+        PagoDTO pago = pagoService.crearPago(request, estancia.getId(), true);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Pago pagoDb = pagoRepository.findById(pago.getId()).orElseThrow();
+        assertThat(pagoDb.getTipoPago()).isEqualTo(TipoPago.ANTICIPO_RESERVA);
+        assertThat(pago.getCodigoReserva()).isEqualTo(reserva.getCodigo());
+        assertThat(pago.getCodigoEstancia()).isNull();
+    }
+
+    @Test
+    void exitoEstimacionEstadiaCorta_treintaYUnDias_prorrateaConCuatroDecimales_test() {
+
+        // ---------- GIVEN ----------
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                null,
+                TipoUnidad.APARTAMENTO,
+                2,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 2, 1, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(3306560));
+    }
+
+    @Test
+    void exitoEstimacionEstadiaCorta_aplicaPersonasAdicionalesConProrrateo_test() {
+
+        // ---------- GIVEN ----------
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                null,
+                TipoUnidad.APARTAMENTO,
+                4,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 2, 1, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(4959840));
+    }
+
+    @Test
+    void exitoEstimacionEstadiaCorta_conPagosPrevios_aplicaSoloReglasVigentes_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+
+        Pago anticipoCompletado = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        anticipoCompletado.setMonto(BigDecimal.valueOf(100000));
+        anticipoCompletado.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(anticipoCompletado);
+
+        Pago anticipoPendiente = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_ESTANCIA);
+        anticipoPendiente.setMonto(BigDecimal.valueOf(50000));
+        anticipoPendiente.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(anticipoPendiente);
+
+        Pago cambioPendiente = crearPagoInicialEnEstancia(estancia, TipoPago.CAMBIO_UNIDAD);
+        cambioPendiente.setMonto(BigDecimal.valueOf(70000));
+        cambioPendiente.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(cambioPendiente);
+
+        Pago cambioCompletado = crearPagoInicialEnEstancia(estancia, TipoPago.CAMBIO_UNIDAD);
+        cambioCompletado.setMonto(BigDecimal.valueOf(20000));
+        cambioCompletado.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(cambioCompletado);
+
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                estancia.getId(),
+                TipoUnidad.HABITACION,
+                2,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 2, 1, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPago(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(1416620));
+    }
+
+    @Test
+    void exitoEstimacionSinPagosAnteriores_estadiaCorta_noArrastraPagosNiRecargos_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+
+        Pago anticipoCompletado = crearPagoInicialEnEstancia(estancia, TipoPago.ANTICIPO_RESERVA);
+        anticipoCompletado.setMonto(BigDecimal.valueOf(250000));
+        anticipoCompletado.setEstado(EstadoPago.COMPLETADO);
+        pagoRepository.save(anticipoCompletado);
+
+        Pago cambioPendiente = crearPagoInicialEnEstancia(estancia, TipoPago.CAMBIO_UNIDAD);
+        cambioPendiente.setMonto(BigDecimal.valueOf(60000));
+        cambioPendiente.setEstado(EstadoPago.PENDIENTE);
+        pagoRepository.save(cambioPendiente);
+
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                estancia.getId(),
+                TipoUnidad.HABITACION,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 2, 2, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        BigDecimal total = pagoService.obtenerEstimacionPagoSinPagosAnteriores(request);
+
+        // ---------- THEN ----------
+        assertThat(request.getTipoCalculo()).isEqualTo(TipoCalculo.ESTADIA_CORTA);
+        assertThat(total).isEqualByComparingTo(BigDecimal.valueOf(1973395));
+    }
+
+    @Test
+    void falloEstimacionSinPagosAnteriores_estanciaInexistente_test() {
+
+        // ---------- GIVEN ----------
+        CalcularPagoDTO request = PagoMapper.entityToCalcularPagoDTO(
+                Long.MAX_VALUE,
+                TipoUnidad.APARTAMENTO,
+                3,
+                LocalDateTime.of(2026, 1, 1, 10, 0),
+                LocalDateTime.of(2026, 2, 1, 10, 0)
+        );
+
+        // ---------- WHEN ----------
+        assertThatThrownBy(() -> pagoService.obtenerEstimacionPagoSinPagosAnteriores(request))
+                .isInstanceOf(EntityNotFoundException.class)
                 .hasMessageContaining("No se encontró una estancia con id: " + Long.MAX_VALUE);
     }
 

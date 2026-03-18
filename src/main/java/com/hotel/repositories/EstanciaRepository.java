@@ -42,6 +42,24 @@ public interface EstanciaRepository extends JpaRepository<Estancia, Long>, JpaSp
             @Param("habitacionId") Long habitacionId
     );
 
+    @Query("""
+           select e
+           from Estancia e
+           where e.estado = :estado
+             and e.salidaEstimada <= :momento
+           """)
+    List<Estancia> findByEstadoAndSalidaEstimadaLessThanEqual(
+            @Param("estado") EstadoEstancia estado,
+            @Param("momento") LocalDateTime momento);
+
+    @Query("""
+           select distinct h.id
+           from Estancia e
+           join e.habitaciones h
+           where e.estado in :estados
+           """)
+    List<Long> findHabitacionIdsByEstadoIn(@Param("estados") List<EstadoEstancia> estados);
+
     @Query(value = """
             select e.*
             from (

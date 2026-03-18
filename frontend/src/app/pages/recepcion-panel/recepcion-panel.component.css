@@ -745,6 +745,10 @@
   word-break: break-word;
 }
 
+.panel__note-text {
+  white-space: pre-line;
+}
+
 .panel__grid-detail {
   display: grid;
   gap: 6px;
@@ -1135,6 +1139,11 @@
 .panel__payments-list .panel__grid-detail strong {
   font-size: 15px;
   color: var(--panel-ink);
+}
+
+.panel__payment-notes {
+  white-space: pre-line;
+  color: #475569;
 }
 
 .panel__reservas-proximas-list {

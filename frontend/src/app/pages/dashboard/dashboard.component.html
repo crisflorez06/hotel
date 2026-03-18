@@ -220,6 +220,213 @@
           </div>
         </article>
       </section>
+
+      <section class="dashboard-row fade-in fade-in--delay-3">
+        <article class="panel-card panel-card--wide">
+          <header class="panel-card__header panel-card__header--gastos">
+            <div>
+              <h3>Registro de gastos operativos</h3>
+              <p>Administra gastos desde el dashboard para mantener actualizado el neto del periodo.</p>
+            </div>
+          </header>
+
+          <p class="estado estado--ok" *ngIf="gastosExito">{{ gastosExito }}</p>
+          <p class="estado estado--error" *ngIf="gastosError">{{ gastosError }}</p>
+
+          <div class="dashboard-gastos__filtros" *ngIf="!gastosCargando">
+            <div class="campo">
+              <label for="filtroGastoConcepto">Buscar</label>
+              <input
+                id="filtroGastoConcepto"
+                type="text"
+                [(ngModel)]="gastoFiltros.concepto"
+                name="filtroGastoConcepto"
+                placeholder="Concepto, descripcion o referencia"
+              />
+            </div>
+
+            <div class="campo">
+              <label for="filtroGastoMetodo">Metodo de pago</label>
+              <select id="filtroGastoMetodo" [(ngModel)]="gastoFiltros.metodoPago" name="filtroGastoMetodo">
+                <option value="">Todos</option>
+                <option *ngFor="let metodo of metodosPagoGasto" [ngValue]="metodo">{{ formatearEtiqueta(metodo) }}</option>
+              </select>
+            </div>
+
+            <div class="campo">
+              <label for="filtroGastoDesde">Fecha desde</label>
+              <input id="filtroGastoDesde" type="date" [(ngModel)]="gastoFiltros.fechaDesde" name="filtroGastoDesde" />
+            </div>
+
+            <div class="campo">
+              <label for="filtroGastoHasta">Fecha hasta</label>
+              <input id="filtroGastoHasta" type="date" [(ngModel)]="gastoFiltros.fechaHasta" name="filtroGastoHasta" />
+            </div>
+
+            <div class="dashboard-gastos__filtros-acciones">
+              <button type="button" class="btn" (click)="limpiarFiltrosGastos()">Limpiar</button>
+            </div>
+          </div>
+
+          <div class="dashboard-gastos__acciones-botones">
+            <button
+              type="button"
+              class="btn btn--primary dashboard-gastos__btn-agregar"
+              (click)="abrirModalCrearGasto()"
+              [disabled]="guardandoGasto || eliminandoGasto"
+            >
+              <i class="bi bi-plus-circle" aria-hidden="true"></i>
+              Agregar
+            </button>
+            <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipEditarGasto()">
+              <button
+                type="button"
+                class="btn"
+                (click)="abrirModalEditarGasto()"
+                [disabled]="!puedeEditarGasto() || gastosCargando"
+              >
+                <i class="bi bi-pencil-square" aria-hidden="true"></i>
+                Editar
+              </button>
+            </span>
+            <span class="btn-tooltip-host" [attr.data-tooltip]="obtenerTooltipEliminarGasto()">
+              <button
+                type="button"
+                class="btn btn--danger"
+                (click)="abrirModalEliminarGasto()"
+                [disabled]="!puedeEliminarGasto() || gastosCargando"
+              >
+                <i class="bi bi-trash" aria-hidden="true"></i>
+                Eliminar
+              </button>
+            </span>
+          </div>
+
+          <div class="dashboard-panel__state" *ngIf="gastosCargando">Cargando gastos...</div>
+
+          <div class="tabla-wrapper" *ngIf="!gastosCargando">
+            <table class="dashboard-gastos__tabla">
+              <thead>
+                <tr>
+                  <th class="col-check"></th>
+                  <th>Concepto</th>
+                  <th>Descripcion</th>
+                  <th>Monto</th>
+                  <th>Fecha</th>
+                  <th>Metodo</th>
+                  <th>Referencia</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  *ngFor="let gasto of gastosFiltrados; trackBy: trackByGastoId"
+                  (click)="seleccionarGasto(gasto)"
+                  [class.tabla-fila--seleccionada]="esGastoSeleccionado(gasto)"
+                >
+                  <td class="col-check">
+                    <input
+                      type="checkbox"
+                      class="fila-check"
+                      [checked]="esGastoSeleccionado(gasto)"
+                      (click)="seleccionarGasto(gasto); $event.stopPropagation()"
+                      aria-label="Seleccionar gasto"
+                    />
+                  </td>
+                  <td>{{ gasto.concepto || '-' }}</td>
+                  <td>{{ gasto.descripcion || '-' }}</td>
+                  <td>{{ formatearMoneda(gasto.monto) }}</td>
+                  <td>{{ formatearFechaHora(gasto.fecha) }}</td>
+                  <td>{{ formatearEtiqueta(gasto.metodoPago) }}</td>
+                  <td>{{ gasto.referencia || '-' }}</td>
+                  <td>{{ formatearEtiqueta(gasto.estado) }}</td>
+                </tr>
+                <tr *ngIf="!gastosFiltrados.length">
+                  <td colspan="8" class="tabla-vacia">No hay gastos registrados.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
     </div>
   </section>
 </section>
+
+<div class="modal" *ngIf="modalGastoAbierto">
+  <div class="modal__backdrop" (click)="cerrarModalGasto()"></div>
+  <section class="modal__panel" role="dialog" aria-modal="true" aria-label="Formulario de gasto" (click)="$event.stopPropagation()">
+    <header class="modal__header">
+      <h3>{{ modalGastoModo === 'crear' ? 'Agregar gasto' : 'Editar gasto' }}</h3>
+      <button type="button" class="icon-btn icon-btn--ghost" (click)="cerrarModalGasto()" aria-label="Cerrar">✕</button>
+    </header>
+
+    <div class="modal__fields">
+      <div class="campo campo--full">
+        <label for="gastoConcepto">Concepto *</label>
+        <input id="gastoConcepto" type="text" [(ngModel)]="gastoForm.concepto" name="gastoConcepto" />
+      </div>
+
+      <div class="campo campo--full">
+        <label for="gastoDescripcion">Descripcion</label>
+        <input id="gastoDescripcion" type="text" [(ngModel)]="gastoForm.descripcion" name="gastoDescripcion" />
+      </div>
+
+      <div class="campo">
+        <label for="gastoMonto">Monto *</label>
+        <input id="gastoMonto" type="number" min="1" step="1" [(ngModel)]="gastoForm.monto" name="gastoMonto" />
+      </div>
+
+      <div class="campo">
+        <label for="gastoFecha">Fecha *</label>
+        <input id="gastoFecha" type="datetime-local" [(ngModel)]="gastoForm.fecha" name="gastoFecha" />
+      </div>
+
+      <div class="campo">
+        <label for="gastoMetodoPago">Metodo de pago *</label>
+        <select id="gastoMetodoPago" [(ngModel)]="gastoForm.metodoPago" name="gastoMetodoPago">
+          <option *ngFor="let metodo of metodosPagoGasto" [ngValue]="metodo">{{ formatearEtiqueta(metodo) }}</option>
+        </select>
+      </div>
+
+      <div class="campo campo--full">
+        <label for="gastoReferencia">Referencia</label>
+        <input id="gastoReferencia" type="text" [(ngModel)]="gastoForm.referencia" name="gastoReferencia" />
+      </div>
+    </div>
+
+    <footer class="modal__actions">
+      <button type="button" class="btn" (click)="cerrarModalGasto()" [disabled]="guardandoGasto">Cancelar</button>
+      <button type="button" class="btn btn--primary" (click)="guardarGasto()" [disabled]="guardandoGasto">
+        {{ guardandoGasto ? 'Guardando...' : modalGastoModo === 'crear' ? 'Guardar gasto' : 'Actualizar gasto' }}
+      </button>
+    </footer>
+  </section>
+</div>
+
+<div class="modal" *ngIf="modalEliminarGastoAbierto">
+  <div class="modal__backdrop" (click)="cerrarModalEliminarGasto()"></div>
+  <section
+    class="modal__panel modal__panel--confirm"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Eliminar gasto"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal__header">
+      <h3>Eliminar gasto</h3>
+      <button type="button" class="icon-btn icon-btn--ghost" (click)="cerrarModalEliminarGasto()" aria-label="Cerrar">✕</button>
+    </header>
+
+    <div class="modal__body">
+      Se eliminara el gasto seleccionado de forma permanente.
+    </div>
+
+    <footer class="modal__actions">
+      <button type="button" class="btn" (click)="cerrarModalEliminarGasto()" [disabled]="eliminandoGasto">Cancelar</button>
+      <button type="button" class="btn btn--danger" (click)="confirmarEliminarGasto()" [disabled]="eliminandoGasto">
+        {{ eliminandoGasto ? 'Eliminando...' : 'Eliminar gasto' }}
+      </button>
+    </footer>
+  </section>
+</div>

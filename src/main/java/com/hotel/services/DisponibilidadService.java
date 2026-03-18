@@ -34,6 +34,7 @@ public class DisponibilidadService {
     public String verificarDisponibilidadNuevo(List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
 
         logger.info("[DisponibilidadService.verificarDisponiblidad] Verificando reserva para las habitaciones en el rango de fechas: {} - {}", fechaIncioReserva, fechaFinReserva);
+        validarRangoFechas(fechaIncioReserva, fechaFinReserva);
         List<Reserva> reservas = listaReservaPorHabitacion(habitaciones, fechaIncioReserva, fechaFinReserva);
 
 
@@ -45,23 +46,17 @@ public class DisponibilidadService {
             return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        if (hayHabitacionesOcupadas(habitaciones)) {
-            logger.info("[DisponibilidadService.verificarDisponiblidad] Hay habitaciones en estado OCUPADO, verificando estancias activas o excedidas");
-            List<Estancia> estanciasAsociadas = listarEstanciasActivasOExcedidasPorHabitacion(habitaciones);
-            if(estanciasAsociadas.isEmpty()) {
-                throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
-            }
+        List<Estancia> estanciasAsociadas = listarEstanciasActivasOExcedidasPorHabitacion(habitaciones);
+        if (hayHabitacionesOcupadas(habitaciones) && estanciasAsociadas.isEmpty()) {
+            throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
+        }
 
-            List<Estancia> estanciasBloqueantes = filtrarEstanciasQueBloqueanRango(estanciasAsociadas, fechaIncioReserva, fechaFinReserva);
-            if (estanciasBloqueantes.isEmpty()) {
-                return "";
-            }
-
+        List<Estancia> estanciasBloqueantes = filtrarEstanciasQueBloqueanRango(estanciasAsociadas, fechaIncioReserva, fechaFinReserva);
+        if(!estanciasBloqueantes.isEmpty()) {
             List<Habitacion> habitacionesConEstancia = estanciasBloqueantes.stream()
                     .flatMap(estancia -> estancia.getHabitaciones().stream())
                     .toList();
             return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
-
         }
 
         return "";
@@ -70,6 +65,7 @@ public class DisponibilidadService {
 
     public String verificarDisponibilidadEditar(Reserva reserva, Estancia estancia ,List<Habitacion> habitaciones, LocalDateTime fechaIncioReserva, LocalDateTime fechaFinReserva) {
         logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Verificando disponibilidad para edición de reserva o estancia");
+        validarRangoFechas(fechaIncioReserva, fechaFinReserva);
         Long reservaId = reserva != null ? reserva.getId() : null;
         Long estanciaId = estancia != null ? estancia.getId() : null;
 
@@ -87,25 +83,22 @@ public class DisponibilidadService {
             return construirMensajeHabitaciones(habitacionesConReserva, "reserva");
         }
 
-        if (hayHabitacionesOcupadas(habitaciones)) {
-            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Hay habitaciones en estado OCUPADO, verificando estancias para id: {}", estanciaId);
-            List<Estancia> estanciasAsociadas = listarEstanciasActivasOExcedidasPorHabitacion(habitaciones);
-            if(estanciasAsociadas.isEmpty()) {
-                throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
-            }
+        List<Estancia> estanciasAsociadas = listarEstanciasActivasOExcedidasPorHabitacion(habitaciones);
+        if (hayHabitacionesOcupadas(habitaciones) && estanciasAsociadas.isEmpty()) {
+            throw new IllegalStateException("Estado inconsistente: hay habitaciones marcadas como no disponibles sin una estancia activa o excedida asociada");
+        }
 
-            List<Estancia> estancias = filtrarEstanciasQueBloqueanRango(estanciasAsociadas, fechaIncioReserva, fechaFinReserva)
-                    .stream()
-                    .filter(e -> !e.getId().equals(estanciaId))
+        List<Estancia> estancias = filtrarEstanciasQueBloqueanRango(estanciasAsociadas, fechaIncioReserva, fechaFinReserva)
+                .stream()
+                .filter(e -> !e.getId().equals(estanciaId))
+                .toList();
+
+        logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con estancia encontradas: {}", estancias.size());
+        if(!estancias.isEmpty()) {
+            List<Habitacion> habitacionesConEstancia = estancias.stream()
+                    .flatMap(e -> e.getHabitaciones().stream())
                     .toList();
-
-            logger.info("[DisponibilidadService.verificarDisponiblidadEditar] Habitaciones con estancia encontradas: {}", estancias.size());
-            if(!estancias.isEmpty()) {
-                List<Habitacion> habitacionesConEstancia = estancias.stream()
-                        .flatMap(e -> e.getHabitaciones().stream())
-                        .toList();
-                return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
-            }
+            return construirMensajeHabitaciones(habitacionesConEstancia, "estancia");
         }
 
         return "";
@@ -189,6 +182,16 @@ public class DisponibilidadService {
 
         logger.info("[DisponibilidadService.construirMensajeHabitaciones] Habitaciones con reservas: {}", mensaje.toString());
         return "existe una " + tipo + " para las habitaciones con codigo: " + mensaje.toString();
+    }
+
+    private void validarRangoFechas(LocalDateTime fechaInicio, LocalDateTime fechaFin) {
+        if (fechaInicio == null || fechaFin == null) {
+            throw new IllegalArgumentException("Las fechas de inicio y fin son obligatorias");
+        }
+
+        if (!fechaInicio.isBefore(fechaFin)) {
+            throw new IllegalArgumentException("La fecha de inicio debe ser anterior a la fecha de fin");
+        }
     }
 
 }

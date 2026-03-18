@@ -21,12 +21,15 @@ import java.util.List;
 import com.hotel.services.support.AbstractServiceIT;
 import com.hotel.utils.EventoNuevoJsonBuilder;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +40,7 @@ import static com.hotel.testutils.AssertionsHelper.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+@Slf4j
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
@@ -541,7 +545,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -602,7 +606,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -669,7 +673,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -730,7 +734,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 estanciaExistente.getReserva(),
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -739,7 +743,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoEstancia.ACTIVA,
                 null,
                 3,
-                0);
+                1);
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -795,7 +799,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -863,7 +867,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -933,7 +937,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1010,7 +1014,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1099,7 +1103,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1187,7 +1191,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1275,7 +1279,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1366,7 +1370,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1452,7 +1456,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1535,7 +1539,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1624,7 +1628,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1717,7 +1721,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1785,7 +1789,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1851,7 +1855,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
         comprobarEstanciaDb(
                 estanciaDb,
                 null,
-                2,
+                3,
                 request.getEntradaReal(),
                 request.getSalidaEstimada(),
                 null,
@@ -1886,6 +1890,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
         Estancia estanciaExistente = crearEstanciaExistente(unidad.getHabitaciones(), true, EstadoEstancia.ACTIVA);
+        BigDecimal montoPago = estanciaExistente.getPagos().stream().map(Pago::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal montoPendiente = calcularMontoPendienteCambioOcupantes(estanciaExistente, TipoUnidad.APARTAMENTO);
 
         EstanciaRequestDTO request = estanciaRequestDTO(
                 unidad.getTipo(),
@@ -1922,7 +1928,22 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 EstadoEstancia.ACTIVA,
                 null,
                 3,
+                2);
+
+        comprobarPagosDb(
+                estanciaDb.getPagos(),
+                montoPago,
+                BigDecimal.ZERO,
+                montoPendiente,
+                EstadoPago.COMPLETADO,
+                1,
+                EstadoPago.PENDIENTE,
+                1,
+                0,
+                1,
+                0,
                 1);
+
 
         comprobarUnidadYHabitacionesDb(
                 unidadDb,
@@ -2005,6 +2026,85 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
 
 
+    }
+
+    @Test
+    void exitoEditandoEstanciaConAcompanantesNullRegistraSinAcompanantesEnAuditoria_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+
+        Estancia estanciaExistente = crearEstanciaExistente(unidad.getHabitaciones(), true, EstadoEstancia.ACTIVA);
+        Ocupante cliente = estanciaExistente.getOcupantes().stream()
+                .filter(o -> o.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst().orElseThrow();
+
+        EstanciaRequestDTO request = estanciaRequestDTO(
+                unidad.getTipo(),
+                unidad.getCodigo(),
+                cliente,
+                null,
+                null
+        );
+        request.setEntradaReal(estanciaExistente.getEntradaReal());
+        request.setSalidaEstimada(estanciaExistente.getSalidaEstimada());
+
+        // ---------- WHEN ----------
+        estanciaService.editarEstancia(request, estanciaExistente.getId());
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Estancia estanciaDb = estanciaRepository.findById(estanciaExistente.getId()).orElseThrow();
+        AuditoriaEvento eventoDb = eventoRepository.findFirstByEntidadAndIdEntidadOrderByFechaDesc(
+                TipoEntidad.ESTANCIA,
+                estanciaDb.getId()).orElseThrow();
+
+        assertThat(estanciaDb.getOcupantes()).hasSize(1);
+        assertThat(estanciaDb.getOcupantes().getFirst().getTipoOcupante()).isEqualTo(TipoOcupante.CLIENTE);
+        assertThat(eventoDb.getTipoEvento()).isEqualTo(TipoEvento.MODIFICACION_ESTANCIA);
+        assertThat(eventoDb.getDetalle()).contains("acompanantes");
+        assertThat(eventoDb.getDetalle()).contains("Sin acompanantes");
+    }
+
+    @Test
+    void exitoEditandoEstanciaConNotasEnBlancoNoModificaNotas_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+
+        Estancia estanciaExistente = crearEstanciaExistente(unidad.getHabitaciones(), true, EstadoEstancia.ACTIVA);
+        estanciaExistente.setNotas("Nota base de edicion");
+        estanciaRepository.save(estanciaExistente);
+
+        Ocupante cliente = estanciaExistente.getOcupantes().stream()
+                .filter(o -> o.getTipoOcupante() == TipoOcupante.CLIENTE)
+                .findFirst().orElseThrow();
+        List<Ocupante> acompanantes = estanciaExistente.getOcupantes().stream()
+                .filter(o -> o.getTipoOcupante() == TipoOcupante.ACOMPANANTE)
+                .toList();
+
+        EstanciaRequestDTO request = estanciaRequestDTO(
+                unidad.getTipo(),
+                unidad.getCodigo(),
+                cliente,
+                acompanantes,
+                null
+        );
+        request.setEntradaReal(estanciaExistente.getEntradaReal());
+        request.setSalidaEstimada(estanciaExistente.getSalidaEstimada());
+        request.setNotas("   ");
+
+        // ---------- WHEN ----------
+        estanciaService.editarEstancia(request, estanciaExistente.getId());
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Estancia estanciaDb = estanciaRepository.findById(estanciaExistente.getId()).orElseThrow();
+        assertThat(estanciaDb.getNotas()).isEqualTo("Nota base de edicion");
     }
 
     @Test
@@ -2736,6 +2836,68 @@ class EstanciaServiceIT extends AbstractServiceIT {
     }
 
     @Test
+    void exitoActivandoEstanciaConNotasEnBlancoNoModificaNotasPrevias_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Ocupante cliente = crearCliente(clienteData());
+        List<Ocupante> acompanantes = crearAcompanantesSinCliente(acompanantesData());
+
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        reserva.getEstancia().setNotas("Nota previa activacion");
+        estanciaRepository.save(reserva.getEstancia());
+
+        ActivarEstanciaDTO request = activarEstanciaRequestDTO(
+                reserva.getId(),
+                cliente,
+                acompanantes,
+                LocalDateTime.now().minusDays(1)
+        );
+        request.setNotas("   ");
+
+        // ---------- WHEN ----------
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
+        assertThat(estanciaDb.getNotas()).isEqualTo("Nota previa activacion");
+    }
+
+    @Test
+    void exitoActivandoEstanciaConNotasPreviasAnexaNuevaNota_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Ocupante cliente = crearCliente(clienteData());
+        List<Ocupante> acompanantes = crearAcompanantesSinCliente(acompanantesData());
+
+        Reserva reserva = crearReservaExistente(unidad.getHabitaciones(), false, EstadoReserva.CONFIRMADA);
+        reserva.getEstancia().setNotas("Nota previa activacion");
+        estanciaRepository.save(reserva.getEstancia());
+
+        ActivarEstanciaDTO request = activarEstanciaRequestDTO(
+                reserva.getId(),
+                cliente,
+                acompanantes,
+                LocalDateTime.now().minusDays(1)
+        );
+        request.setNotas("  nota nueva activacion  ");
+
+        // ---------- WHEN ----------
+        EstanciaDTO estancia = estanciaService.activarEstancia(request);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
+        assertThat(estanciaDb.getNotas()).isEqualTo("Nota previa activacion\n-nota nueva activacion");
+    }
+
+    @Test
     void falloActivandoEstanciaPorEstancia_test() {
 
         // ---------- GIVEN ----------
@@ -2991,7 +3153,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         assertThatThrownBy(() -> estanciaService.activarEstancia(request))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("La reserva debe estar CONFIRMADA para activar la estancia. Estado actual:");
+                .hasMessageContaining("La reserva debe estar CONFIRMADA o EXPIRADA para activar la estancia. Estado actual:");
 
         // ---------- THEN ----------
         entityManager.flush();
@@ -3624,7 +3786,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
     }
 
     @Test
-    void falloObteniendoEstanciaSinEstanciaActivaOExcedida_test() {
+    void falloObteniendoEstanciaSinId_test() {
 
         // ---------- GIVEN ----------
         Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
@@ -3634,8 +3796,8 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN + THEN ----------
         assertThatThrownBy(() -> estanciaService.obtenerEstancia(1L))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("No se encontró una estancia activa o excedida para la unidad con codigo");
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("Estancia no encontrada con id:");
 
         // ---------- THEN ----------
         Unidad unidadDb = unidadRepository.findById(unidad.getId()).orElseThrow();
@@ -3706,6 +3868,32 @@ class EstanciaServiceIT extends AbstractServiceIT {
                 0);
         comprobarEventoDb(eventoDb, TipoEvento.FINALIZACION_ESTANCIA, estanciaDb.getCodigoFolio(), null, 5);
 
+    }
+
+    @Test
+    void exitoFinalizandoEstanciaConNotasSalidaEnBlancoNoModificaNotasPrevias_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.OCUPADO);
+        Estancia estancia = crearEstanciaExistente(unidad.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        estancia.setNotas("Nota previa salida");
+        estanciaRepository.save(estancia);
+
+        PagoNuevoRequestDTO pagoRequest = pagoNuevoRequestDTO(TipoPago.ESTANCIA_COMPLETADA);
+        pagoRequest.setEstado(EstadoPago.COMPLETADO);
+        SalidaEstanciaDTO request = salidaEstanciaRequestDTO(estancia.getId(), LocalDateTime.now(), pagoRequest);
+        request.setNotasSalida("   ");
+
+        // ---------- WHEN ----------
+        estanciaService.finalizarEstancia(request);
+
+        // ---------- THEN ----------
+        entityManager.flush();
+        entityManager.clear();
+
+        Estancia estanciaDb = estanciaRepository.findById(estancia.getId()).orElseThrow();
+        assertThat(estanciaDb.getNotas()).isEqualTo("Nota previa salida");
+        assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.FINALIZADA);
     }
 
     @Test
@@ -4422,6 +4610,7 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         Page<EstanciaTablaDTO> resultado = estanciaService.buscarEstanciasTabla(
+                null,
                 List.of(EstadoEstancia.ACTIVA),
                 TipoUnidad.APARTAMENTO,
                 ModoOcupacion.COMPLETO,
@@ -4493,21 +4682,21 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         // ---------- WHEN ----------
         Page<EstanciaTablaDTO> conReserva = estanciaService.buscarEstanciasTabla(
-                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 true,
                 PageRequest.of(0, 10)
         );
 
         Page<EstanciaTablaDTO> pagina0 = estanciaService.buscarEstanciasTabla(
-                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 null,
                 PageRequest.of(0, 2)
         );
 
         Page<EstanciaTablaDTO> pagina1 = estanciaService.buscarEstanciasTabla(
-                null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null, null, null,
                 null,
                 PageRequest.of(1, 2)
@@ -4530,6 +4719,64 @@ class EstanciaServiceIT extends AbstractServiceIT {
         assertThat(pagina1.getContent().getFirst().getId()).isEqualTo(estanciaAntigua.getId());
     }
 
+    @Test
+    void exitoBuscandoEstanciasTablaConSortExplicitoRespetaOrdenSolicitado_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad1 = crearApartamento(EstadoOperativo.OCUPADO);
+        Unidad unidad2 = crearApartamento(EstadoOperativo.OCUPADO);
+        Unidad unidad3 = crearApartamento(EstadoOperativo.OCUPADO);
+
+        Estancia estancia1 = crearEstanciaExistente(unidad1.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        Estancia estancia2 = crearEstanciaExistente(unidad2.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+        Estancia estancia3 = crearEstanciaExistente(unidad3.getHabitaciones(), false, EstadoEstancia.ACTIVA);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        List<Long> idsEsperados = List.of(estancia1.getId(), estancia2.getId(), estancia3.getId())
+                .stream()
+                .sorted()
+                .toList();
+
+        // ---------- WHEN ----------
+        Page<EstanciaTablaDTO> resultado = estanciaService.buscarEstanciasTabla(
+                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null,
+                null,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "id"))
+        );
+
+        // ---------- THEN ----------
+        List<Long> idsActuales = resultado.getContent().stream()
+                .map(EstanciaTablaDTO::getId)
+                .filter(idsEsperados::contains)
+                .toList();
+
+        assertThat(idsActuales).containsExactlyElementsOf(idsEsperados);
+    }
+
+    @Test
+    void exitoCreandoEstanciaNuevaConSalidaIgualAhoraQuedaExcedida_test() {
+
+        // ---------- GIVEN ----------
+        Unidad unidad = crearApartamento(EstadoOperativo.DISPONIBLE);
+        Ocupante cliente = crearCliente(clienteData());
+
+        LocalDateTime entrada = LocalDateTime.now().minusHours(3);
+        LocalDateTime salida = LocalDateTime.now();
+
+        EstanciaRequestDTO request = estanciaRequestDTO(unidad.getTipo(), unidad.getCodigo(), cliente, null, entrada);
+        request.setSalidaEstimada(salida);
+
+        // ---------- WHEN ----------
+        EstanciaDTO dto = estanciaService.crearEstanciaNueva(request);
+
+        // ---------- THEN ----------
+        Estancia estanciaDb = estanciaRepository.findById(dto.getId()).orElseThrow();
+        assertThat(estanciaDb.getEstado()).isEqualTo(EstadoEstancia.EXCEDIDA);
+    }
+
     //metodo auxiliar
     private BigDecimal calcularMontoPendienteCambioUnidad(Estancia estancia, TipoUnidad tipoUnidadAnterior) {
         if (estancia == null || tipoUnidadAnterior == null) {
@@ -4542,7 +4789,22 @@ class EstanciaServiceIT extends AbstractServiceIT {
 
         CalcularPagoDTO calcularPagoDTO = PagoMapper.entityToCalcularPagoDTO(estancia.getId(), tipoUnidadAnterior, totalOcupantes, fechaEntrada, fechaFinalizacion);
 
-        return pagoService.obtenerEstimacionPago(calcularPagoDTO);
+        return pagoService.obtenerEstimacionPagoSinPagosAnteriores(calcularPagoDTO);
+
+    }
+
+    private BigDecimal calcularMontoPendienteCambioOcupantes(Estancia estancia, TipoUnidad tipoUnidad) {
+        if (estancia == null || tipoUnidad == null) {
+            throw new IllegalArgumentException("No se proporcionó información de estancia o tipo de unidad");
+        }
+
+        Integer totalOcupantes = estancia.getOcupantes().size();
+        LocalDateTime fechaEntrada = estancia.getEntradaReal();
+        LocalDateTime fechaFinalizacion = LocalDateTime.now();
+
+        CalcularPagoDTO calcularPagoDTO = PagoMapper.entityToCalcularPagoDTO(estancia.getId(), tipoUnidad, totalOcupantes, fechaEntrada, fechaFinalizacion);
+
+        return pagoService.obtenerEstimacionPagoSinPagosAnteriores(calcularPagoDTO);
 
     }
 }

@@ -4,6 +4,7 @@ import com.hotel.dtos.pago.CalcularPagoDTO;
 import com.hotel.models.Estancia;
 import com.hotel.models.Pago;
 import com.hotel.models.enums.EstadoPago;
+import com.hotel.models.enums.TipoCalculo;
 import com.hotel.models.enums.TipoPago;
 import com.hotel.models.enums.TipoUnidad;
 import com.hotel.repositories.PagoRepository;
@@ -13,6 +14,7 @@ import org.slf4j.Logger;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -37,7 +39,7 @@ public class PagoResolver {
         BigDecimal pagoAnticipos = BigDecimal.ZERO;
         BigDecimal pagoPendientePorCambioUnidad = BigDecimal.ZERO;
         BigDecimal precioPersonasAdicionales = BigDecimal.ZERO;
-
+        TipoCalculo tipoCalculo = request.getTipoCalculo();
 
         if(request.getIdEstancia() != null) {
             logger.info("[PagoResolver.calcularTotalPagos] Verificando estancia con id: {}", request.getIdEstancia());
@@ -74,24 +76,26 @@ public class PagoResolver {
         logger.info("[PagoResolver.calcularTotalPagos] obteniendo tarifa base por tipo de unidad");
         TipoUnidad tipoUnidad = request.getTipoUnidad();
 
-        BigDecimal precioDia = tarifaBaseService.obtenerPrecioDiaPorTipoUnidad(tipoUnidad);
+        BigDecimal precioTarifa = tarifaBaseService.obtenerPrecioDiaPorTipoUnidad(tipoUnidad, tipoCalculo);
 
         logger.info("[PagoResolver.calcularTotalPagos] calculando total de dias entre {} y {}", request.getFechaEntrada(), request.getFechaSalida());
-        Long totalDias = calcularDias(request.getFechaEntrada(), request.getFechaSalida());
+        long totalDias = calcularDias(request.getFechaEntrada(), request.getFechaSalida());
+        BigDecimal cantidadCobro = obtenerCantidadCobro(totalDias, tipoCalculo);
 
         logger.info("[PagoResolver.calcularTotalPagos] calculando precio por personas adicionales si aplica");
 
         if(request.getNumeroPersonas() > 2) {
             precioPersonasAdicionales = calcularPrecioPersonaAdicional(
                     tipoUnidad,
-                    totalDias,
-                    request.getNumeroPersonas()
+                    cantidadCobro,
+                    request.getNumeroPersonas(),
+                    tipoCalculo
             );
             logger.info("[PagoResolver.calcularTotalPagos] precio por personas adicionales: {}", precioPersonasAdicionales);
         }
 
-        BigDecimal totalPago = precioDia
-                .multiply(BigDecimal.valueOf(totalDias))
+        BigDecimal totalPago = precioTarifa
+                .multiply(cantidadCobro)
                 .add(precioPersonasAdicionales)
                 .add(pagoPendientePorCambioUnidad)
                 .subtract(pagoAnticipos);
@@ -99,12 +103,14 @@ public class PagoResolver {
 
         return totalPago;
 
+
     }
 
     public BigDecimal calcularEstimacionPagoSinPagosAnteriores(CalcularPagoDTO request) {
         logger.info("[calcularEstimacionPagoSinPagosAnteriores] Calculando total de pagos para el request: {}", request);
 
         BigDecimal precioPersonasAdicionales = BigDecimal.ZERO;
+            TipoCalculo tipoCalculo = request.getTipoCalculo();
 
 
         if(request.getIdEstancia() != null) {
@@ -115,32 +121,32 @@ public class PagoResolver {
             }
             logger.info("[calcularEstimacionPagoSinPagosAnteriores] Estancia encontrada: {}", estancia.getCodigoFolio());
 
-            logger.info("[calcularEstimacionPagoSinPagosAnteriores] verificando si existe pago por anticipos");
-            List<Pago> pagos = pagoRepository.findByEstanciaId(request.getIdEstancia());
 
         }
 
         logger.info("[calcularEstimacionPagoSinPagosAnteriores] obteniendo tarifa base por tipo de unidad");
         TipoUnidad tipoUnidad = request.getTipoUnidad();
 
-        BigDecimal precioDia = tarifaBaseService.obtenerPrecioDiaPorTipoUnidad(tipoUnidad);
+        BigDecimal precioTarifa = tarifaBaseService.obtenerPrecioDiaPorTipoUnidad(tipoUnidad, tipoCalculo);
 
         logger.info("[calcularEstimacionPagoSinPagosAnteriores] calculando total de dias entre {} y {}", request.getFechaEntrada(), request.getFechaSalida());
-        Long totalDias = calcularDias(request.getFechaEntrada(), request.getFechaSalida());
+        long totalDias = calcularDias(request.getFechaEntrada(), request.getFechaSalida());
+        BigDecimal cantidadCobro = obtenerCantidadCobro(totalDias, tipoCalculo);
 
         logger.info("[calcularEstimacionPagoSinPagosAnteriores] calculando precio por personas adicionales si aplica");
 
         if(request.getNumeroPersonas() > 2) {
             precioPersonasAdicionales = calcularPrecioPersonaAdicional(
                     tipoUnidad,
-                    totalDias,
-                    request.getNumeroPersonas()
+                    cantidadCobro,
+                    request.getNumeroPersonas(),
+                    tipoCalculo
             );
             logger.info("[calcularEstimacionPagoSinPagosAnteriores] precio por personas adicionales: {}", precioPersonasAdicionales);
         }
 
-        BigDecimal totalPago = precioDia
-                .multiply(BigDecimal.valueOf(totalDias))
+        BigDecimal totalPago = precioTarifa
+                .multiply(cantidadCobro)
                 .add(precioPersonasAdicionales);
         logger.info("[calcularEstimacionPagoSinPagosAnteriores] total pago calculado: {}", totalPago);
 
@@ -161,16 +167,24 @@ public class PagoResolver {
         );
     }
 
-    private BigDecimal calcularPrecioPersonaAdicional(TipoUnidad tipoUnidad, Long totalDias, Integer numeroPersonas) {
-        logger.info("[PagoResolver.calcularPrecioPersonaAdicional] Calculando precio por personas adicionales para tipoUnidad: {}, totalDias: {}, numeroPersonas: {}", tipoUnidad, totalDias, numeroPersonas);
+    private BigDecimal calcularPrecioPersonaAdicional(TipoUnidad tipoUnidad, BigDecimal cantidadCobro, Integer numeroPersonas, TipoCalculo tipoCalculo) {
+        logger.info("[PagoResolver.calcularPrecioPersonaAdicional] Calculando precio por personas adicionales para tipoUnidad: {}, cantidadCobro: {}, numeroPersonas: {}", tipoUnidad, cantidadCobro, numeroPersonas);
         if (numeroPersonas <= 2) {
             return BigDecimal.ZERO;
         }
-        BigDecimal precioPersonaAdicional = tarifaBaseService.obtenerPrecioPersonaAdicional(tipoUnidad);
+        BigDecimal precioPersonaAdicional = tarifaBaseService.obtenerPrecioPersonaAdicional(tipoUnidad, tipoCalculo);
         int personasAdicionales = numeroPersonas - 2;
         return precioPersonaAdicional
                 .multiply(BigDecimal.valueOf(personasAdicionales))
-                .multiply(BigDecimal.valueOf(totalDias));
+                .multiply(cantidadCobro);
+    }
+
+    private BigDecimal obtenerCantidadCobro(long totalDias, TipoCalculo tipoCalculo) {
+        if (tipoCalculo == TipoCalculo.ESTADIA_CORTA) {
+            return BigDecimal.valueOf(totalDias)
+                    .divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
+        }
+        return BigDecimal.valueOf(totalDias);
     }
 
 

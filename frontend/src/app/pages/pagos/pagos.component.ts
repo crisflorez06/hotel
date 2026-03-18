@@ -56,8 +56,6 @@ export class PagosComponent implements OnInit, OnDestroy {
     'ESTANCIA_COMPLETADA',
   ];
 
-  mostrarModalCrearPago = false;
-  creandoPago = false;
   mostrarModalEliminarPago = false;
   mostrarModalReemplazoPagoEstancia = false;
   mostrarModalConfirmarPagoPendiente = false;
@@ -65,20 +63,13 @@ export class PagosComponent implements OnInit, OnDestroy {
   pagandoPendiente = false;
   modoPagarPendientes = false;
   pagoPendienteObjetivo: PagoDTO | null = null;
-
-  nuevoPago = {
-    idEstancia: '',
-    tipoPago: 'ANTICIPO_ESTANCIA' as TipoPago,
-    monto: '',
-    medioPago: 'EFECTIVO' as MedioPago,
-    fecha: '',
-    estado: 'COMPLETADO' as EstadoPago,
-  };
+  pagoNotasModal: PagoDTO | null = null;
 
   reemplazoPagoEstancia = {
     monto: '',
     medioPago: 'EFECTIVO' as MedioPago,
     fecha: '',
+    notas: '',
     estado: 'COMPLETADO' as EstadoPago,
   };
   private readonly destroy$ = new Subject<void>();
@@ -145,82 +136,10 @@ export class PagosComponent implements OnInit, OnDestroy {
     this.cargarPagos(0);
   }
 
-  abrirModalCrearPago(): void {
-    if (this.cargando || this.creandoPago || this.eliminandoPago || this.pagandoPendiente) {
-      return;
-    }
-
-    this.error = '';
-    this.exito = '';
-    this.nuevoPago = {
-      idEstancia: '',
-      tipoPago: 'ANTICIPO_ESTANCIA',
-      monto: '',
-      medioPago: 'EFECTIVO',
-      fecha: this.obtenerFechaHoraActualInput(),
-      estado: 'COMPLETADO',
-    };
-    this.mostrarModalCrearPago = true;
-  }
-
-  cerrarModalCrearPago(): void {
-    if (this.creandoPago) {
-      return;
-    }
-    this.mostrarModalCrearPago = false;
-  }
-
-  guardarPago(): void {
-    if (this.creandoPago) {
-      return;
-    }
-
-    const idEstancia = Number.parseInt(this.nuevoPago.idEstancia.trim(), 10);
-    const monto = Number.parseFloat(this.nuevoPago.monto);
-    const fecha = this.normalizarFechaHoraLocal(this.nuevoPago.fecha);
-    if (!Number.isInteger(idEstancia) || idEstancia <= 0) {
-      this.error = 'El id de estancia debe ser un numero entero mayor a cero.';
-      return;
-    }
-    if (!Number.isFinite(monto) || monto <= 0) {
-      this.error = 'El monto debe ser mayor a cero.';
-      return;
-    }
-    if (!fecha) {
-      this.error = 'La fecha del pago es obligatoria.';
-      return;
-    }
-
-    const request: PagoNuevoRequest = {
-      tipoPago: this.nuevoPago.tipoPago,
-      monto,
-      medioPago: this.nuevoPago.medioPago,
-      fecha,
-      estado: this.nuevoPago.estado,
-    };
-
-    this.creandoPago = true;
-    this.error = '';
-    this.exito = '';
-    this.pagoService.crearPago(idEstancia, request).subscribe({
-      next: () => {
-        this.creandoPago = false;
-        this.mostrarModalCrearPago = false;
-        this.exito = 'Pago creado correctamente.';
-        this.cargarPagos(0);
-      },
-      error: (errorResponse: unknown) => {
-        this.creandoPago = false;
-        this.error = extractBackendErrorMessage(errorResponse, 'No fue posible crear el pago.');
-      },
-    });
-  }
-
   abrirModalEliminarPago(): void {
     if (
       !this.puedeEliminarPagoSeleccionado() ||
       this.eliminandoPago ||
-      this.creandoPago ||
       this.pagandoPendiente
     ) {
       return;
@@ -304,6 +223,7 @@ export class PagosComponent implements OnInit, OnDestroy {
       monto,
       medioPago: this.reemplazoPagoEstancia.medioPago,
       fecha,
+      notas: this.reemplazoPagoEstancia.notas.trim() || undefined,
       estado: this.reemplazoPagoEstancia.estado,
     };
 
@@ -329,7 +249,7 @@ export class PagosComponent implements OnInit, OnDestroy {
   }
 
   activarFiltroPagarPendientes(): void {
-    if (this.cargando || this.creandoPago || this.eliminandoPago || this.pagandoPendiente) {
+    if (this.cargando || this.eliminandoPago || this.pagandoPendiente) {
       return;
     }
 
@@ -507,6 +427,31 @@ export class PagosComponent implements OnInit, OnDestroy {
     return pago.monto ?? null;
   }
 
+  abrirModalNotasPago(pago: PagoDTO): void {
+    if (!this.tieneNotasPago(pago)) {
+      return;
+    }
+
+    this.pagoNotasModal = pago;
+  }
+
+  cerrarModalNotasPago(): void {
+    this.pagoNotasModal = null;
+  }
+
+  tieneNotasPago(pago: PagoDTO): boolean {
+    return !!pago.notas?.trim();
+  }
+
+  obtenerTooltipNotasPago(pago: PagoDTO): string {
+    return this.tieneNotasPago(pago) ? 'Ver notas' : 'Sin notas';
+  }
+
+  obtenerNotasPagoModal(pago: PagoDTO): string {
+    const notas = pago.notas?.trim();
+    return notas ? notas : 'Sin notas';
+  }
+
   get indiceInicio(): number {
     return this.totalElementos === 0 ? 0 : this.paginaActual * this.tamanoPagina + 1;
   }
@@ -590,9 +535,19 @@ export class PagosComponent implements OnInit, OnDestroy {
       monto: `${pago.monto ?? ''}`,
       medioPago: pago.medioPago ?? 'EFECTIVO',
       fecha: this.formatearFechaHoraInputDesdeFecha(pago.fecha),
+      notas: this.normalizarNotasPagoParaInput(pago.notas),
       estado: pago.estado === 'PENDIENTE' ? 'PENDIENTE' : 'COMPLETADO',
     };
     this.mostrarModalReemplazoPagoEstancia = true;
+  }
+
+  private normalizarNotasPagoParaInput(notas: string | null | undefined): string {
+    const texto = notas?.trim();
+    if (!texto) {
+      return '';
+    }
+
+    return texto.replace(/^\s*-\s?/, '');
   }
 
   private formatearFechaHoraInputDesdeFecha(fecha: string | null | undefined): string {

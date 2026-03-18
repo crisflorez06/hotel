@@ -136,6 +136,15 @@
                 <option *ngFor="let estado of estadosPago" [value]="estado">{{ estado }}</option>
               </select>
             </div>
+            <div class="campo pago__campo-inline">
+              <label>Notas del pago</label>
+              <textarea
+                rows="3"
+                [(ngModel)]="notasPago"
+                name="notasPago"
+                placeholder="Agrega una nota nueva (opcional)"
+              ></textarea>
+            </div>
           </div>
         </section>
 

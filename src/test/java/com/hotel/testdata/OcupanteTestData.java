@@ -104,6 +104,16 @@ public final class OcupanteTestData {
         a1.setTipoOcupante(TipoOcupante.ACOMPANANTE);
         a1.setCreadoEn(LocalDateTime.now());
 
-        return List.of(a1);
+        Ocupante a2 = new Ocupante();
+        a2.setNombres("jorge");
+        a2.setApellidos("cruz");
+        a2.setTipoDocumento(TipoDocumento.CE);
+        a2.setNumeroDocumento("521255666777");
+        a2.setTelefono("3025500000");
+        a2.setEmail("luis@gmail.com");
+        a2.setTipoOcupante(TipoOcupante.ACOMPANANTE);
+        a2.setCreadoEn(LocalDateTime.now());
+
+        return List.of(a1, a2);
     }
 }

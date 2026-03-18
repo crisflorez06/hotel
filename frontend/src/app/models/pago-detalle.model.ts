@@ -7,6 +7,7 @@ export interface PagoDTO {
   monto: number;
   medioPago?: MedioPago | null;
   fecha: string;
+  notas?: string | null;
   estado: EstadoPago;
   tipoPago?: TipoPago;
 }

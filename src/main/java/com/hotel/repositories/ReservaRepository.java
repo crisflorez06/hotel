@@ -70,6 +70,39 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long>, JpaSpec
             @Param("estados") List<EstadoReserva> estados,
             @Param("momento") LocalDateTime momento);
 
+    @Query("""
+           select r
+           from Reserva r
+           where r.estado = :estado
+             and r.entradaEstimada < :momento
+           """)
+    List<Reserva> findByEstadoAndEntradaEstimadaBefore(
+            @Param("estado") EstadoReserva estado,
+            @Param("momento") LocalDateTime momento);
+
+    @Query("""
+           select r
+           from Reserva r
+           where r.estado = :estado
+             and r.salidaEstimada < :momento
+           """)
+    List<Reserva> findByEstadoAndSalidaEstimadaBefore(
+            @Param("estado") EstadoReserva estado,
+            @Param("momento") LocalDateTime momento);
+
+    @Query("""
+           select distinct h.id
+           from Reserva r
+           join r.habitaciones h
+           where r.estado in :estados
+             and r.entradaEstimada <= :finDia
+             and r.salidaEstimada >= :inicioDia
+           """)
+    List<Long> findHabitacionIdsConReservaEnDia(
+            @Param("estados") List<EstadoReserva> estados,
+            @Param("inicioDia") LocalDateTime inicioDia,
+            @Param("finDia") LocalDateTime finDia);
+
     long countByEstadoIn(List<EstadoReserva> estados);
 
     long countByEstado(EstadoReserva estado);

@@ -107,20 +107,20 @@
               <dd>{{ tarifa.precioDiaTemBaja | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
             </div>
             <div>
-              <dt>Dia temp. alta</dt>
-              <dd>{{ tarifa.precioDiaTemAlta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
-            </div>
-            <div>
-              <dt>Estadia corta</dt>
-              <dd>{{ tarifa.precioEstadiaCorta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
-            </div>
-            <div>
               <dt>Adicional temp. baja</dt>
               <dd>{{ tarifa.precioPersonaAdicionalTemBaja | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
             </div>
             <div>
+              <dt>Dia temp. alta</dt>
+              <dd>{{ tarifa.precioDiaTemAlta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
               <dt>Adicional temp. alta</dt>
               <dd>{{ tarifa.precioPersonaAdicionalTemAlta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
+            </div>
+            <div>
+              <dt>Estadia corta</dt>
+              <dd>{{ tarifa.precioEstadiaCorta | currency: 'COP' : 'symbol' : '1.0-0' }}</dd>
             </div>
             <div>
               <dt>Adic. estadia corta</dt>
@@ -157,32 +157,6 @@
         </label>
 
         <label class="campo">
-          <span>Dia temp. alta</span>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            name="modal-precioDiaTemAlta"
-            [(ngModel)]="tarifa.precioDiaTemAlta"
-            (ngModelChange)="limpiarMensajesTarifas()"
-            required
-          />
-        </label>
-
-        <label class="campo">
-          <span>Estadia corta</span>
-          <input
-            type="number"
-            min="0"
-            step="1"
-            name="modal-precioEstadiaCorta"
-            [(ngModel)]="tarifa.precioEstadiaCorta"
-            (ngModelChange)="limpiarMensajesTarifas()"
-            required
-          />
-        </label>
-
-        <label class="campo">
           <span>Adicional temp. baja</span>
           <input
             type="number"
@@ -196,6 +170,19 @@
         </label>
 
         <label class="campo">
+          <span>Dia temp. alta</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioDiaTemAlta"
+            [(ngModel)]="tarifa.precioDiaTemAlta"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
           <span>Adicional temp. alta</span>
           <input
             type="number"
@@ -203,6 +190,19 @@
             step="1"
             name="modal-precioPersonaAdicionalTemAlta"
             [(ngModel)]="tarifa.precioPersonaAdicionalTemAlta"
+            (ngModelChange)="limpiarMensajesTarifas()"
+            required
+          />
+        </label>
+
+        <label class="campo">
+          <span>Estadia corta</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            name="modal-precioEstadiaCorta"
+            [(ngModel)]="tarifa.precioEstadiaCorta"
             (ngModelChange)="limpiarMensajesTarifas()"
             required
           />

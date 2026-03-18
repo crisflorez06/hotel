@@ -86,9 +86,9 @@ public class DataInitializer implements CommandLineRunner {
         ocupanteRepository.saveAll(ocupantes);
 
         List<TarifaBase> tarifas = new ArrayList<>();
-        tarifas.add(buildTarifaBase(TipoUnidad.HABITACION, 180000, 200000, 0, 85000, 90000, 0));
-        tarifas.add(buildTarifaBase(TipoUnidad.APARTAESTUDIO, 230000, 300000, 2000000, 85000, 90000, 0));
-        tarifas.add(buildTarifaBase(TipoUnidad.APARTAMENTO, 250000, 300000, 3000000, 85000, 90000, 0));
+        tarifas.add(buildTarifaBase(TipoUnidad.HABITACION, 180000, 200000, 1400000, 85000, 90000, 450000));
+        tarifas.add(buildTarifaBase(TipoUnidad.APARTAESTUDIO, 230000, 300000, 2200000, 85000, 90000, 650000));
+        tarifas.add(buildTarifaBase(TipoUnidad.APARTAMENTO, 250000, 300000, 3200000, 85000, 90000, 800000));
         tarifaBaseRepository.saveAll(tarifas);
 
         if (ajusteTemporadaRepository.count() == 0) {

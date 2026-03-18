@@ -28,6 +28,7 @@ public class ReservaTablaDTO {
     private LocalDateTime fechaCreacion;
     private LocalDateTime entradaEstimada;
     private LocalDateTime salidaEstimada;
+    private String notas;
     private Boolean tieneEstanciaAsociada;
     private BigDecimal totalPagoReserva;
     private Integer cantidadPagosModificadosOEliminados;

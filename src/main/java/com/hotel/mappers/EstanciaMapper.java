@@ -17,7 +17,10 @@ public class EstanciaMapper {
 
         entity.setEntradaReal(request.getEntradaReal());
         entity.setSalidaEstimada(request.getSalidaEstimada());
-        entity.setNotas("Notas al registrar: " + request.getNotas());
+        String notas = request.getNotas() == null ? null : request.getNotas().trim();
+        if (notas != null && !notas.isBlank()) {
+            entity.setNotas("-" + notas);
+        }
         entity.setEstado(EstadoEstancia.ACTIVA);
 
         return entity;
@@ -73,6 +76,7 @@ public class EstanciaMapper {
         dto.setEntradaReal(estancia.getEntradaReal());
         dto.setSalidaEstimada(estancia.getSalidaEstimada());
         dto.setSalidaReal(estancia.getSalidaReal());
+        dto.setNotas(estancia.getNotas());
         dto.setTotalPersonas(estancia.getOcupantes() != null ? estancia.getOcupantes().size() : 0);
         dto.setTieneReservaAsociada(estancia.getReserva() != null);
         dto.setIdReservaAsociada(estancia.getReserva() != null ? estancia.getReserva().getId() : null);

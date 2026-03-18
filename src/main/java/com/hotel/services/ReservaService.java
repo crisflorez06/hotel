@@ -210,7 +210,15 @@ public class ReservaService {
         }
         reserva.setCliente(ocupanteService.buscarCliente(request.getIdOcupante()));
 
-        reserva.setNotas(reserva.getNotas() + " | Reserva editadas: " + request.getNotas());
+        String notas = request.getNotas() == null ? null : request.getNotas().trim();
+        if (notas != null && !notas.isBlank()) {
+            String notasActuales = reserva.getNotas();
+            if (notasActuales == null || notasActuales.isBlank()) {
+                reserva.setNotas("-" + notas);
+            } else {
+                reserva.setNotas(notasActuales + "\n-" + notas);
+            }
+        }
 
 
         Reserva reservaGuardada = reservaRepository.save(reserva);

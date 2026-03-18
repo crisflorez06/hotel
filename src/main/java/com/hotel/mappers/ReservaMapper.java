@@ -28,8 +28,10 @@ public class ReservaMapper {
         } else {
             entity.setModoOcupacion(ModoOcupacion.COMPLETO);
         }
-        entity.setNotas("Reserva al registrar: " + request.getNotas());
-
+        String notas = request.getNotas() == null ? null : request.getNotas().trim();
+        if (notas != null && !notas.isBlank()) {
+            entity.setNotas("-" + notas);
+        }
 
         return entity;
     }
@@ -71,6 +73,7 @@ public class ReservaMapper {
         dto.setFechaCreacion(reserva.getFechaCreacion());
         dto.setEntradaEstimada(reserva.getEntradaEstimada());
         dto.setSalidaEstimada(reserva.getSalidaEstimada());
+        dto.setNotas(reserva.getNotas());
         dto.setNumeroPersonas(reserva.getNumeroPersonas());
         dto.setCanalReserva(reserva.getCanalReserva());
         dto.setModoOcupacion(reserva.getModoOcupacion());
