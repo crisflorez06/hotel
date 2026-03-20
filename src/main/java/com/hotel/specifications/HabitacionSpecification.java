@@ -7,6 +7,7 @@ import com.hotel.models.enums.TipoUnidad;
 import jakarta.persistence.criteria.Predicate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.data.jpa.domain.Specification;
 
 public class HabitacionSpecification {
@@ -15,6 +16,8 @@ public class HabitacionSpecification {
             List<EstadoOperativo> estados,
             List<Piso> pisos,
             String codigo) {
+        String codigoNormalizado = normalizarCodigo(codigo);
+
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
@@ -26,13 +29,26 @@ public class HabitacionSpecification {
             if (pisos != null && !pisos.isEmpty()) {
                 predicates.add(root.get("unidad").get("piso").in(pisos));
             }
-            if (codigo != null && !codigo.isBlank()) {
+            if (codigoNormalizado != null) {
                 predicates.add(criteriaBuilder.like(
                         criteriaBuilder.lower(root.get("codigo")),
-                        "%" + codigo.toLowerCase() + "%"));
+                        "%" + codigoNormalizado + "%"));
             }
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
+    }
+
+    private static String normalizarCodigo(String codigo) {
+        if (codigo == null) {
+            return null;
+        }
+
+        String codigoLimpio = codigo.trim();
+        if (codigoLimpio.isEmpty()) {
+            return null;
+        }
+
+        return codigoLimpio.toLowerCase(Locale.ROOT);
     }
 }

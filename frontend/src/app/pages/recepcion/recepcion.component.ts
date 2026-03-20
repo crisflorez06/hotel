@@ -68,6 +68,7 @@ export class RecepcionComponent implements OnInit {
   modalAlertaDetalle: ModalDetalleItem[] = [];
   modalAlertaVariante: 'alerta' | 'reserva' = 'alerta';
   private codigoTimer?: ReturnType<typeof setTimeout>;
+  private requestCounter = 0;
 
   filtroTipo: TipoUnidad | '' = '';
   filtroEstados: EstadoOperativo[] = [];
@@ -360,6 +361,7 @@ export class RecepcionComponent implements OnInit {
   }
 
   buscarUnidades(): void {
+    const requestId = ++this.requestCounter;
     this.cargando = true;
     this.error = '';
 
@@ -370,10 +372,16 @@ export class RecepcionComponent implements OnInit {
     if (this.filtroTipo === 'HABITACION') {
       this.habitacionService.buscarHabitaciones({ estados, pisos, codigo }).subscribe({
         next: (habitaciones) => {
+          if (requestId !== this.requestCounter) {
+            return;
+          }
           this.unidades = this.mapearHabitaciones(habitaciones);
           this.cargando = false;
         },
         error: (errorResponse: unknown) => {
+          if (requestId !== this.requestCounter) {
+            return;
+          }
           this.error = extractBackendErrorMessage(
             errorResponse,
             'No fue posible cargar las habitaciones.'
@@ -393,10 +401,16 @@ export class RecepcionComponent implements OnInit {
       })
       .subscribe({
         next: (unidades) => {
+          if (requestId !== this.requestCounter) {
+            return;
+          }
           this.unidades = unidades;
           this.cargando = false;
         },
         error: (errorResponse: unknown) => {
+          if (requestId !== this.requestCounter) {
+            return;
+          }
           this.error = extractBackendErrorMessage(
             errorResponse,
             'No fue posible cargar las unidades.'
