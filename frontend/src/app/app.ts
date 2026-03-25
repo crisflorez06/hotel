@@ -13,6 +13,7 @@ import {
 } from '@angular/router';
 import { filter } from 'rxjs';
 import { FeedbackToastService } from './core/services/feedback-toast.service';
+import { AuthService } from './services/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -25,8 +26,16 @@ export class App {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   readonly feedbackToast = inject(FeedbackToastService);
+  readonly authService = inject(AuthService);
+  readonly authState = this.authService.authState;
+
+  isAppShellVisible = true;
 
   isLoading = true;
+
+  logout(): void {
+    this.authService.logout();
+  }
 
   constructor() {
     this.router.events
@@ -47,7 +56,7 @@ export class App {
         }
 
         if (event instanceof NavigationEnd) {
-          // Espera a que Angular pinte la nueva vista antes de ocultar el loader.
+          this.isAppShellVisible = event.urlAfterRedirects !== '/login';
           requestAnimationFrame(() => {
             this.isLoading = false;
           });

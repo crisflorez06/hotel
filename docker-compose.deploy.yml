@@ -1,0 +1,62 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: hotel-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: hotel
+      MYSQL_USER: hotel
+      MYSQL_PASSWORD: hotel123
+      MYSQL_ROOT_PASSWORD: hotel123
+    ports:
+      - '3311:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-photel123']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - hotel-net
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: hotel-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/hotel?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Bogota
+      SPRING_DATASOURCE_USERNAME: hotel
+      SPRING_DATASOURCE_PASSWORD: hotel123
+      JWT_SECRET: oF1mC8fLw4nqZp9x2g4aV7qZQy8Z3rQ2uD6vH1mK5pQ=
+    ports:
+      - '8080:8080'
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - hotel-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: hotel-frontend
+    restart: unless-stopped
+    ports:
+      - '80:80'
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - hotel-net
+
+volumes:
+  mysql_data:
+
+networks:
+  hotel-net:

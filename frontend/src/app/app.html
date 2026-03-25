@@ -14,23 +14,25 @@
   {{ toast.message }}
 </div>
 
-<div class="app-shell" [class.app-shell--loading]="isLoading">
-  <header class="app-header">
-    <div class="app-header__brand">Hotel</div>
-    <nav class="app-header__nav">
-      <a routerLink="/dashboard" routerLinkActive="is-active">Dashboard</a>
-      <a routerLink="/monitor-eventos" routerLinkActive="is-active">Eventos</a>
-      <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
-      <a routerLink="/calendario" routerLinkActive="is-active">Calendario</a>
-      <a routerLink="/reservas" routerLinkActive="is-active">Reservas</a>
-      <a routerLink="/estancias" routerLinkActive="is-active">Estancias</a>
-      <a routerLink="/pagos" routerLinkActive="is-active">Pagos</a>
-      <a routerLink="/ocupantes/tabla-clientes" routerLinkActive="is-active">Clientes</a>
-      <a routerLink="/ajustes" routerLinkActive="is-active">Ajustes</a>
-    </nav>
-  </header>
+<header class="app-header" *ngIf="isAppShellVisible">
+  <div class="app-header__brand">Hotel</div>
+  <nav class="app-header__nav">
+    <a routerLink="/dashboard" routerLinkActive="is-active">Dashboard</a>
+    <a routerLink="/monitor-eventos" routerLinkActive="is-active">Eventos</a>
+    <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
+    <a routerLink="/calendario" routerLinkActive="is-active">Calendario</a>
+    <a routerLink="/reservas" routerLinkActive="is-active">Reservas</a>
+    <a routerLink="/estancias" routerLinkActive="is-active">Estancias</a>
+    <a routerLink="/pagos" routerLinkActive="is-active">Pagos</a>
+    <a routerLink="/ocupantes/tabla-clientes" routerLinkActive="is-active">Clientes</a>
+    <a routerLink="/ajustes" routerLinkActive="is-active">Ajustes</a>
+  </nav>
+  <div class="app-header__user" *ngIf="authState().isAuthenticated">
+    <span class="app-header__user-name">{{ authState().token ? 'Usuario' : '' }}</span>
+    <button class="app-header__logout" (click)="logout()">Cerrar sesión</button>
+  </div>
+</header>
 
-  <main class="app-main">
-    <router-outlet></router-outlet>
-  </main>
-</div>
+<main class="app-main" [class.app-shell--loading]="isLoading">
+  <router-outlet></router-outlet>
+</main>

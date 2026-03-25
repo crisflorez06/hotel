@@ -1,0 +1,89 @@
+<section class="login-shell">
+  <div class="login-shell__glow" aria-hidden="true"></div>
+
+  <header class="login-topbar" aria-label="Encabezado principal">
+    <div class="login-topbar__brand">
+      <strong>Hotel</strong>
+      <span>Plataforma operativa</span>
+    </div>
+
+    <nav class="login-topbar__menu" aria-label="Menu de modulos">
+      <a href="#" aria-disabled="true">Recepcion</a>
+      <a href="#" aria-disabled="true">Reservas</a>
+      <a href="#" aria-disabled="true">Estancias</a>
+      <a href="#" aria-disabled="true">Pagos</a>
+    </nav>
+  </header>
+
+  <div class="login-layout">
+    <div class="login-card">
+      <div class="login-header">
+        <p class="login-header__eyebrow">Bienvenido</p>
+        <h2>Iniciar sesión</h2>
+        <p>Ingresa tus credenciales para continuar</p>
+      </div>
+
+      <form class="login-form" (ngSubmit)="login()" #loginForm="ngForm">
+        <div class="form-group">
+          <label for="usuario">Usuario</label>
+          <input
+            type="text"
+            id="usuario"
+            name="usuario"
+            [(ngModel)]="usuario"
+            (input)="limpiarError()"
+            [disabled]="cargando"
+            autocomplete="username"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Contraseña</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            [(ngModel)]="password"
+            (input)="limpiarError()"
+            [disabled]="cargando"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+
+        <div class="login-error" *ngIf="error" role="alert">
+          {{ error }}
+        </div>
+
+        <button type="submit" class="login-btn" [disabled]="cargando">
+          <span *ngIf="!cargando">Ingresar al sistema</span>
+          <span *ngIf="cargando">Validando acceso...</span>
+        </button>
+      </form>
+    </div>
+
+    <aside class="login-context" aria-label="Funcionalidades del sistema">
+      <p class="login-context__eyebrow">Sistema hotelero</p>
+      <h1>Todo lo necesario para la operación diaria</h1>
+      <p class="login-context__copy">
+        Gestiona la recepción desde un solo lugar: disponibilidad, ocupación, pagos y trazabilidad de eventos.
+      </p>
+
+      <ul class="login-context__features">
+        <li>
+          <h3>Recepción centralizada</h3>
+          <p>Visualiza unidades por estado y filtra por tipo, piso y ocupación en tiempo real.</p>
+        </li>
+        <li>
+          <h3>Reservas y estancias</h3>
+          <p>Registra ingresos, movimientos y salidas con seguimiento claro por habitación.</p>
+        </li>
+        <li>
+          <h3>Pagos y trazabilidad</h3>
+          <p>Consulta pagos, eventos y alertas operativas para mantener control del turno.</p>
+        </li>
+      </ul>
+    </aside>
+  </div>
+</section>

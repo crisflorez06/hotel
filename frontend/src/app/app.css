@@ -1,5 +1,6 @@
-main {
+.app-main {
   min-height: 100vh;
+  transition: opacity 0.2s ease;
 }
 
 .app-shell {
@@ -128,6 +129,36 @@ main {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #1f2420;
+}
+
+.app-header__user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-header__user-name {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #5a6b62;
+}
+
+.app-header__logout {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #d3e1da;
+  border-radius: 999px;
+  background: transparent;
+  color: #5a6b62;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.app-header__logout:hover {
+  background: #f3c4be;
+  border-color: #f3c4be;
+  color: #8a261f;
 }
 
 .app-header__nav {

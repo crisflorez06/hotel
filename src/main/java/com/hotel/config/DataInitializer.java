@@ -5,6 +5,7 @@ import com.hotel.models.Ocupante;
 import com.hotel.models.AjusteTemporada;
 import com.hotel.models.TarifaBase;
 import com.hotel.models.Unidad;
+import com.hotel.models.Usuario;
 import com.hotel.models.enums.*;
 import com.hotel.repositories.EstanciaRepository;
 import com.hotel.repositories.HabitacionRepository;
@@ -12,11 +13,13 @@ import com.hotel.repositories.OcupanteRepository;
 import com.hotel.repositories.AjusteTemporadaRepository;
 import com.hotel.repositories.TarifaBaseRepository;
 import com.hotel.repositories.UnidadRepository;
+import com.hotel.repositories.UsuarioRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.time.LocalDateTime;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,8 @@ public class DataInitializer implements CommandLineRunner {
     private final EstanciaRepository estanciaRepository;
     private final TarifaBaseRepository tarifaBaseRepository;
     private final AjusteTemporadaRepository ajusteTemporadaRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(
             UnidadRepository unidadRepository,
@@ -40,18 +45,24 @@ public class DataInitializer implements CommandLineRunner {
             OcupanteRepository ocupanteRepository,
             EstanciaRepository estanciaRepository,
             TarifaBaseRepository tarifaBaseRepository,
-            AjusteTemporadaRepository ajusteTemporadaRepository) {
+            AjusteTemporadaRepository ajusteTemporadaRepository,
+            UsuarioRepository usuarioRepository,
+            PasswordEncoder passwordEncoder) {
         this.unidadRepository = unidadRepository;
         this.habitacionRepository = habitacionRepository;
         this.ocupanteRepository = ocupanteRepository;
         this.estanciaRepository = estanciaRepository;
         this.tarifaBaseRepository = tarifaBaseRepository;
         this.ajusteTemporadaRepository = ajusteTemporadaRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
+        crearUsuariosSiNoExisten();
+
         if (unidadRepository.count() > 0
                 || habitacionRepository.count() > 0
                 || ocupanteRepository.count() > 0
@@ -156,6 +167,24 @@ public class DataInitializer implements CommandLineRunner {
         tarifa.setPrecioEstadiaPersonaAdicionalCorta(BigDecimal.valueOf(precioEstadiaPersonaAdicionalCorta));
         tarifa.setFechaCreacion(LocalDateTime.now());
         return tarifa;
+    }
+
+    private void crearUsuariosSiNoExisten() {
+        if (usuarioRepository.count() == 0) {
+            Usuario admin = new Usuario();
+            admin.setUsuario("admin");
+            admin.setPasswordHash(passwordEncoder.encode("admin123"));
+            admin.setRol("ADMIN");
+            admin.setActivo(true);
+            usuarioRepository.save(admin);
+
+            Usuario user = new Usuario();
+            user.setUsuario("user");
+            user.setPasswordHash(passwordEncoder.encode("user123"));
+            user.setRol("USER");
+            user.setActivo(true);
+            usuarioRepository.save(user);
+        }
     }
 
 }
