@@ -536,21 +536,7 @@ tbody tr:hover {
   background: #f0f5f1;
 }
 
-@media (max-width: 1024px) {
-  .monitor-eventos__filtros-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tipos-evento-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .monitor-eventos__filtros-subgrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 700px) {
+@media (max-width: 576px) {
   .monitor-eventos {
     padding: 0.85rem;
   }

@@ -380,13 +380,7 @@ button[type='submit']:disabled {
   cursor: not-allowed;
 }
 
-@media (min-width: 641px) and (max-width: 1080px) {
-  .tarifas-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
+@media (max-width: 576px) {
   .ajustes {
     padding: 1rem;
   }

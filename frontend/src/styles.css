@@ -31,6 +31,26 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
+.campo input[type='date'],
+.campo input[type='datetime-local'] {
+  min-height: 38px;
+  appearance: auto;
+  -webkit-appearance: auto;
+  font: inherit;
+  color: inherit;
+}
+
+.campo input[type='date']::-webkit-date-and-time-value,
+.campo input[type='datetime-local']::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+.campo input[type='date']::-webkit-calendar-picker-indicator,
+.campo input[type='datetime-local']::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.78;
+}
+
 app-root > app-loader,
 app-root > main.app-main,
 app-root > app-footer {
@@ -202,4 +222,29 @@ body.menu-open app-root > app-footer {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
+}
+
+@media (max-width: 576px) {
+  html,
+  body,
+  app-root,
+  .app-main {
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .app-main > * {
+    min-width: 0;
+  }
+
+  .app-main .tabla-wrapper {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
 }

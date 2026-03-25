@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { Observable, of, Subject, catchError, finalize, switchMap, takeUntil, tap } from 'rxjs';
@@ -73,7 +73,9 @@ interface CalendarioSeleccion {
   styleUrl: './calendario.component.css',
 })
 export class CalendarioComponent implements OnInit, OnDestroy {
-  private readonly diasVisibles = 15;
+  private readonly diasVisiblesDesktop = 15;
+  private readonly diasVisiblesMobile = 7;
+  private diasVisiblesActual = this.diasVisiblesDesktop;
   private readonly margenPrefetchDias = 21;
   private readonly estadosReservaPorDefecto: EstadoReserva[] = ['CONFIRMADA', 'EXPIRADA'];
   private readonly estadosEstanciaPorDefecto: EstadoEstancia[] = ['ACTIVA', 'EXCEDIDA'];
@@ -141,7 +143,13 @@ export class CalendarioComponent implements OnInit, OnDestroy {
       )
       .subscribe();
 
+    this.actualizarDiasVisiblesSegunPantalla(false);
     this.cargarCalendarioSemana();
+  }
+
+  @HostListener('window:resize')
+  onWindowResize(): void {
+    this.actualizarDiasVisiblesSegunPantalla();
   }
 
   ngOnDestroy(): void {
@@ -157,7 +165,7 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   }
 
   get diasSemana(): Date[] {
-    return Array.from({ length: this.diasVisibles }, (_, index) => {
+    return Array.from({ length: this.diasVisiblesActual }, (_, index) => {
       const dia = new Date(this.semanaInicio);
       dia.setDate(dia.getDate() + index);
       return dia;
@@ -1353,8 +1361,27 @@ export class CalendarioComponent implements OnInit, OnDestroy {
 
   private ultimoDiaVisible(): Date {
     const fin = new Date(this.semanaInicio);
-    fin.setDate(fin.getDate() + (this.diasVisibles - 1));
+    fin.setDate(fin.getDate() + (this.diasVisiblesActual - 1));
     return fin;
+  }
+
+  private actualizarDiasVisiblesSegunPantalla(recargar = true): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const nuevosDiasVisibles =
+      window.innerWidth <= 576 ? this.diasVisiblesMobile : this.diasVisiblesDesktop;
+
+    if (this.diasVisiblesActual === nuevosDiasVisibles) {
+      return;
+    }
+
+    this.diasVisiblesActual = nuevosDiasVisibles;
+
+    if (recargar) {
+      this.cargarCalendarioSemana();
+    }
   }
 
   private inicioDelDia(fecha: Date): Date {

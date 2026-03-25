@@ -82,9 +82,3 @@
   line-height: 1.3;
   word-break: break-word;
 }
-
-@media (max-width: 920px) {
-  .info-card--full {
-    grid-column: auto;
-  }
-}

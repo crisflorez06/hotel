@@ -1,5 +1,5 @@
 import { Component, DestroyRef, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   NavigationCancel,
@@ -25,16 +25,37 @@ import { AuthService } from './services/auth.service';
 export class App {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly documentRef = inject(DOCUMENT);
   readonly feedbackToast = inject(FeedbackToastService);
   readonly authService = inject(AuthService);
   readonly authState = this.authService.authState;
 
   isAppShellVisible = true;
+  isMobileMenuOpen = false;
 
   isLoading = true;
 
   logout(): void {
+    this.closeMobileMenu();
     this.authService.logout();
+  }
+
+  toggleMobileMenu(): void {
+    this.isMobileMenuOpen = !this.isMobileMenuOpen;
+    this.syncBodyMenuState();
+  }
+
+  closeMobileMenu(): void {
+    if (!this.isMobileMenuOpen) {
+      return;
+    }
+
+    this.isMobileMenuOpen = false;
+    this.syncBodyMenuState();
+  }
+
+  private syncBodyMenuState(): void {
+    this.documentRef.body.classList.toggle('menu-open', this.isMobileMenuOpen);
   }
 
   constructor() {
@@ -56,6 +77,7 @@ export class App {
         }
 
         if (event instanceof NavigationEnd) {
+          this.closeMobileMenu();
           this.isAppShellVisible = event.urlAfterRedirects !== '/login';
           requestAnimationFrame(() => {
             this.isLoading = false;
@@ -63,6 +85,7 @@ export class App {
           return;
         }
 
+        this.closeMobileMenu();
         this.isLoading = false;
       });
   }

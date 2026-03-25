@@ -830,21 +830,16 @@
   cursor: default;
 }
 
-@media (max-width: 980px) {
-  .estancia {
-    padding: 20px;
-  }
-
+@media (max-width: 576px) {
   .estancia__layout {
     grid-template-columns: 1fr;
   }
 
   .estancia__summary {
     position: static;
+    order: 2;
   }
-}
 
-@media (max-width: 720px) {
   .estancia__header-top {
     flex-direction: column;
     align-items: flex-start;

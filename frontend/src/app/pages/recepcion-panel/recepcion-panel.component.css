@@ -610,7 +610,7 @@
 
 .panel__cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 18px;
 }
 
@@ -885,30 +885,7 @@
   background: #dbeafe;
 }
 
-@media (max-width: 980px) {
-  .panel {
-    padding: 20px;
-  }
-
-  .panel__grid {
-    grid-template-columns: 1fr;
-  }
-
-  .panel__unit-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .panel__cards {
-    grid-template-columns: 1fr;
-  }
-
-  .panel__title {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .panel__summary,
   .panel__section {
     padding: 16px;
@@ -1453,19 +1430,7 @@
   color: #b42318;
 }
 
-@media (max-width: 1200px) {
-  .panel__payments-list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 980px) {
-  .panel__payments-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .panel__card-actions {
     width: 100%;
     justify-content: space-between;

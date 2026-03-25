@@ -17,6 +17,7 @@
   color: var(--ink);
   display: grid;
   gap: 14px;
+  overflow-x: hidden;
 }
 
 .calendario__header,
@@ -317,7 +318,10 @@
 }
 
 .calendario__board {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   padding: 0;
   border: none;
   border-radius: 0;
@@ -329,6 +333,7 @@
   display: grid;
   grid-template-columns: 280px minmax(760px, 1fr);
   gap: 10px;
+  min-width: 1050px;
 }
 
 .calendario__table {
@@ -685,26 +690,7 @@
   white-space: pre-line;
 }
 
-@media (max-width: 1100px) {
-  .calendario__filters-grid--principal {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .calendario__filters-actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-  }
-
-  .calendario__filters-grid--estados {
-    grid-template-columns: 1fr;
-  }
-
-  .calendario__filters-count {
-    margin-left: 0;
-  }
-}
-
-@media (max-width: 900px) {
+@media (max-width: 576px) {
   .calendario {
     padding: 14px;
   }
@@ -713,8 +699,24 @@
     flex-direction: column;
   }
 
-  .calendario__tables {
-    grid-template-columns: 220px minmax(720px, 1fr);
+  .calendario__header h1 {
+    font-size: 28px;
+  }
+
+  .calendario__filters-grid--principal {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .calendario__filters-grid--estados {
+    grid-template-columns: 1fr;
+  }
+
+  .calendario__filters-grid--principal .calendario__filters-actions {
+    grid-column: 1 / -1;
+  }
+
+  .calendario__filters-actions {
+    justify-content: flex-start;
   }
 
   .calendario__toolbar {
@@ -722,16 +724,15 @@
     gap: 8px;
   }
 
-  .calendario__toolbar-spacer {
-    display: none;
+  .calendario__tables {
+    grid-template-columns: 155px minmax(350px, 1fr);
+    min-width: 530px;
+    gap: 8px;
   }
 
   .calendario__header-actions--toolbar {
-    justify-content: center;
-  }
-
-  .modal__grid {
-    grid-template-columns: 1fr;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .modal__info-grid {

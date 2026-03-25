@@ -16,22 +16,39 @@
 
 <header class="app-header" *ngIf="isAppShellVisible">
   <div class="app-header__brand">Hotel</div>
-  <nav class="app-header__nav">
-    <a routerLink="/dashboard" routerLinkActive="is-active">Dashboard</a>
-    <a routerLink="/monitor-eventos" routerLinkActive="is-active">Eventos</a>
-    <a routerLink="/recepcion" routerLinkActive="is-active">Recepcion</a>
-    <a routerLink="/calendario" routerLinkActive="is-active">Calendario</a>
-    <a routerLink="/reservas" routerLinkActive="is-active">Reservas</a>
-    <a routerLink="/estancias" routerLinkActive="is-active">Estancias</a>
-    <a routerLink="/pagos" routerLinkActive="is-active">Pagos</a>
-    <a routerLink="/ocupantes/tabla-clientes" routerLinkActive="is-active">Clientes</a>
-    <a routerLink="/ajustes" routerLinkActive="is-active">Ajustes</a>
+  <button
+    type="button"
+    class="app-header__menu-toggle"
+    [class.app-header__menu-toggle--open]="isMobileMenuOpen"
+    [attr.aria-expanded]="isMobileMenuOpen"
+    aria-label="Abrir menu"
+    (click)="toggleMobileMenu()"
+  >
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <nav class="app-header__nav" [class.app-header__nav--open]="isMobileMenuOpen">
+    <a routerLink="/dashboard" routerLinkActive="is-active" (click)="closeMobileMenu()">Dashboard</a>
+    <a routerLink="/monitor-eventos" routerLinkActive="is-active" (click)="closeMobileMenu()">Eventos</a>
+    <a routerLink="/recepcion" routerLinkActive="is-active" (click)="closeMobileMenu()">Recepcion</a>
+    <a routerLink="/calendario" routerLinkActive="is-active" (click)="closeMobileMenu()">Calendario</a>
+    <a routerLink="/reservas" routerLinkActive="is-active" (click)="closeMobileMenu()">Reservas</a>
+    <a routerLink="/estancias" routerLinkActive="is-active" (click)="closeMobileMenu()">Estancias</a>
+    <a routerLink="/pagos" routerLinkActive="is-active" (click)="closeMobileMenu()">Pagos</a>
+    <a routerLink="/ocupantes/tabla-clientes" routerLinkActive="is-active" (click)="closeMobileMenu()">Clientes</a>
+    <a routerLink="/ajustes" routerLinkActive="is-active" (click)="closeMobileMenu()">Ajustes</a>
+    <button class="app-header__logout app-header__logout--menu" *ngIf="authState().isAuthenticated" (click)="logout()">
+      Cerrar sesion
+    </button>
   </nav>
   <div class="app-header__user" *ngIf="authState().isAuthenticated">
     <span class="app-header__user-name">{{ authState().token ? 'Usuario' : '' }}</span>
     <button class="app-header__logout" (click)="logout()">Cerrar sesión</button>
   </div>
 </header>
+
+<button class="app-header__backdrop" *ngIf="isAppShellVisible && isMobileMenuOpen" (click)="closeMobileMenu()" aria-label="Cerrar menu"></button>
 
 <main class="app-main" [class.app-shell--loading]="isLoading">
   <router-outlet></router-outlet>

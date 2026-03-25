@@ -700,7 +700,7 @@
   box-shadow: 0 8px 14px rgba(52, 68, 59, 0.12);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .modal__search-form {
     grid-template-columns: 1fr;
   }
@@ -748,7 +748,7 @@
   color: var(--reserva-ink-soft);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 576px) {
   .reserva-nueva {
     padding: 18px 14px 24px;
   }
@@ -773,6 +773,7 @@
 
   .reserva-nueva__summary {
     position: static;
+    order: 2;
   }
 
   .pago__fila,
