@@ -894,7 +894,7 @@
   padding: 0 16px 12px;
   margin: 0;
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -1675,6 +1675,10 @@
 
   .filtro--codigo input {
     max-width: none;
+  }
+
+  .unidad__habitaciones {
+    grid-template-columns: 1fr;
   }
 
   .filtro input,
